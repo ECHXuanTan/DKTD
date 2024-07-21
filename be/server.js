@@ -30,7 +30,7 @@ const corsOptions = {
       'https://dkmh-deploy-1.onrender.com',
       'http://localhost:3000',
       'https://dkmh.ptnk.edu.vn',
-      'https://dkmh-client.onrender.com'
+      'https://khaibao-client.onrender.com'
       // Thêm các domain khác ở đây
     ].filter(Boolean);
 
