@@ -1,0 +1,43 @@
+.dashboardMinistry {
+    padding: 20px;
+    max-width: 1370px;
+    margin: 0 auto;
+    width: 95%;
+    min-height: 75vh;
+}
+
+.loadingContainer {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+}
+
+.table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.table th,
+.table td {
+    border: 1px solid #ddd;
+    padding: 12px;
+    text-align: left;
+    vertical-align: top;
+}
+
+.table th {
+    background-color: #f2f2f2;
+    font-weight: bold;
+}
+
+.table tr:nth-child(even) {
+    background-color: #f9f9f9;
+}
+
+@media (max-width: 768px) {
+    .dashboardMinistry {
+        padding: 10px;
+        width: 100%;
+    }
+}

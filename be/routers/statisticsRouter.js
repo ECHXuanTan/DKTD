@@ -1,0 +1,807 @@
+import express from 'express';
+import mongoose from 'mongoose';
+import { isAuth } from '../utils.js';
+import Teacher from '../models/teacherModel.js';
+import TeacherAssignment from '../models/teacherAssignmentModels.js';
+import Class from '../models/classModels.js';
+import Subject from '../models/subjectModels.js';
+import User from '../models/userModel.js';
+
+const statisticsRouter = express.Router();
+
+statisticsRouter.get('/department-teachers', isAuth, async (req, res) => {
+  try {
+    const user = await User.findById(req.user._id).populate('teacher');
+    if (!user || !user.teacher) {
+      return res.status(403).json({ message: 'Không có quyền truy cập' });
+    }
+
+    if (!user.teacher.isLeader) {
+      return res.status(403).json({ message: 'Chỉ tổ trưởng mới có quyền truy cập thông tin này' });
+    }
+
+    const departmentId = user.teacher.department;
+
+    const teachers = await Teacher.find({ department: departmentId }).populate('department', 'name');
+
+    const teachersData = await Promise.all(teachers.map(async (teacher) => {
+      const assignments = await TeacherAssignment.find({ teacher: teacher._id })
+        .populate('class', 'name grade')
+        .populate('subject', 'name');
+
+      const teachingDetails = assignments.map(assignment => ({
+        className: assignment.class.name,
+        grade: assignment.class.grade,
+        subjectName: assignment.subject.name,
+        completedLessons: assignment.completedLessons
+      }));
+
+      return {
+        id: teacher._id,
+        name: teacher.name,
+        type: teacher.type,
+        lessonsPerWeek: teacher.lessonsPerWeek,
+        teachingWeeks: teacher.teachingWeeks,
+        basicTeachingLessons: teacher.basicTeachingLessons,
+        totalAssignment: teacher.totalAssignment,
+        departmentName: teacher.department.name,
+        teachingDetails: teachingDetails
+      };
+    }));
+
+    res.status(200).json(teachersData);
+  } catch (error) {
+    console.error('Error in getting department teachers:', error);
+    res.status(500).json({ message: 'Lỗi server', error: error.message });
+  }
+});
+
+statisticsRouter.get('/all-teachers', isAuth, async (req, res) => {
+  try {
+    const teachers = await Teacher.find().populate('department', 'name');
+
+    const teachersData = await Promise.all(teachers.map(async (teacher) => {
+      const assignments = await TeacherAssignment.find({ teacher: teacher._id })
+        .populate('class', 'name grade')
+        .populate('subject', 'name');
+
+      const teachingDetails = assignments.map(assignment => ({
+        className: assignment.class.name,
+        grade: assignment.class.grade,
+        subjectName: assignment.subject.name,
+        completedLessons: assignment.completedLessons
+      }));
+
+      return {
+        id: teacher._id,
+        name: teacher.name,
+        type: teacher.type,
+        lessonsPerWeek: teacher.lessonsPerWeek,
+        teachingWeeks: teacher.teachingWeeks,
+        basicTeachingLessons: teacher.basicTeachingLessons,
+        totalAssignment: teacher.totalAssignment,
+        departmentName: teacher.department.name,
+        teachingDetails: teachingDetails
+      };
+    }));
+
+    res.status(200).json(teachersData);
+  } catch (error) {
+    console.error('Error in getting all teachers:', error);
+    res.status(500).json({ message: 'Lỗi server', error: error.message });
+  }
+});
+
+statisticsRouter.get('/teachers-below-basic', isAuth, async (req, res) => {
+  try {
+    const { departmentId } = req.query;
+    let query = {
+      $expr: { $lt: ['$totalAssignment', '$basicTeachingLessons'] }
+    };
+
+    if (departmentId) {
+      query.department = new mongoose.Types.ObjectId(departmentId);
+    }
+
+    const teachers = await Teacher.find(query).populate('department', 'name');
+
+    const teachersData = await Promise.all(teachers.map(async (teacher) => {
+      const assignments = await TeacherAssignment.find({ teacher: teacher._id })
+        .populate('class', 'name grade')
+        .populate('subject', 'name');
+
+      const teachingDetails = assignments.map(assignment => ({
+        className: assignment.class.name,
+        grade: assignment.class.grade,
+        subjectName: assignment.subject.name,
+        completedLessons: assignment.completedLessons
+      }));
+
+      return {
+        id: teacher._id,
+        name: teacher.name,
+        type: teacher.type,
+        lessonsPerWeek: teacher.lessonsPerWeek,
+        teachingWeeks: teacher.teachingWeeks,
+        basicTeachingLessons: teacher.basicTeachingLessons,
+        totalAssignment: teacher.totalAssignment,
+        departmentName: teacher.department.name,
+        teachingDetails: teachingDetails
+      };
+    }));
+
+    res.status(200).json(teachersData);
+  } catch (error) {
+    console.error('Error in getting teachers below basic lessons:', error);
+    res.status(500).json({ message: 'Lỗi server', error: error.message });
+  }
+});
+
+statisticsRouter.get('/teachers-above-threshold', isAuth, async (req, res) => {
+  try {
+    const { departmentId } = req.query;
+    let query = {
+      $expr: {
+        $gt: [
+          { $subtract: ['$totalAssignment', '$basicTeachingLessons'] },
+          { $multiply: ['$basicTeachingLessons', 0.25] }
+        ]
+      }
+    };
+
+    if (departmentId) {
+      query.department = new mongoose.Types.ObjectId(departmentId);
+    }
+
+    const teachers = await Teacher.find(query).populate('department', 'name');
+
+    const teachersData = await Promise.all(teachers.map(async (teacher) => {
+      const assignments = await TeacherAssignment.find({ teacher: teacher._id })
+        .populate('class', 'name grade')
+        .populate('subject', 'name');
+
+      const teachingDetails = assignments.map(assignment => ({
+        className: assignment.class.name,
+        grade: assignment.class.grade,
+        subjectName: assignment.subject.name,
+        completedLessons: assignment.completedLessons
+      }));
+
+      return {
+        id: teacher._id,
+        name: teacher.name,
+        type: teacher.type,
+        lessonsPerWeek: teacher.lessonsPerWeek,
+        teachingWeeks: teacher.teachingWeeks,
+        basicTeachingLessons: teacher.basicTeachingLessons,
+        totalAssignment: teacher.totalAssignment,
+        excessLessons: teacher.totalAssignment - teacher.basicTeachingLessons,
+        departmentName: teacher.department.name,
+        teachingDetails: teachingDetails
+      };
+    }));
+
+    res.status(200).json(teachersData);
+  } catch (error) {
+    console.error('Error in getting teachers above threshold:', error);
+    res.status(500).json({ message: 'Lỗi server', error: error.message });
+  }
+});
+
+statisticsRouter.get('/teacher-assignments/:teacherId', isAuth, async (req, res) => {
+  try {
+    const { teacherId } = req.params;
+
+    const teacher = await Teacher.findById(teacherId).populate('department');
+    if (!teacher) {
+      return res.status(404).json({ message: 'Không tìm thấy giáo viên' });
+    }
+
+    const assignments = await TeacherAssignment.aggregate([
+      {
+        $match: { teacher: new mongoose.Types.ObjectId(teacherId) }
+      },
+      {
+        $lookup: {
+          from: 'classes',
+          localField: 'class',
+          foreignField: '_id',
+          as: 'classInfo'
+        }
+      },
+      {
+        $unwind: '$classInfo'
+      },
+      {
+        $lookup: {
+          from: 'subjects',
+          localField: 'subject',
+          foreignField: '_id',
+          as: 'subjectInfo'
+        }
+      },
+      {
+        $unwind: '$subjectInfo'
+      },
+      {
+        $project: {
+          grade: '$classInfo.grade',
+          className: '$classInfo.name',
+          subjectName: '$subjectInfo.name',
+          assignedLessons: '$completedLessons',
+          lessonCount: {
+            $arrayElemAt: [
+              {
+                $filter: {
+                  input: '$classInfo.subjects',
+                  as: 'subject',
+                  cond: { $eq: ['$$subject.subject', '$subject'] }
+                }
+              },
+              0
+            ]
+          }
+        }
+      },
+      {
+        $project: {
+          grade: 1,
+          className: 1,
+          subjectName: 1,
+          assignedLessons: 1,
+          declaredLessons: '$lessonCount.lessonCount'
+        }
+      },
+      {
+        $sort: { grade: 1, className: 1, subjectName: 1 }
+      }
+    ]);
+
+    const result = {
+      teacherName: teacher.name,
+      departmentName: teacher.department.name,
+      basicTeachingLessons: teacher.basicTeachingLessons,
+      teachingWeeks: teacher.teachingWeeks,
+      lessonsPerWeek: teacher.lessonsPerWeek,
+      totalAssignment: teacher.totalAssignment,
+      assignments: assignments.map(assignment => ({
+        grade: assignment.grade,
+        className: assignment.className,
+        subjectName: assignment.subjectName,
+        assignedLessons: assignment.assignedLessons,
+        declaredLessons: assignment.declaredLessons
+      }))
+    };
+
+    res.status(200).json(result);
+  } catch (error) {
+    console.error('Error in getting teacher assignments:', error);
+    res.status(500).json({ message: 'Lỗi server', error: error.message });
+  }
+});
+
+
+statisticsRouter.get('/all-classes', isAuth, async (req, res) => {
+  try {
+    const classes = await Class.aggregate([
+      {
+        $lookup: {
+          from: 'subjects',
+          localField: 'subjects.subject',
+          foreignField: '_id',
+          as: 'subjectDetails'
+        }
+      },
+      {
+        $lookup: {
+          from: 'teacherassignments',
+          let: { classId: '$_id', subjectIds: '$subjects.subject' },
+          pipeline: [
+            {
+              $match: {
+                $expr: {
+                  $and: [
+                    { $eq: ['$class', '$$classId'] },
+                    { $in: ['$subject', '$$subjectIds'] }
+                  ]
+                }
+              }
+            },
+            {
+              $lookup: {
+                from: 'teachers',
+                localField: 'teacher',
+                foreignField: '_id',
+                as: 'teacherInfo'
+              }
+            },
+            {
+              $unwind: '$teacherInfo'
+            },
+            {
+              $project: {
+                _id: 1,
+                teacherId: '$teacher',
+                teacherName: '$teacherInfo.name',
+                completedLessons: 1,
+                subject: 1
+              }
+            }
+          ],
+          as: 'assignments'
+        }
+      },
+      {
+        $project: {
+          className: '$name',
+          grade: 1,
+          classId: '$_id',
+          subjects: {
+            $map: {
+              input: '$subjects',
+              as: 'subject',
+              in: {
+                $mergeObjects: [
+                  {
+                    $arrayElemAt: [
+                      {
+                        $filter: {
+                          input: '$subjectDetails',
+                          as: 'sd',
+                          cond: { $eq: ['$$sd._id', '$$subject.subject'] }
+                        }
+                      },
+                      0
+                    ]
+                  },
+                  {
+                    lessonCount: '$$subject.lessonCount',
+                    assignments: {
+                      $filter: {
+                        input: '$assignments',
+                        as: 'assignment',
+                        cond: { $eq: ['$$assignment.subject', '$$subject.subject'] }
+                      }
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        }
+      },
+      {
+        $project: {
+          className: 1,
+          grade: 1,
+          classId: 1,
+          subjects: {
+            $map: {
+              input: '$subjects',
+              as: 'subject',
+              in: {
+                name: '$$subject.name',
+                lessonCount: '$$subject.lessonCount',
+                assignments: '$$subject.assignments'
+              }
+            }
+          }
+        }
+      }
+    ]);
+
+    res.status(200).json(classes);
+  } catch (error) {
+    console.error('Error in getting all classes:', error);
+    res.status(500).json({ message: 'Lỗi server', error: error.message });
+  }
+});
+
+statisticsRouter.get('/subject-statistics', isAuth, async (req, res) => {
+  try {
+    const subjectStatistics = await Subject.aggregate([
+      {
+        $lookup: {
+          from: 'classes',
+          localField: '_id',
+          foreignField: 'subjects.subject',
+          as: 'classes'
+        }
+      },
+      {
+        $unwind: '$classes'
+      },
+      {
+        $lookup: {
+          from: 'teacherassignments',
+          let: { subjectId: '$_id', classId: '$classes._id' },
+          pipeline: [
+            {
+              $match: {
+                $expr: {
+                  $and: [
+                    { $eq: ['$subject', '$$subjectId'] },
+                    { $eq: ['$class', '$$classId'] }
+                  ]
+                }
+              }
+            },
+            {
+              $lookup: {
+                from: 'teachers',
+                localField: 'teacher',
+                foreignField: '_id',
+                as: 'teacherInfo'
+              }
+            },
+            {
+              $unwind: '$teacherInfo'
+            }
+          ],
+          as: 'assignments'
+        }
+      },
+      {
+        $group: {
+          _id: {
+            subjectId: '$_id',
+            subjectName: '$name',
+            classId: '$classes._id',
+            className: '$classes.name',
+            grade: '$classes.grade'  // Thêm grade vào _id
+          },
+          declaredLessons: {
+            $first: {
+              $arrayElemAt: [
+                {
+                  $filter: {
+                    input: '$classes.subjects',
+                    as: 'subject',
+                    cond: { $eq: ['$$subject.subject', '$_id'] }
+                  }
+                },
+                0
+              ]
+            }
+          },
+          assignments: { $first: '$assignments' }
+        }
+      },
+      {
+        $project: {
+          _id: 0,
+          subjectId: '$_id.subjectId',
+          subjectName: '$_id.subjectName',
+          classId: '$_id.classId',
+          className: '$_id.className',
+          grade: '$_id.grade',  // Thêm grade vào kết quả
+          declaredLessons: '$declaredLessons.lessonCount',
+          assignments: {
+            $map: {
+              input: '$assignments',
+              as: 'assignment',
+              in: {
+                teacherId: '$$assignment.teacher',
+                teacherName: '$$assignment.teacherInfo.name',
+                assignedLessons: '$$assignment.completedLessons'
+              }
+            }
+          }
+        }
+      },
+      {
+        $group: {
+          _id: {
+            subjectId: '$subjectId',
+            subjectName: '$subjectName'
+          },
+          classes: {
+            $push: {
+              classId: '$classId',
+              className: '$className',
+              grade: '$grade',  // Thêm grade vào mảng classes
+              declaredLessons: '$declaredLessons',
+              assignments: '$assignments'
+            }
+          }
+        }
+      },
+      {
+        $project: {
+          _id: 0,
+          subjectId: '$_id.subjectId',
+          subjectName: '$_id.subjectName',
+          classes: 1
+        }
+      },
+      {
+        $sort: { subjectName: 1 }
+      }
+    ]);
+
+    res.status(200).json(subjectStatistics);
+  } catch (error) {
+    console.error('Error in getting subject statistics:', error);
+    res.status(500).json({ message: 'Lỗi server', error: error.message });
+  }
+});
+
+
+statisticsRouter.get('/class/:classId', isAuth, async (req, res) => {
+  try {
+    const { classId } = req.params;
+    
+    const classData = await Class.aggregate([
+      {
+        $match: { _id: new mongoose.Types.ObjectId(classId) }
+      },
+      {
+        $lookup: {
+          from: 'subjects',
+          localField: 'subjects.subject',
+          foreignField: '_id',
+          as: 'subjectDetails'
+        }
+      },
+      {
+        $lookup: {
+          from: 'teacherassignments',
+          let: { classId: '$_id', subjectIds: '$subjects.subject' },
+          pipeline: [
+            {
+              $match: {
+                $expr: {
+                  $and: [
+                    { $eq: ['$class', '$$classId'] },
+                    { $in: ['$subject', '$$subjectIds'] }
+                  ]
+                }
+              }
+            },
+            {
+              $lookup: {
+                from: 'teachers',
+                localField: 'teacher',
+                foreignField: '_id',
+                as: 'teacherInfo'
+              }
+            },
+            {
+              $unwind: '$teacherInfo'
+            },
+            {
+              $project: {
+                _id: 1,
+                teacherId: '$teacher',
+                teacherName: '$teacherInfo.name',
+                completedLessons: 1,
+                subject: 1
+              }
+            }
+          ],
+          as: 'assignments'
+        }
+      },
+      {
+        $project: {
+          className: '$name',
+          grade: 1,
+          classId: '$_id',
+          subjects: {
+            $map: {
+              input: '$subjects',
+              as: 'subject',
+              in: {
+                $mergeObjects: [
+                  {
+                    $arrayElemAt: [
+                      {
+                        $filter: {
+                          input: '$subjectDetails',
+                          as: 'sd',
+                          cond: { $eq: ['$$sd._id', '$$subject.subject'] }
+                        }
+                      },
+                      0
+                    ]
+                  },
+                  {
+                    lessonCount: '$$subject.lessonCount',
+                    assignments: {
+                      $filter: {
+                        input: '$assignments',
+                        as: 'assignment',
+                        cond: { $eq: ['$$assignment.subject', '$$subject.subject'] }
+                      }
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        }
+      },
+      {
+        $project: {
+          className: 1,
+          grade: 1,
+          classId: 1,
+          subjects: {
+            $map: {
+              input: '$subjects',
+              as: 'subject',
+              in: {
+                name: '$$subject.name',
+                lessonCount: '$$subject.lessonCount',
+                assignments: '$$subject.assignments'
+              }
+            }
+          }
+        }
+      }
+    ]);
+
+    if (classData.length === 0) {
+      return res.status(404).json({ message: 'Không tìm thấy lớp' });
+    }
+
+    res.status(200).json(classData[0]);
+  } catch (error) {
+    console.error('Error in getting class data:', error);
+    res.status(500).json({ message: 'Lỗi server', error: error.message });
+  }
+});
+
+statisticsRouter.get('/subject-statistics/:subjectId', isAuth, async (req, res) => {
+  try {
+    const { subjectId } = req.params;
+    const { grade } = req.query;
+
+    let pipeline = [
+      {
+        $match: {
+          _id: new mongoose.Types.ObjectId(subjectId)
+        }
+      },
+      {
+        $lookup: {
+          from: 'classes',
+          localField: '_id',
+          foreignField: 'subjects.subject',
+          as: 'classes'
+        }
+      },
+      {
+        $unwind: '$classes'
+      }
+    ];
+
+    if (grade && !isNaN(parseInt(grade))) {
+      pipeline.push({
+        $match: {
+          'classes.grade': parseInt(grade)
+        }
+      });
+    }
+
+    pipeline = pipeline.concat([
+      {
+        $lookup: {
+          from: 'teacherassignments',
+          let: { subjectId: '$_id', classId: '$classes._id' },
+          pipeline: [
+            {
+              $match: {
+                $expr: {
+                  $and: [
+                    { $eq: ['$subject', '$$subjectId'] },
+                    { $eq: ['$class', '$$classId'] }
+                  ]
+                }
+              }
+            },
+            {
+              $lookup: {
+                from: 'teachers',
+                localField: 'teacher',
+                foreignField: '_id',
+                as: 'teacherInfo'
+              }
+            },
+            {
+              $unwind: '$teacherInfo'
+            }
+          ],
+          as: 'assignments'
+        }
+      },
+      {
+        $group: {
+          _id: {
+            subjectId: '$_id',
+            subjectName: '$name',
+            classId: '$classes._id',
+            className: '$classes.name',
+            grade: '$classes.grade'
+          },
+          declaredLessons: {
+            $first: {
+              $arrayElemAt: [
+                {
+                  $filter: {
+                    input: '$classes.subjects',
+                    as: 'subject',
+                    cond: { $eq: ['$$subject.subject', '$_id'] }
+                  }
+                },
+                0
+              ]
+            }
+          },
+          assignments: { $first: '$assignments' }
+        }
+      },
+      {
+        $project: {
+          _id: 0,
+          subjectId: '$_id.subjectId',
+          subjectName: '$_id.subjectName',
+          classId: '$_id.classId',
+          className: '$_id.className',
+          grade: '$_id.grade',
+          declaredLessons: '$declaredLessons.lessonCount',
+          assignments: {
+            $map: {
+              input: '$assignments',
+              as: 'assignment',
+              in: {
+                teacherId: '$$assignment.teacher',
+                teacherName: '$$assignment.teacherInfo.name',
+                assignedLessons: '$$assignment.completedLessons'
+              }
+            }
+          }
+        }
+      },
+      {
+        $group: {
+          _id: {
+            subjectId: '$subjectId',
+            subjectName: '$subjectName'
+          },
+          classes: {
+            $push: {
+              classId: '$classId',
+              className: '$className',
+              grade: '$grade',
+              declaredLessons: '$declaredLessons',
+              assignments: '$assignments'
+            }
+          }
+        }
+      },
+      {
+        $project: {
+          _id: 0,
+          subjectId: '$_id.subjectId',
+          subjectName: '$_id.subjectName',
+          classes: 1
+        }
+      }
+    ]);
+
+    const subjectStatistics = await Subject.aggregate(pipeline);
+
+    if (subjectStatistics.length === 0) {
+      return res.status(404).json({ message: 'Không tìm thấy môn học' });
+    }
+
+    res.status(200).json(subjectStatistics[0]);
+  } catch (error) {
+    console.error('Error in getting subject statistics:', error);
+    res.status(500).json({ message: 'Lỗi server', error: error.message });
+  }
+});
+
+
+export default statisticsRouter;

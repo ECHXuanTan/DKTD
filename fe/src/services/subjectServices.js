@@ -15,3 +15,19 @@ export const getSubject = async () => {
     throw error;
   }
 };
+
+export const getSubjectsByDepartment = async (departmentId) => {
+  try {
+    const userToken = localStorage.getItem('userToken');
+    const response = await api.get(`api/subjects/department/${departmentId}`, {
+      headers: {
+        'Content-type': 'application/json',
+        Authorization: `Bearer ${userToken}`,
+      },
+    });
+    return response.data;
+  } catch (error) {
+    console.error('Error fetching subjects by department:', error);
+    throw error;
+  }
+};

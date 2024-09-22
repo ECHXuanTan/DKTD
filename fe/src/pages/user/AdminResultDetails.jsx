@@ -32,12 +32,18 @@ const AdminResultDetail = () => {
 
   const renderEntityInfo = () => {
     if (result.entityType === 'Teacher') {
+      const teacherName = result.action === 'DELETE' 
+        ? result.dataBefore?.name 
+        : result.dataAfter?.name;
       return (
-        <p><strong>Giáo viên được chỉnh sửa:</strong> {result.dataBefore.name}</p>
+        <p><strong>Giáo viên được chỉnh sửa:</strong> {teacherName || 'Không có thông tin'}</p>
       );
-    } else if (result.entityType === 'Department') {
+    } else if (result.entityType === 'Class') {
+      const className = result.action === 'DELETE'
+        ? result.dataBefore?.name
+        : result.dataAfter?.name;
       return (
-        <p><strong>Tổ bộ môn được chỉnh sửa:</strong> {result.dataBefore.name}</p>
+        <p><strong>Lớp được chỉnh sửa:</strong> {className || 'Không có thông tin'}</p>
       );
     }
     return null;
@@ -62,6 +68,8 @@ const AdminResultDetail = () => {
         return 'Giáo viên';
       case 'Department':
         return 'Tổ bộ môn';
+      case 'Class':
+        return 'Lớp học';
       default:
         return type;
     }
@@ -72,10 +80,17 @@ const AdminResultDetail = () => {
       name: 'Tên',
       email: 'Email',
       phone: 'Số điện thoại',
-      teachingHours: 'Số giờ dạy',
-      salary: 'Lương',
-      totalAssignmentTime: 'Tổng thời gian phân công',
-      salaryPrice: 'Đơn giá lương'
+      position: 'Chức vụ',
+      department: 'Tổ bộ môn',
+      isLeader: 'Là tổ trưởng',
+      type: 'Loại giáo viên',
+      totalAssignment: 'Tổng số tiết được phân công',
+      lessonsPerWeek: 'Số tiết/tuần',
+      teachingWeeks: 'Số tuần dạy',
+      basicTeachingLessons: 'Số tiết cơ bản',
+      grade: 'Khối',
+      campus: 'Cơ sở',
+      subjects: 'Các môn học'
     };
     return translations[field] || field;
   };
@@ -85,19 +100,37 @@ const AdminResultDetail = () => {
     return new Date(dateString).toLocaleDateString('vi-VN', options);
   };
 
-  const renderChanges = (before, after) => {
+  const renderChanges = (data) => {
+    if (!data) return <p>Không có dữ liệu</p>;
+
     const changes = [];
-    const relevantFields = result.entityType === 'Teacher' 
-      ? ['name', 'email', 'phone', 'teachingHours', 'salary']
-      : ['totalAssignmentTime', 'salaryPrice'];
+    const relevantFields = result.entityType === 'Class'
+      ? ['name', 'grade', 'campus', 'subjects']
+      : ['name', 'email', 'phone', 'position', 'department', 'isLeader', 'type',
+         'totalAssignment', 'lessonsPerWeek', 'teachingWeeks', 'basicTeachingLessons'];
 
     relevantFields.forEach(field => {
-      if (before[field] !== after[field]) {
-        changes.push(
-          <p key={field}>
-            <strong>{translateField(field)}:</strong> {before[field]} → {after[field]}
-          </p>
-        );
+      if (data[field] !== undefined) {
+        if (field === 'subjects' && Array.isArray(data[field])) {
+          changes.push(
+            <div key={field}>
+              <strong>{translateField(field)}:</strong>
+              <ul>
+                {data[field].map((subject, index) => (
+                  <li key={index}>
+                    Môn học ID: {subject.subject}, Số tiết: {subject.lessonCount}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          );
+        } else {
+          changes.push(
+            <p key={field}>
+              <strong>{translateField(field)}:</strong> {data[field].toString()}
+            </p>
+          );
+        }
       }
     });
 
@@ -134,21 +167,24 @@ const AdminResultDetail = () => {
           {renderEntityInfo()}
 
           <h2>Nội dung thay đổi</h2>
-          {result.action === 'UPDATE' && (
-            <div className="changes">
-              {renderChanges(result.dataBefore, result.dataAfter)}
-            </div>
-          )}
           {result.action === 'CREATE' && (
             <div className="changes">
               <h3>Dữ liệu được tạo:</h3>
-              {renderChanges({}, result.dataAfter)}
+              {renderChanges(result.dataAfter)}
+            </div>
+          )}
+          {result.action === 'UPDATE' && (
+            <div className="changes">
+              <h3>Dữ liệu trước khi cập nhật:</h3>
+              {renderChanges(result.dataBefore)}
+              <h3>Dữ liệu sau khi cập nhật:</h3>
+              {renderChanges(result.dataAfter)}
             </div>
           )}
           {result.action === 'DELETE' && (
             <div className="changes">
               <h3>Dữ liệu đã xóa:</h3>
-              {renderChanges(result.dataBefore, {})}
+              {renderChanges(result.dataBefore)}
             </div>
           )}
         </div>

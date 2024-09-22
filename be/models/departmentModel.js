@@ -3,8 +3,7 @@ import mongoose from "mongoose";
 const departmentSchema = new mongoose.Schema({
     name:{ type: String, required: true },
     totalAssignmentTime:{ type: Number,},
-    salaryPrice:{ type: Number,},
-    declaredTeachingTime: { type: Number, default: 0 },
+    declaredTeachingLessons: { type: Number, default: 0 },
   },
   {
     timestamps: true,

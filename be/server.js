@@ -8,6 +8,11 @@ import userRoutes from "./routers/userRoutes.js";
 import resultRoutes from "./routers/resultRoutes.js";
 import departmentRoutes from "./routers/departmentRoutes.js";
 import teacherRoutes from "./routers/teacherRoutes.js";
+import subjectRouter from "./routers/subjectRoutes.js";
+import classRouter from "./routers/classRouters.js";
+import assignmentRouter from "./routers/assignmentRouter.js";
+import statisticsRouter from "./routers/statisticsRouter.js";
+
 dotenv.config();
 
 mongoose
@@ -61,6 +66,10 @@ app.use('/api/results', resultRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/departments', departmentRoutes);
 app.use('/api/teachers', teacherRoutes);
+app.use('/api/subjects', subjectRouter);
+app.use('/api/class', classRouter);
+app.use('/api/assignment', assignmentRouter);
+app.use('/api/statistics', statisticsRouter);
 
 
 app.get ('/', (req, res) => {

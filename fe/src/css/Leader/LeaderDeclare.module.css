@@ -1,0 +1,145 @@
+.dashboardLeader {
+    padding: 20px;
+    max-width: 1370px;
+    margin: 0 auto;
+    width: 95%;
+    min-height: 75vh;
+}
+
+.loadingContainer {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+}
+
+.welcomeBox {
+    background-color: #f8f9fa;
+    padding: 50px 24px;
+    border-radius: 12px;
+    margin-bottom: 24px;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+.welcomeTitle {
+    margin-bottom: 20px;
+    color: #2c3e50;
+    font-size: 2.5rem !important;
+    font-weight: 600 !important;
+}
+
+.statsGrid {
+    margin-top: 24px !important;
+}
+
+.statBox {
+    padding: 20px;
+    text-align: center;
+    height: 100%;
+    border-radius: 8px;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    transition: transform 0.3s ease;
+}
+
+.statBox:hover {
+    transform: translateY(-5px);
+}
+
+.statBox h6 {
+    font-weight: 600;
+    margin-bottom: 12px;
+}
+
+.statBox h4 {
+    font-size: 2.5rem;
+    font-weight: bold;
+}
+
+.blueBox {
+    background-color: #3498db !important;
+    color: #ecf0f1 !important;
+}
+
+.greenBox {
+    background-color: #2ecc71 !important;
+    color: #ecf0f1 !important;
+}
+
+.orangeBox {
+    background-color: #f39c12 !important;
+    color: #ecf0f1 !important;
+}
+
+.redBox {
+    background-color: #e74c3c !important;
+    color: #ecf0f1 !important;
+}
+
+.table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.tableHeader {
+    background-color: #f2f2f2;
+    font-weight: bold;
+    color: #2c3e50;
+    padding: 12px;
+    text-align: left;
+    border: 1px solid #ddd;
+}
+
+.table td {
+    padding: 12px;
+    text-align: left;
+    border: 1px solid #ddd;
+}
+
+.table tr:nth-child(even) {
+    background-color: #f9f9f9;
+}
+
+.table tr:hover {
+    background-color: #f5f5f5;
+}
+
+.warningButton {
+    background-color: #e74c3c !important;
+    color: white !important;
+    transition: background-color 0.3s ease !important;
+}
+
+.warningButton:hover {
+    background-color: #c0392b !important;
+}
+
+@media (max-width: 768px) {
+    .dashboardLeader {
+        padding: 16px;
+        width: 100%;
+    }
+
+    .welcomeTitle {
+        font-size: 2rem !important;
+    }
+
+    .statBox {
+        padding: 16px;
+    }
+
+    .statBox h6 {
+        font-size: 0.9rem;
+    }
+
+    .statBox h4 {
+        font-size: 2rem;
+    }
+
+    .table {
+        font-size: 0.9rem;
+    }
+
+    .tableHeader, .table td {
+        padding: 8px;
+    }
+}

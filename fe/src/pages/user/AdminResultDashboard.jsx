@@ -1,23 +1,19 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { getAllResult } from '../../services/resultServices';
-import { getUser, logout } from '../../services/authServices';
-import { getDepartmentNames } from '../../services/departmentService';
-import '../../css/AdminResult.css';
-import { Box, Typography, useTheme, TextField, InputAdornment, Button, Select, MenuItem, FormControl, InputLabel } from '@mui/material';
+import { getUser } from '../../services/authServices';
+import { getAllDepartment } from '../../services/departmentService';
+import styles from '../../css/Admin/AdminActionResultScreen.module.css';
+import { Box, Typography, TextField, InputAdornment, Button, Select, MenuItem, FormControl, InputLabel } from '@mui/material';
 import { DataGrid } from '@mui/x-data-grid';
-import { Container } from 'react-bootstrap';
 import SearchIcon from '@mui/icons-material/Search';
 import VisibilityIcon from '@mui/icons-material/Visibility';
-import { tokens } from '../../css/theme/theme';
 import { Circles } from 'react-loader-spinner';
 import Header from '../../components/Header.js';
 import Footer from '../../components/Footer.js';
 import { Helmet } from 'react-helmet';
 
 export default function AdminActionResultScreen() {
-  const theme = useTheme();
-  const colors = tokens(theme.palette.mode);
   const [user, setUser] = useState(null);
   const [results, setResults] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -44,8 +40,7 @@ export default function AdminActionResultScreen() {
           const resultsData = await getAllResult();
           setResults(resultsData.existingResult);
           
-          // Fetch department names
-          const departmentNames = await getDepartmentNames();
+          const departmentNames = await getAllDepartment();
           setDepartments(departmentNames);
         }
         setLoading(false);
@@ -78,11 +73,6 @@ export default function AdminActionResultScreen() {
     setSelectedAction(event.target.value);
   };
 
-  const handleLogout = () => {
-    logout();
-    navigate('/login');
-  };
-
   const handleBack = () => {
     navigate('/admin-dashboard');
   };
@@ -90,11 +80,11 @@ export default function AdminActionResultScreen() {
   const getActionClass = (action) => {
     switch (action) {
       case 'Tạo mới':
-        return 'create-action';
+        return styles.createAction;
       case 'Cập nhật':
-        return 'update-action';
+        return styles.updateAction;
       case 'Xóa':
-        return 'delete-action';
+        return styles.deleteAction;
       default:
         return '';
     }
@@ -121,7 +111,7 @@ export default function AdminActionResultScreen() {
       flex: 0.5,
       renderCell: (params) => (
         <Box
-          className={`action-button ${getActionClass(params.value)}`}
+          className={`${styles.actionButton} ${getActionClass(params.value)}`}
         >
           {params.value}
         </Box>
@@ -148,7 +138,6 @@ export default function AdminActionResultScreen() {
     },
   ];
 
-
   const filteredRows = results.filter((record) => {
     const timestamp = new Date(record.timestamp);
     const start = startDate ? new Date(startDate) : null;
@@ -169,6 +158,7 @@ export default function AdminActionResultScreen() {
 
     return dateCondition && searchCondition && departmentCondition && actionCondition;
   });
+
   const rows = filteredRows.map((record, index) => ({
     id: record._id,
     index: index + 1,
@@ -181,7 +171,7 @@ export default function AdminActionResultScreen() {
 
   if (loading) {
     return (
-      <div className="loading-container">
+      <div className={styles.loadingContainer}>
         <Circles type="TailSpin" color="#00BFFF" height={80} width={80} />
       </div>
     );
@@ -194,143 +184,102 @@ export default function AdminActionResultScreen() {
         <meta name="description" content="Trang quản trị kết quả khai báo tiết dạy" />
       </Helmet>
       <Header/>
-      <div className="page_wrapper">
-        <section className="result_section">
-          <Container>
-            <Box m="20px">
-              <Typography variant="h4" mb={2} style={{ marginBottom:'20px'}}>
-                Lịch sử hành động người dùng
-              </Typography>
-              <Box display="flex" flexDirection="column" mb={2}>
-                <Box display="flex" alignItems="center" mb={2}>
-                  <TextField
-                    type="date"
-                    label="Ngày bắt đầu"
-                    value={startDate}
-                    onChange={handleStartDateChange}
-                    InputLabelProps={{
-                      shrink: true,
-                    }}
-                    sx={{ marginRight: 2 }}
-                  />
-                  <TextField
-                    type="date"
-                    label="Ngày kết thúc"
-                    value={endDate}
-                    onChange={handleEndDateChange}
-                    InputLabelProps={{
-                      shrink: true,
-                    }}
-                    sx={{ marginRight: 2 }}
-                  />
-                  <TextField
-                    value={searchQuery}
-                    onChange={handleSearchChange}
-                    placeholder="Tìm kiếm theo tên giáo viên"
-                    InputProps={{
-                      startAdornment: (
-                        <InputAdornment position="start">
-                          <SearchIcon />
-                        </InputAdornment>
-                      ),
-                    }}
-                    sx={{ backgroundColor: 'white', flexGrow: 0.3, marginRight: 2 }}
-                  />
-                  <Button variant="contained" onClick={handleBack} sx={{ backgroundColor: 'blue', marginRight: '10px' }}>Quay lại</Button>
-                  <Button variant="contained" onClick={handleLogout} sx={{ backgroundColor: 'red' }}>Đăng xuất</Button>
-                </Box>
-                <Box display="flex" alignItems="center" mb={2}>
-                  <FormControl sx={{ minWidth: 120, marginRight: 2 }}>
-                      <InputLabel id="department-select-label">Tổ bộ môn</InputLabel>
-                      <Select
-                        labelId="department-select-label"
-                        id="department-select"
-                        value={selectedDepartment}
-                        onChange={handleDepartmentChange}
-                        label="Tổ bộ môn"
-                      >
-                        <MenuItem value="">
-                          <em>Tất cả</em>
-                        </MenuItem>
-                        {departments.map((dept) => (
-                          <MenuItem key={dept} value={dept}>{dept}</MenuItem>
-                        ))}
-                      </Select>
-                    </FormControl>
-                    <FormControl sx={{ minWidth: 120, marginRight: 2 }}>
-                      <InputLabel id="action-select-label">Hành động</InputLabel>
-                      <Select
-                        labelId="action-select-label"
-                        id="action-select"
-                        value={selectedAction}
-                        onChange={handleActionChange}
-                        label="Hành động"
-                      >
-                        <MenuItem value="">
-                          <em>Tất cả</em>
-                        </MenuItem>
-                        <MenuItem value="Tạo mới">Tạo mới</MenuItem>
-                        <MenuItem value="Cập nhật">Cập nhật</MenuItem>
-                        <MenuItem value="Xóa">Xóa</MenuItem>
-                      </Select>
-                    </FormControl>
-                </Box>
-              </Box>
-              {loading ? (
-                <Typography>Đang tải...</Typography>
-              ) : error ? (
-                <Typography color="error">{error}</Typography>
-              ) : (
-                <Box
-                  m="40px 0 0 0"
-                  height="75vh"
-                  sx={{
-                    '& .MuiDataGrid-root': {
-                      border: 'none',
-                    },
-                    '& .MuiDataGrid-cell': {
-                      borderBottom: 'none',
-                    },
-                    '& .MuiDataGrid-columnHeaders': {
-                      backgroundColor: colors.primary[800],
-                      borderBottom: 'none',
-                    },
-                    '& .MuiDataGrid-virtualScroller': {
-                      backgroundColor: colors.primary[400],
-                    },
-                    '& .MuiDataGrid-footerContainer': {
-                      borderTop: 'none',
-                      backgroundColor: colors.blueAccent[700],
-                    },
-                    '& .MuiCheckbox-root': {
-                      color: `${colors.greenAccent[200]} !important`,
-                    },
-                    '& .row-odd': {
-                      backgroundColor: 'white',
-                    },
-                    '& .row-even': {
-                      backgroundColor: 'lightcyan',
-                    },
+      <div className={styles.pageWrapper}>
+        <section className={styles.resultSection}>
+          <Box m="20px">
+            <Typography variant="h4" className={styles.sectionTitle}>
+              Lịch sử hành động người dùng
+            </Typography>
+            <Box display="flex" flexDirection="column" mb={2}>
+              <Box display="flex" alignItems="center" mb={2} className={styles.searchContainer}>
+                <TextField
+                  value={searchQuery}
+                  onChange={handleSearchChange}
+                  placeholder="Tìm kiếm theo tên giáo viên"
+                  InputProps={{
+                    startAdornment: (
+                      <InputAdornment position="start">
+                        <SearchIcon />
+                      </InputAdornment>
+                    ),
                   }}
-                >
-                  {rows.length > 0 ? (
-                    <DataGrid
-                      rows={rows}
-                      columns={columns}
-                      getRowId={(row) => row.id}
-                      getRowClassName={(params) =>
-                        params.indexRelativeToCurrentPage % 2 === 0 ? 'row-even' : 'row-odd'
-                      }
-                    />
-                  ) : (
-                    <Typography variant="subtitle1" align="center">
-                      Không có kết quả!
-                    </Typography>
-                  )}
-                </Box>
-              )}
+                  className={styles.searchField}
+                />
+              </Box>
+              <Box display="flex" alignItems="center" mb={2} className={styles.filterContainer}>
+                <TextField
+                  type="date"
+                  label="Ngày bắt đầu"
+                  value={startDate}
+                  onChange={handleStartDateChange}
+                  InputLabelProps={{
+                    shrink: true,
+                  }}
+                  className={styles.dateField}
+                />
+                <TextField
+                  type="date"
+                  label="Ngày kết thúc"
+                  value={endDate}
+                  onChange={handleEndDateChange}
+                  InputLabelProps={{
+                    shrink: true,
+                  }}
+                  className={styles.dateField}
+                />
+                <FormControl className={styles.filterSelect}>
+                  <InputLabel>Tổ bộ môn</InputLabel>
+                  <Select
+                    value={selectedDepartment}
+                    onChange={handleDepartmentChange}
+                    label="Tổ bộ môn"
+                  >
+                    <MenuItem value="">Tất cả</MenuItem>
+                    {departments.map((dept) => (
+                      <MenuItem key={dept._id} value={dept.name}>{dept.name}</MenuItem>
+                    ))}
+                  </Select>
+                </FormControl>
+                <FormControl className={styles.filterSelect}>
+                  <InputLabel>Hành động</InputLabel>
+                  <Select
+                    value={selectedAction}
+                    onChange={handleActionChange}
+                    label="Hành động"
+                  >
+                    <MenuItem value="">Tất cả</MenuItem>
+                    <MenuItem value="Tạo mới">Tạo mới</MenuItem>
+                    <MenuItem value="Cập nhật">Cập nhật</MenuItem>
+                    <MenuItem value="Xóa">Xóa</MenuItem>
+                  </Select>
+                </FormControl>
+              </Box>
             </Box>
-          </Container>
+            {error ? (
+              <Typography color="error" className={styles.errorMessage}>{error}</Typography>
+            ) : (
+              <Box className={styles.dataGridContainer}>
+                {rows.length > 0 ? (
+                  <DataGrid
+                    rows={rows}
+                    columns={columns}
+                    pageSize={10}
+                    rowsPerPageOptions={[10]}
+                    className={styles.dataGrid}
+                    disableSelectionOnClick
+                    getRowId={(row) => row.id}
+                    getRowClassName={(params) =>
+                      params.indexRelativeToCurrentPage % 2 === 0 ? styles.rowEven : styles.rowOdd
+                    }
+                  />
+                ) : (
+                  <Typography variant="subtitle1" align="center" className={styles.noResultsMessage}>
+                    Không có kết quả!
+                  </Typography>
+                )}
+              </Box>
+            )}
+          </Box>
         </section>
       </div>
       <Footer />

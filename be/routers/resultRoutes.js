@@ -7,6 +7,7 @@ const resultRoutes = express.Router();
 resultRoutes.get('/all', isAuth, isAdmin, async (req, res) => {
   try {
     const existingResult = await Result.find({})
+      .sort({ timestamp: -1 }) // Sort by timestamp in descending order
       .populate({
         path: 'user',
         select: 'name email teacher',
@@ -61,6 +62,5 @@ resultRoutes.get('/:id', isAuth, isAdmin, async (req, res) => {
     res.status(500).json({ error: 'Đã xảy ra lỗi khi lấy kết quả.' });
   }
 });
-
 
 export default resultRoutes;

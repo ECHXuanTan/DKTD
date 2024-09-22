@@ -8,9 +8,8 @@ const departmentRoutes = express.Router();
 departmentRoutes.get('/names', isAuth, async (req, res) => {
   try {
     const departments = await Department.find({}, 'name').sort({ name: 1 });
-    const departmentNames = departments.map(dept => dept.name);
 
-    res.json(departmentNames);
+    res.json(departments);
   } catch (error) {
     console.error('Error fetching department names:', error);
     res.status(500).json({ message: 'Lỗi server khi lấy danh sách tên department' });

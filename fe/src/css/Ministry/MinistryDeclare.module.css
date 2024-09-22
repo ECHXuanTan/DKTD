@@ -1,0 +1,127 @@
+.dashboardMinistry {
+    padding: 20px;
+    max-width: 1370px;
+    margin: 0 auto 30px;
+    min-height: 75vh;    
+}
+
+.welcomeBox {
+    padding: 20px;
+    margin-bottom: 50px;
+    background-color: #e3f2fd;
+    border-radius: 8px;
+}
+
+.welcomeTitle {
+    font-size: 1.8rem;
+    font-weight: 600 !important;
+    color: #1a237e;
+    padding-bottom: 25px;
+}
+
+.teacherInfo {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 10px;
+}
+
+.teacherInfo p {
+    margin: 5px 0;
+}
+
+.sectionTitle {
+    font-size: 1.5rem;
+    font-weight: bold;
+    margin-bottom: 1rem;
+    color: #1a237e;
+}
+
+.optionsContainer {
+    display: flex;
+    justify-content: flex-end;
+    align-items: center;
+    margin-bottom: 1rem;
+}
+
+.optionSelect {
+    min-width: 150px;
+    margin-left: 1rem;
+}
+
+.dataGridContainer {
+    width: 100%;
+}
+
+.dataGrid {
+    background-color: white;
+    border-radius: 8px;
+    overflow: hidden;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+.dataGrid .MuiDataGrid-columnHeaders {
+    background-color: #1a237e;
+    color: white;
+}
+
+.dataGrid .MuiDataGrid-row:nth-of-type(even) {
+    background-color: #e3f2fd;
+}
+
+.dataGrid .MuiDataGrid-row:nth-of-type(odd) {
+    background-color: white;
+}
+
+.editIcon {
+    color: #1976d2;
+    cursor: pointer;
+}
+
+.editIcon:hover {
+    color: #115293;
+}
+
+.loadingContainer {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+}
+
+.modal {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background-color: white;
+    padding: 2rem;
+    border-radius: 8px;
+    max-width: 500px;
+    width: 90%;
+}
+
+.modalOverlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: rgba(0, 0, 0, 0.5);
+}
+
+@media (max-width: 768px) {
+    .optionsContainer {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .optionSelect {
+        width: 100%;
+        margin-left: 0;
+        margin-bottom: 1rem;
+    }
+
+    .teacherInfo {
+        grid-template-columns: 1fr;
+    }
+}

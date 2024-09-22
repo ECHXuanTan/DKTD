@@ -82,7 +82,7 @@ const Dashboard = () => {
       <div className="dashboard">
         {user && teacher ? (
           <>
-            <h1>Chào mừng thầy/cô {teacher.name} đến với trang khai báo tiết dạy!</h1>
+            <h1>Chào mừng giáo viên {teacher.name} đến với trang khai báo tiết dạy!</h1>
             <div className="profile-info">
               <h2>Thông tin chi tiết:</h2>
               <p><strong>Họ và tên:</strong> {teacher.name}</p>

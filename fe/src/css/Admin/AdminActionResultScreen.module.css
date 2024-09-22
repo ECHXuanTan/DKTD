@@ -1,0 +1,139 @@
+.pageWrapper {
+    padding: 20px;
+    background-color: #f5f5f5;
+    min-height: 100vh;
+  }
+  
+  .resultSection {
+    background-color: white;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    padding: 20px 70px;
+  }
+  
+  .sectionTitle {
+    color: #333;
+    margin-bottom: 20px;
+    font-size: 1.5rem;
+    font-weight: bold;
+  }
+  
+  .searchContainer {
+    margin-bottom: 26px;
+    max-width: 400px;
+  }
+  
+  .searchField {
+    width: 100%;
+    background-color: white;
+  }
+  
+  .filterContainer {
+    display: flex;
+    justify-content: space-between;
+    gap: 16px;
+  }
+  
+  .dateField,
+  .filterSelect {
+    flex: 1;
+    background-color: white;
+  }
+  
+  .backButton {
+    background-color: #1976d2;
+    color: white;
+  }
+  
+  .dataGridContainer {
+    height: 75vh;
+    width: 100%;
+  }
+  
+  .dataGrid {
+    border: none;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+  }
+  
+  .dataGrid :global(.MuiDataGrid-columnHeaders) {
+    background-color: #f0f0f0;
+    border-bottom: none;
+  }
+  
+  .dataGrid :global(.MuiDataGrid-footerContainer) {
+    border-top: none;
+    background-color: #f0f0f0;
+  }
+  
+  .rowOdd {
+    background-color: white;
+  }
+  
+  .rowEven {
+    background-color: #f9f9f9;
+  }
+  
+  .actionButton {
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-weight: bold;
+  }
+  
+  .createAction {
+    background-color: #e8f5e9;
+    color: #2e7d32;
+  }
+  
+  .updateAction {
+    background-color: #fff3e0;
+    color: #e65100;
+  }
+  
+  .deleteAction {
+    background-color: #ffebee;
+    color: #c62828;
+  }
+  
+  .loadingContainer {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 200px;
+  }
+  
+  .errorMessage {
+    color: #d32f2f;
+    text-align: center;
+    margin-top: 20px;
+  }
+  
+  .noResultsMessage {
+    text-align: center;
+    margin-top: 20px;
+    color: #666;
+  }
+  
+  @media (max-width: 768px) {
+    .pageWrapper {
+      padding: 10px;
+    }
+  
+    .resultSection {
+      padding: 10px;
+    }
+  
+    .sectionTitle {
+      font-size: 1.2rem;
+    }
+  
+    .filterContainer {
+      flex-direction: column;
+    }
+  
+    .dateField,
+    .filterSelect,
+    .backButton {
+      width: 100%;
+      margin-bottom: 16px;
+    }
+  }

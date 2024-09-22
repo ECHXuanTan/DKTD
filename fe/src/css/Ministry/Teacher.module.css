@@ -1,0 +1,278 @@
+.pageWrapper {
+    background-color: #fff;
+    min-height: 75vh;
+}
+
+.teacherSection {
+    background-color: #fff;
+    padding: 10px;
+    max-width: 1370px;
+    margin: 0 auto;
+}
+
+.sectionTitle {
+    color: #2c3e50;
+    font-size: 28px;
+    font-weight: 600;
+    margin-bottom: 30px;
+    border-bottom: 2px solid #3498db;
+    padding-bottom: 10px;
+}
+
+.searchCreate {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 30px;
+}
+
+.searchField {
+    flex-grow: 0.3;
+    margin-right: 20px;
+}
+
+.createButton {
+    background-color: #3498db;
+    color: white;
+    border: none;
+    padding: 12px 24px;
+    border-radius: 25px;
+    font-size: 16px;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    transition: all 0.3s ease;
+    cursor: pointer;
+}
+
+.createButton:hover {
+    background-color: #2980b9;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 10px rgba(52, 152, 219, 0.3);
+}
+
+.dataGridContainer {
+    height: 70vh;
+    width: 100%;
+    border-radius: 8px;
+    overflow: hidden;
+    box-shadow: 0 0 10px rgba(0,0,0,0.05);
+}
+
+.dataGrid {
+    border: none;
+}
+
+.modal {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background-color: white;
+    padding: 30px;
+    border-radius: 12px;
+    width: 450px;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+    max-height: 80vh;
+    overflow-y: auto; 
+}
+
+.overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: rgba(0, 0, 0, 0.6);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+.modalTitle {
+    color: #2c3e50;
+    font-size: 24px;
+    font-weight: 600;
+    margin-bottom: 25px;
+    text-align: center;
+}
+
+.form {
+    display: flex;
+    flex-direction: column;
+    background-color: #ffffff;
+    padding: 25px;
+    border-radius: 8px;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+}
+
+.formGroup {
+    margin-bottom: 20px;
+}
+
+.formGroup label {
+    display: block;
+    margin-bottom: 8px;
+    color: #34495e;
+    font-weight: 500;
+}
+
+.formGroup input, .formGroup select {
+    width: 80%;
+    padding: 12px;
+    border: 1px solid #e0e0e0;
+    border-radius: 8px;
+    font-size: 16px;
+    transition: all 0.3s ease;
+}
+
+.formGroup input:focus, .formGroup select:focus {
+    border-color: #3498db;
+    box-shadow: 0 0 0 2px rgba(52, 152, 219, 0.2);
+}
+
+.formActions {
+    display: flex;
+    justify-content: space-between;
+    margin-top: 30px;
+}
+
+.submitButton, .cancelButton, .deleteButton {
+    padding: 12px 24px;
+    border: none;
+    border-radius: 25px;
+    cursor: pointer;
+    font-size: 16px;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    transition: all 0.3s ease;
+}
+
+.submitButton {
+    background-color: #2ecc71;
+    color: white;
+}
+
+.submitButton:hover {
+    background-color: #27ae60;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 10px rgba(46, 204, 113, 0.3);
+}
+
+.cancelButton {
+    background-color: #e74c3c;
+    color: white;
+}
+
+.cancelButton:hover {
+    background-color: #c0392b;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 10px rgba(231, 76, 60, 0.3);
+}
+
+.deleteButton {
+    background-color: #2cc3b4;
+    color: white;
+}
+
+.deleteButton:hover {
+    background-color: #2ddac8;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 10px rgba(231, 76, 60, 0.3);
+}
+
+.addOptions {
+    position: absolute;
+    background-color: white;
+    border-radius: 8px;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+    padding: 10px 0;
+    z-index: 10;
+}
+
+.addOptions button {
+    display: block;
+    width: 100%;
+    padding: 10px 20px;
+    text-align: left;
+    border: none;
+    background: none;
+    cursor: pointer;
+    transition: background-color 0.3s ease;
+}
+
+.addOptions button:hover {
+    background-color: #f1f8ff;
+}
+
+.modalExcel {
+    width: 80%;
+    max-width: 900px;
+    max-height: 90vh;
+    overflow-y: auto;
+    background-color: #f0f4f8;
+}
+
+.previewContainer {
+    margin-top: 20px;
+    border: 1px solid #e0e0e0;
+    border-radius: 8px;
+    padding: 20px;
+    max-height: 300px;
+    overflow-y: auto;
+}
+
+.previewHeader {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 15px;
+}
+
+.closePreviewButton {
+    background-color: #f39c12;
+    color: white;
+    border: none;
+    padding: 8px 16px;
+    border-radius: 20px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.closePreviewButton:hover {
+    background-color: #e67e22;
+}
+
+.previewTable {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.previewTable th, .previewTable td {
+    border: 1px solid #e0e0e0;
+    padding: 10px;
+    text-align: left;
+}
+
+.previewTable th {
+    background-color: #f8f9fa;
+    font-weight: 600;
+}
+
+.downloadButton {
+    background-color: #3498db;
+    color: white;
+    border: none;
+    padding: 10px 20px;
+    border-radius: 20px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    margin-right: 10px;
+}
+
+.downloadButton:hover {
+    background-color: #2980b9;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 10px rgba(52, 152, 219, 0.3);
+}
