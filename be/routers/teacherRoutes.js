@@ -358,6 +358,17 @@ teacherRoutes.delete('/delete/:id', isAuth, async (req, res) => {
       return res.status(404).json({ message: 'Không tìm thấy giáo viên' });
     }
 
+    // Check if the teacher is a leader
+    if (teacher.isLeader) {
+      return res.status(400).json({ message: 'Không thể xóa giáo viên là trưởng bộ môn' });
+    }
+
+    // Check if the teacher has any assignments
+    const hasAssignments = await TeacherAssignment.exists({ teacher: id });
+    if (hasAssignments) {
+      return res.status(400).json({ message: 'Không thể xóa giáo viên đã có khai báo giảng dạy' });
+    }
+
     // Create result before deleting
     await Result.create({
       action: 'DELETE',
