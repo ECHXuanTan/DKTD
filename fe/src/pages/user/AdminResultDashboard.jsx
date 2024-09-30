@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { getAllResult } from '../../services/resultServices';
 import { getUser } from '../../services/authServices';
 import { getAllDepartment } from '../../services/departmentService';
@@ -12,6 +12,7 @@ import { Circles } from 'react-loader-spinner';
 import Header from '../../components/Header.js';
 import Footer from '../../components/Footer.js';
 import { Helmet } from 'react-helmet';
+import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 
 export default function AdminActionResultScreen() {
   const [user, setUser] = useState(null);
@@ -103,12 +104,27 @@ export default function AdminActionResultScreen() {
     }
   };
 
+  const translateEntityType = (entityType) => {
+    switch (entityType) {
+      case 'Class':
+        return 'Lớp học';
+      case 'Teacher':
+        return 'Giáo viên';
+      case 'TeacherAssignment':
+        return 'Khai báo';
+      default:
+        return entityType;
+    }
+  };
+
   const columns = [
     { field: 'index', headerName: 'STT', flex: 0.2 },
     { 
       field: 'action', 
       headerName: 'Hành động', 
       flex: 0.5,
+      align: 'center',
+      headerAlign: 'center',
       renderCell: (params) => (
         <Box
           className={`${styles.actionButton} ${getActionClass(params.value)}`}
@@ -120,6 +136,7 @@ export default function AdminActionResultScreen() {
     { field: 'userName', headerName: 'Tên giáo viên', flex: 0.8 },
     { field: 'position', headerName: 'Chức vụ', flex: 0.5 },
     { field: 'department', headerName: 'Tổ bộ môn', flex: 0.8 },
+    { field: 'entityType', headerName: 'Loại đối tượng', flex: 0.6 },
     { field: 'timestamp', headerName: 'Thời gian', flex: 0.8 },
     {
       field: 'actions',
@@ -166,6 +183,7 @@ export default function AdminActionResultScreen() {
     userName: record.user.name,
     position: record.user.teacher ? record.user.teacher.position : 'N/A',
     department: record.user.teacher ? record.user.teacher.department.name : 'N/A',
+    entityType: translateEntityType(record.entityType),
     timestamp: new Date(record.timestamp).toLocaleString(),
   }));
 
@@ -187,6 +205,9 @@ export default function AdminActionResultScreen() {
       <div className={styles.pageWrapper}>
         <section className={styles.resultSection}>
           <Box m="20px">
+            <Link to="/leader-declare" style={{ textDecoration: 'none', padding: '5px', fontSize: '20px' }}>
+                <ArrowBackIcon />
+            </Link>
             <Typography variant="h4" className={styles.sectionTitle}>
               Lịch sử hành động người dùng
             </Typography>

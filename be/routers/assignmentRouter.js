@@ -10,6 +10,7 @@ import Result from '../models/resultModel.js'; // Import the Result model
 
 const assignmentRouter = express.Router();
 
+// Endpoint tạo assignment
 assignmentRouter.post('/assign', isAuth, async (req, res) => {
   const session = await mongoose.startSession();
   session.startTransaction();
@@ -20,6 +21,11 @@ assignmentRouter.post('/assign', isAuth, async (req, res) => {
     const classData = await Class.findById(classId).session(session);
     if (!classData) {
       throw new Error('Không tìm thấy lớp học');
+    }
+
+    const subject = await Subject.findById(subjectId).populate('department').session(session);
+    if (!subject) {
+      throw new Error('Không tìm thấy môn học');
     }
 
     const subjectData = classData.subjects.find(s => s.subject.toString() === subjectId);
@@ -38,6 +44,11 @@ assignmentRouter.post('/assign', isAuth, async (req, res) => {
     for (const assignment of assignments) {
       totalNewLessons += assignment.lessons;
       
+      const teacher = await Teacher.findById(assignment.teacherId).populate('department').session(session);
+      if (!teacher) {
+        throw new Error('Không tìm thấy giáo viên');
+      }
+
       const updatedAssignment = await TeacherAssignment.findOneAndUpdate(
         { teacher: assignment.teacherId, class: classId, subject: subjectId },
         { $set: { completedLessons: assignment.lessons } },
@@ -50,40 +61,57 @@ assignmentRouter.post('/assign', isAuth, async (req, res) => {
         { session }
       );
 
-      // Create result record for each new assignment
-      await Result.create({
+      // Update department's declaredTeachingLessons
+      await Department.findByIdAndUpdate(
+        subject.department._id,
+        { $inc: { declaredTeachingLessons: assignment.lessons } },
+        { session }
+      );
+
+      // Create detailed result record for each new assignment
+      const result = new Result({
         action: 'CREATE',
         user: req.user._id,
         entityType: 'TeacherAssignment',
         entityId: updatedAssignment._id,
-        dataAfter: updatedAssignment.toObject()
+        dataAfter: {
+          _id: updatedAssignment._id,
+          class: {
+            _id: classData._id,
+            name: classData.name,
+            grade: classData.grade
+          },
+          subject: {
+            _id: subject._id,
+            name: subject.name,
+            department: {
+              _id: subject.department._id,
+              name: subject.department.name
+            }
+          },
+          teacher: {
+            _id: teacher._id,
+            name: teacher.name,
+            position: teacher.position,
+            department: {
+              _id: teacher.department._id,
+              name: teacher.department.name
+            }
+          },
+          completedLessons: updatedAssignment.completedLessons,
+          createdAt: updatedAssignment.createdAt,
+          updatedAt: updatedAssignment.updatedAt
+        }
       });
+      await result.save({ session });
     }
-
-    const totalAssignedLessons = totalExistingLessons + totalNewLessons;
-
-    if (totalAssignedLessons > subjectData.lessonCount) {
-      throw new Error('Tổng số tiết phân công vượt quá số tiết được khai báo cho môn học');
-    }
-
-    const subject = await Subject.findById(subjectId).session(session);
-    if (!subject) {
-      throw new Error('Không tìm thấy môn học');
-    }
-
-    await Department.findByIdAndUpdate(
-      subject.department,
-      { $inc: { declaredTeachingLessons: totalNewLessons } },
-      { session }
-    );
 
     await session.commitTransaction();
-
     res.status(200).json({ 
       message: "Phân công giảng dạy thành công",
       totalLessons: subjectData.lessonCount,
-      assignedLessons: totalAssignedLessons,
-      remainingLessons: subjectData.lessonCount - totalAssignedLessons
+      assignedLessons: totalExistingLessons + totalNewLessons,
+      remainingLessons: subjectData.lessonCount - (totalExistingLessons + totalNewLessons)
     });
   } catch (error) {
     await session.abortTransaction();
@@ -93,6 +121,7 @@ assignmentRouter.post('/assign', isAuth, async (req, res) => {
   }
 });
 
+// Endpoint sửa assignment
 assignmentRouter.put('/edit', isAuth, async (req, res) => {
   const session = await mongoose.startSession();
   session.startTransaction();
@@ -100,7 +129,17 @@ assignmentRouter.put('/edit', isAuth, async (req, res) => {
   try {
     const { assignmentId, newLessons } = req.body;
 
-    const assignment = await TeacherAssignment.findById(assignmentId).session(session);
+    const assignment = await TeacherAssignment.findById(assignmentId)
+      .populate('class')
+      .populate({
+        path: 'subject',
+        populate: { path: 'department' }
+      })
+      .populate({
+        path: 'teacher',
+        populate: { path: 'department' }
+      })
+      .session(session);
 
     if (!assignment) {
       throw new Error('Không tìm thấy khai báo giảng dạy');
@@ -113,30 +152,83 @@ assignmentRouter.put('/edit', isAuth, async (req, res) => {
     assignment.completedLessons = newLessons;
     await assignment.save({ session });
 
-    const updatedTeacher = await Teacher.findByIdAndUpdate(
-      assignment.teacher,
+    await Teacher.findByIdAndUpdate(
+      assignment.teacher._id,
       { $inc: { totalAssignment: lessonDifference } },
-      { new: true, session }
+      { session }
     );
-    
-    console.log('Updated teacher:', updatedTeacher);
 
-    const subject = await Subject.findById(assignment.subject).session(session);
+    // Update department's declaredTeachingLessons
     await Department.findByIdAndUpdate(
-      subject.department,
+      assignment.subject.department._id,
       { $inc: { declaredTeachingLessons: lessonDifference } },
       { session }
     );
 
-    // Create result record for the update
-    await Result.create({
+    // Create detailed result record for the update
+    const result = new Result({
       action: 'UPDATE',
       user: req.user._id,
       entityType: 'TeacherAssignment',
       entityId: assignmentId,
-      dataBefore: oldAssignment,
-      dataAfter: assignment.toObject()
+      dataBefore: {
+        _id: oldAssignment._id,
+        class: {
+          _id: oldAssignment.class._id,
+          name: oldAssignment.class.name,
+          grade: oldAssignment.class.grade
+        },
+        subject: {
+          _id: oldAssignment.subject._id,
+          name: oldAssignment.subject.name,
+          department: {
+            _id: oldAssignment.subject.department._id,
+            name: oldAssignment.subject.department.name
+          }
+        },
+        teacher: {
+          _id: oldAssignment.teacher._id,
+          name: oldAssignment.teacher.name,
+          position: oldAssignment.teacher.position,
+          department: {
+            _id: oldAssignment.teacher.department._id,
+            name: oldAssignment.teacher.department.name
+          }
+        },
+        completedLessons: oldAssignment.completedLessons,
+        createdAt: oldAssignment.createdAt,
+        updatedAt: oldAssignment.updatedAt
+      },
+      dataAfter: {
+        _id: assignment._id,
+        class: {
+          _id: assignment.class._id,
+          name: assignment.class.name,
+          grade: assignment.class.grade
+        },
+        subject: {
+          _id: assignment.subject._id,
+          name: assignment.subject.name,
+          department: {
+            _id: assignment.subject.department._id,
+            name: assignment.subject.department.name
+          }
+        },
+        teacher: {
+          _id: assignment.teacher._id,
+          name: assignment.teacher.name,
+          position: assignment.teacher.position,
+          department: {
+            _id: assignment.teacher.department._id,
+            name: assignment.teacher.department.name
+          }
+        },
+        completedLessons: assignment.completedLessons,
+        createdAt: assignment.createdAt,
+        updatedAt: assignment.updatedAt
+      }
     });
+    await result.save({ session });
 
     await session.commitTransaction();
 
@@ -150,6 +242,7 @@ assignmentRouter.put('/edit', isAuth, async (req, res) => {
   }
 });
 
+// Endpoint xóa assignment
 assignmentRouter.delete('/delete', isAuth, async (req, res) => {
   const session = await mongoose.startSession();
   session.startTransaction();
@@ -157,7 +250,17 @@ assignmentRouter.delete('/delete', isAuth, async (req, res) => {
   try {
     const { assignmentId } = req.body;
 
-    const assignment = await TeacherAssignment.findById(assignmentId).session(session);
+    const assignment = await TeacherAssignment.findById(assignmentId)
+      .populate('class')
+      .populate({
+        path: 'subject',
+        populate: { path: 'department' }
+      })
+      .populate({
+        path: 'teacher',
+        populate: { path: 'department' }
+      })
+      .session(session);
 
     if (!assignment) {
       throw new Error('Không tìm thấy khai báo giảng dạy');
@@ -168,26 +271,54 @@ assignmentRouter.delete('/delete', isAuth, async (req, res) => {
     await TeacherAssignment.findByIdAndDelete(assignmentId).session(session);
 
     await Teacher.findByIdAndUpdate(
-      assignment.teacher,
+      assignment.teacher._id,
       { $inc: { totalAssignment: -assignment.completedLessons } },
       { session }
     );
 
-    const subject = await Subject.findById(assignment.subject).session(session);
+    // Update department's declaredTeachingLessons
     await Department.findByIdAndUpdate(
-      subject.department,
+      assignment.subject.department._id,
       { $inc: { declaredTeachingLessons: -assignment.completedLessons } },
       { session }
     );
 
-    // Create result record for the delete operation
-    await Result.create({
+    // Create detailed result record for the delete operation
+    const result = new Result({
       action: 'DELETE',
       user: req.user._id,
       entityType: 'TeacherAssignment',
       entityId: assignmentId,
-      dataBefore: deletedAssignment
+      dataBefore: {
+        _id: deletedAssignment._id,
+        class: {
+          _id: deletedAssignment.class._id,
+          name: deletedAssignment.class.name,
+          grade: deletedAssignment.class.grade
+        },
+        subject: {
+          _id: deletedAssignment.subject._id,
+          name: deletedAssignment.subject.name,
+          department: {
+            _id: deletedAssignment.subject.department._id,
+            name: deletedAssignment.subject.department.name
+          }
+        },
+        teacher: {
+          _id: deletedAssignment.teacher._id,
+          name: deletedAssignment.teacher.name,
+          position: deletedAssignment.teacher.position,
+          department: {
+            _id: deletedAssignment.teacher.department._id,
+            name: deletedAssignment.teacher.department.name
+          }
+        },
+        completedLessons: deletedAssignment.completedLessons,
+        createdAt: deletedAssignment.createdAt,
+        updatedAt: deletedAssignment.updatedAt
+      }
     });
+    await result.save({ session });
 
     await session.commitTransaction();
 

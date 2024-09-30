@@ -307,32 +307,96 @@ const ClassScreen = () => {
         reader.readAsArrayBuffer(file);
     };
 
+    // const handleExcelUpload = async () => {
+    //     if (!excelFile) {
+    //         toast.error('Vui lòng chọn file Excel trước khi tải lên');
+    //         return;
+    //     }
+
+    //     const expectedSubjects = [
+    //         'Toán', 'Tin học', 'Vật lý', 'Hóa học', 'Sinh học', 'Công nghệ', 'Tiếng Anh',
+    //         'Ngữ văn', 'Lịch sử', 'Địa lý', 'Giáo dục kinh tế - Pháp luật', 'Giáo dục Quốc phòng', 'Thể dục'
+    //     ];
+
+    //     // Check if all classes have the correct subjects
+    //     const invalidClasses = excelData.filter(classData => {
+    //         const subjects = Object.keys(classData).filter(key => key !== 'name' && key !== 'grade' && key !== 'campus');
+    //         return !subjects.every(subject => expectedSubjects.includes(subject)) || 
+    //                subjects.length !== expectedSubjects.length;
+    //     });
+
+    //     if (invalidClasses.length > 0) {
+    //         const invalidClassNames = invalidClasses.map(c => c.name).join(', ');
+    //         toast.error(`Các lớp sau có môn học không hợp lệ: ${invalidClassNames}`);
+    //         return;
+    //     }
+    
+    //     try {
+    //         await createClasses(excelData);
+    //         toast.success('Tải lên và tạo lớp thành công!');
+    //         const updatedClassData = await getClasses();
+    //         setClasses(updatedClassData);
+    //         setShowMultiClassModal(false);
+    //         setExcelData(null);
+    //         setExcelFile(null);
+    //     } catch (error) {
+    //         console.error('Error uploading Excel file:', error);
+    //         if (error.response && error.response.data && error.response.data.message) {
+    //             const errorMessage = error.response.data.message;
+    //             if (errorMessage.includes('Tên lớp đã tồn tại')) {
+    //                 const classNames = errorMessage.split(':')[1].trim();
+    //                 toast.error(`Các lớp sau đã tồn tại: ${classNames}`);
+    //             } else {
+    //                 toast.error(errorMessage);
+    //             }
+    //         } else {
+    //             toast.error('Đã có lỗi xảy ra khi tải lên file');
+    //         }
+    //     }
+    // };
+
     const handleExcelUpload = async () => {
         if (!excelFile) {
             toast.error('Vui lòng chọn file Excel trước khi tải lên');
             return;
         }
-
+    
         const expectedSubjects = [
             'Toán', 'Tin học', 'Vật lý', 'Hóa học', 'Sinh học', 'Công nghệ', 'Tiếng Anh',
             'Ngữ văn', 'Lịch sử', 'Địa lý', 'Giáo dục kinh tế - Pháp luật', 'Giáo dục Quốc phòng', 'Thể dục'
         ];
-
-        // Check if all classes have the correct subjects
-        const invalidClasses = excelData.filter(classData => {
-            const subjects = Object.keys(classData).filter(key => key !== 'name' && key !== 'grade' && key !== 'campus');
-            return !subjects.every(subject => expectedSubjects.includes(subject)) || 
-                   subjects.length !== expectedSubjects.length;
+    
+        // Process the Excel data
+        const processedClasses = excelData.map(classData => {
+            const { name, grade, campus, ...subjectData } = classData;
+            const subjects = [];
+    
+            for (const subjectName of expectedSubjects) {
+                const lessonCount = parseInt(subjectData[subjectName], 10);
+                if (!isNaN(lessonCount) && lessonCount > 0) {
+                    subjects.push({
+                        name: subjectName,
+                        lessonCount: lessonCount
+                    });
+                }
+            }
+    
+            return { name, grade, campus, subjects };
         });
-
+    
+        // Validate the processed data
+        const invalidClasses = processedClasses.filter(classData => 
+            !classData.name || !classData.grade || !classData.campus || classData.subjects.length === 0
+        );
+    
         if (invalidClasses.length > 0) {
-            const invalidClassNames = invalidClasses.map(c => c.name).join(', ');
-            toast.error(`Các lớp sau có môn học không hợp lệ: ${invalidClassNames}`);
+            const invalidClassNames = invalidClasses.map(c => c.name || 'Unnamed').join(', ');
+            toast.error(`Các lớp sau không hợp lệ hoặc không có môn học: ${invalidClassNames}`);
             return;
         }
     
         try {
-            await createClasses(excelData);
+            await createClasses(processedClasses);
             toast.success('Tải lên và tạo lớp thành công!');
             const updatedClassData = await getClasses();
             setClasses(updatedClassData);
@@ -359,10 +423,10 @@ const ClassScreen = () => {
         { field: 'index', label: 'STT', width: '5%' },
         { field: 'name', label: 'Tên lớp', width: '15%' },
         { field: 'grade', label: 'Khối', width: '10%' },
-        { field: 'campus', label: 'Cơ sở', width: '15%' },
+        { field: 'campus', label: 'Cơ sở', width: '10%' },
         { field: 'subjects', label: 'Môn học', width: '20%' },
         { field: 'lessonCount', label: 'Số tiết', width: '10%' },
-        { field: 'updatedAt', label: 'Lần chỉnh sửa gần nhất', width: '15%' },
+        { field: 'updatedAt', label: 'Lần chỉnh sửa gần nhất', width: '10%' },
         { field: 'actions', label: 'Xem chi tiết', width: '10%', },
     ];
 
@@ -440,7 +504,7 @@ const ClassScreen = () => {
                                 value={gradeFilter}
                                 onChange={handleGradeFilterChange}
                                 displayEmpty
-                                style={{ width: '200px' }}
+                                style={{ width: '200px',  }}
                             >
                                 <MenuItem value="">Tất cả khối</MenuItem>
                                 {uniqueGrades.map((grade) => (

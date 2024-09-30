@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, Link } from 'react-router-dom';
+import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import { getResultById } from '../../services/resultServices';
 import '../../css/ActionResult.css';
 import { Circles } from 'react-loader-spinner';
@@ -39,11 +40,24 @@ const AdminResultDetail = () => {
         <p><strong>Giáo viên được chỉnh sửa:</strong> {teacherName || 'Không có thông tin'}</p>
       );
     } else if (result.entityType === 'Class') {
-      const className = result.action === 'DELETE'
-        ? result.dataBefore?.name
-        : result.dataAfter?.name;
+      const classData = result.action === 'DELETE' ? result.dataBefore : result.dataAfter;
+      if (Array.isArray(classData)) {
+        return (
+          <p><strong>Số lớp được chỉnh sửa:</strong> {classData.length}</p>
+        );
+      } else {
+        return (
+          <p><strong>Lớp được chỉnh sửa:</strong> {classData?.name || 'Không có thông tin'}</p>
+        );
+      }
+    } else if (result.entityType === 'TeacherAssignment') {
+      const assignmentData = result.action === 'DELETE' ? result.dataBefore : result.dataAfter;
       return (
-        <p><strong>Lớp được chỉnh sửa:</strong> {className || 'Không có thông tin'}</p>
+        <>
+          <p><strong>Lớp:</strong> {assignmentData.class.name}</p>
+          <p><strong>Môn học:</strong> {assignmentData.subject.name}</p>
+          <p><strong>Giáo viên:</strong> {assignmentData.teacher.name}</p>
+        </>
       );
     }
     return null;
@@ -66,8 +80,8 @@ const AdminResultDetail = () => {
     switch (type) {
       case 'Teacher':
         return 'Giáo viên';
-      case 'Department':
-        return 'Tổ bộ môn';
+      case 'TeacherAssignment':
+        return 'Khai báo giảng dạy';
       case 'Class':
         return 'Lớp học';
       default:
@@ -90,7 +104,11 @@ const AdminResultDetail = () => {
       basicTeachingLessons: 'Số tiết cơ bản',
       grade: 'Khối',
       campus: 'Cơ sở',
-      subjects: 'Các môn học'
+      subjects: 'Các môn học',
+      completedLessons: 'Số tiết được phân công',
+      class: 'Lớp',
+      subject: 'Môn học',
+      teacher: 'Giáo viên'
     };
     return translations[field] || field;
   };
@@ -103,11 +121,30 @@ const AdminResultDetail = () => {
   const renderChanges = (data) => {
     if (!data) return <p>Không có dữ liệu</p>;
 
+    if (Array.isArray(data)) {
+      return data.map((classData, index) => (
+        <div key={index} className="class-info">
+          <h3>Lớp {index + 1}: {classData.name}</h3>
+          {renderSingleClassChanges(classData)}
+        </div>
+      ));
+    } else {
+      return renderSingleClassChanges(data);
+    }
+  };
+
+  const renderSingleClassChanges = (data) => {
     const changes = [];
-    const relevantFields = result.entityType === 'Class'
-      ? ['name', 'grade', 'campus', 'subjects']
-      : ['name', 'email', 'phone', 'position', 'department', 'isLeader', 'type',
-         'totalAssignment', 'lessonsPerWeek', 'teachingWeeks', 'basicTeachingLessons'];
+    let relevantFields = [];
+
+    if (result.entityType === 'Class') {
+      relevantFields = ['name', 'grade', 'campus', 'subjects'];
+    } else if (result.entityType === 'Teacher') {
+      relevantFields = ['name', 'email', 'phone', 'position', 'department', 'isLeader', 'type',
+                        'totalAssignment', 'lessonsPerWeek', 'teachingWeeks', 'basicTeachingLessons'];
+    } else if (result.entityType === 'TeacherAssignment') {
+      relevantFields = ['class', 'subject', 'teacher', 'completedLessons'];
+    }
 
     relevantFields.forEach(field => {
       if (data[field] !== undefined) {
@@ -115,14 +152,14 @@ const AdminResultDetail = () => {
           changes.push(
             <div key={field}>
               <strong>{translateField(field)}:</strong>
-              <ul>
-                {data[field].map((subject, index) => (
-                  <li key={index}>
-                    Môn học ID: {subject.subject}, Số tiết: {subject.lessonCount}
-                  </li>
-                ))}
-              </ul>
+              {renderSubjectsTable(data[field])}
             </div>
+          );
+        } else if (['class', 'subject', 'teacher'].includes(field)) {
+          changes.push(
+            <p key={field}>
+              <strong>{translateField(field)}:</strong> {data[field].name}
+            </p>
           );
         } else {
           changes.push(
@@ -135,6 +172,42 @@ const AdminResultDetail = () => {
     });
 
     return changes.length > 0 ? changes : <p>Không có thay đổi</p>;
+  };
+
+  const renderSubjectsTable = (subjects) => {
+    if (!subjects || subjects.length === 0) return <p>Không có dữ liệu môn học</p>;
+
+    const rows = [];
+    for (let i = 0; i < subjects.length; i += 2) {
+      rows.push(
+        <tr key={i} style={{ backgroundColor: i % 4 === 0 ? 'white' : '#e3f6f5' }}>
+          <td style={{ border: '1px solid #ddd', padding: '8px' }}>{subjects[i].subjectName}</td>
+          <td style={{ border: '1px solid #ddd', padding: '8px', textAlign: 'center' }}>{subjects[i].lessonCount}</td>
+          {subjects[i + 1] && (
+            <>
+              <td style={{ border: '1px solid #ddd', padding: '8px' }}>{subjects[i + 1].subjectName}</td>
+              <td style={{ border: '1px solid #ddd', padding: '8px', textAlign: 'center' }}>{subjects[i + 1].lessonCount}</td>
+            </>
+          )}
+        </tr>
+      );
+    }
+
+    return (
+      <table style={{ width: '100%', borderCollapse: 'collapse', marginTop: '20px' }}>
+        <thead>
+          <tr style={{ backgroundColor: '#5585b5', color: 'white' }}>
+            <th style={{ border: '1px solid #ddd', padding: '8px', textAlign: 'left' }}>Môn học</th>
+            <th style={{ border: '1px solid #ddd', padding: '8px', textAlign: 'center' }}>Số tiết</th>
+            <th style={{ border: '1px solid #ddd', padding: '8px', textAlign: 'left' }}>Môn học</th>
+            <th style={{ border: '1px solid #ddd', padding: '8px', textAlign: 'center' }}>Số tiết</th>
+          </tr>
+        </thead>
+        <tbody>
+          {rows}
+        </tbody>
+      </table>
+    );
   };
 
   if (loading) {
@@ -151,9 +224,12 @@ const AdminResultDetail = () => {
 
   return (
     <div className="subject-result-container">
-      <h1>Chi tiết hành động</h1>
       {result && (
         <div className="result-info">
+          <Link to="/admin-result" style={{ textDecoration: 'none', paddingBottom: '5px', fontSize: '20px'}}>
+            <ArrowBackIcon/>
+          </Link>
+          <h1>Chi tiết hành động</h1>
           <h2>Thông tin người thực hiện</h2>
           <p><strong>Tên giáo viên:</strong> {result.user.name}</p>
           <p><strong>Email:</strong> {result.user.email}</p>

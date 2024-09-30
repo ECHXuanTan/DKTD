@@ -54,6 +54,7 @@ const TeacherScreen = () => {
         email: '',
         phone: '',
         department: '',
+        departmentId: '',
         type: '',
         lessonsPerWeek: '',
         teachingWeeks: ''
@@ -214,7 +215,8 @@ const TeacherScreen = () => {
             name: teacher.name,
             email: teacher.email,
             phone: teacher.phone,
-            department: teacher.department,
+            department: teacher.departmentId,
+            departmentId: teacher.departmentId,
             type: teacher.type,
             lessonsPerWeek: teacher.lessonsPerWeek,
             teachingWeeks: teacher.teachingWeeks
@@ -258,13 +260,16 @@ const TeacherScreen = () => {
                 setTeachers(updatedTeacherData);
             } catch (error) {
                 console.error('Error deleting teacher:', error);
-                toast.error(error.message || 'Có lỗi xảy ra khi xóa giáo viên.');
+                if (error.response && error.response.status === 400 && error.response.data.message === "Không thể xóa giáo viên đã có khai báo giảng dạy") {
+                    toast.error(error.response.data.message);
+                } else {
+                    toast.error('Lỗi khi xóa giáo viên');
+                }
             }
         }
         setShowDeleteConfirmModal(false);
         setTeacherToDelete(null);
     };
-
     const handleDepartmentFilterClick = (event) => {
         setAnchorEl(event.currentTarget);
     };
@@ -284,29 +289,37 @@ const TeacherScreen = () => {
         { field: 'email', headerName: 'Email', flex: 1 },
         { field: 'phone', headerName: 'Số điện thoại', flex: 1 },
         { field: 'department', headerName: 'Khoa', flex: 1 },
-        { field: 'type', headerName: 'Loại giáo viên', flex: 1 },
+        { field: 'type', headerName: 'Loại giáo viên', flex: 0.7 },
         { 
             field: 'lessonsPerWeek', 
             headerName: 'Số tiết/tuần', 
             flex: 0.7, 
-            type: 'number'
+            type: 'number',
+            align: 'center'
         },
         { 
             field: 'teachingWeeks', 
             headerName: 'Số tuần dạy', 
             flex: 0.7, 
-            type: 'number'
+            type: 'number',
+            align: 'center'
         },
         { 
             field: 'basicTeachingLessons', 
             headerName: 'Số tiết dạy cơ bản', 
-            flex: 0.7, 
-            type: 'number'
+            flex: 0.9, 
+            type: 'number',
+            align: 'center'
         },
+        // { 
+        //     field: 'departmentId', 
+        //     headerName: 'Department ID', 
+        //     width: 0,
+        //     hide: true
+        // },
         {
             field: 'actions',
             headerName: 'Thao tác',
-            flex: 1,
             renderCell: ({ row }) => {
                 return (
                     <>
@@ -339,6 +352,7 @@ const TeacherScreen = () => {
         email: teacher.email,
         phone: teacher.phone,
         department: teacher.department ? teacher.department.name : 'N/A',
+        departmentId: teacher.department ? teacher.department._id : '',
         type: teacher.type,
         lessonsPerWeek: teacher.lessonsPerWeek,
         teachingWeeks: teacher.teachingWeeks,
@@ -485,8 +499,8 @@ const TeacherScreen = () => {
                     <select
                         id="department"
                         name="department"
-                        value={newTeacher.department}
-                        onChange={handleInputChange}
+                        value={editingTeacher.departmentId} // Change this line
+                        onChange={handleEditInputChange}
                         required
                     >
                         <option value="">Chọn khoa</option>

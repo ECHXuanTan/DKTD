@@ -155,3 +155,67 @@ export const getSubjectStatistics = async (subjectId, grade = null) => {
     throw error;
   }
 };
+
+export const getDepartmentStatistics = async (subjectId, grade = null) => {
+  try {
+    const userToken = localStorage.getItem('userToken');
+    const response = await api.get('api/statistics/department-statistics', {
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${userToken}`,
+      },
+    });
+    return response.data;
+  } catch (error) {
+    console.error('Error getting department teachers:', error);
+    throw error;
+  }
+};
+
+export const getDepartmentTeachersById = async (departmentId) => {
+  try {
+    const userToken = localStorage.getItem('userToken');
+    const response = await api.get(`api/statistics/department-teachers/${departmentId}`, {
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${userToken}`,
+      },
+    });
+    return response.data;
+  } catch (error) {
+    console.error('Error getting department teachers:', error);
+    throw error;
+  }
+};
+
+export const getAllTeachersAboveThreshold = async () => {
+  try {
+    const userToken = localStorage.getItem('userToken');
+    const response = await api.get('api/statistics/all-teachers-above-threshold', {
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${userToken}`,
+      },
+    });
+    return response.data;
+  } catch (error) {
+    console.error('Error getting all teachers above threshold:', error);
+    throw error;
+  }
+};
+
+export const getAllTeachersBelowBasic = async () => {
+  try {
+    const userToken = localStorage.getItem('userToken');
+    const response = await api.get('api/statistics/all-teachers-below-basic', {
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${userToken}`,
+      },
+    });
+    return response.data;
+  } catch (error) {
+    console.error('Error getting all teachers below basic:', error);
+    throw error;
+  }
+};

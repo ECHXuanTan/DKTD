@@ -71,7 +71,6 @@
     background-color: white;
     padding: 30px;
     border-radius: 12px;
-    width: 450px;
     box-shadow: 0 10px 30px rgba(0,0,0,0.1);
     max-height: 80vh;
     overflow-y: auto; 

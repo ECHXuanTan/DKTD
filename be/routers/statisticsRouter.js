@@ -1,11 +1,12 @@
 import express from 'express';
 import mongoose from 'mongoose';
-import { isAuth } from '../utils.js';
+import { isAuth, isAdmin } from '../utils.js';
 import Teacher from '../models/teacherModel.js';
 import TeacherAssignment from '../models/teacherAssignmentModels.js';
 import Class from '../models/classModels.js';
 import Subject from '../models/subjectModels.js';
 import User from '../models/userModel.js';
+import Department from '../models/departmentModel.js';
 
 const statisticsRouter = express.Router();
 
@@ -280,6 +281,99 @@ statisticsRouter.get('/teacher-assignments/:teacherId', isAuth, async (req, res)
   }
 });
 
+// Endpoint để lấy tất cả giáo viên dưới mức cơ bản
+statisticsRouter.get('/all-teachers-below-basic', isAuth, isAdmin, async (req, res) => {
+  try {
+    const excludedDepartment = await Department.findOne({ name: "Tổ Giáo vụ – Đào tạo" });
+
+    const query = {
+      $expr: { $lt: ['$totalAssignment', '$basicTeachingLessons'] },
+      department: { $ne: excludedDepartment ? excludedDepartment._id : null }
+    };
+
+    const teachers = await Teacher.find(query).populate('department', 'name');
+
+    const teachersData = await Promise.all(teachers.map(async (teacher) => {
+      const assignments = await TeacherAssignment.find({ teacher: teacher._id })
+        .populate('class', 'name grade')
+        .populate('subject', 'name');
+
+      const teachingDetails = assignments.map(assignment => ({
+        className: assignment.class.name,
+        grade: assignment.class.grade,
+        subjectName: assignment.subject.name,
+        completedLessons: assignment.completedLessons
+      }));
+
+      return {
+        id: teacher._id,
+        name: teacher.name,
+        type: teacher.type,
+        lessonsPerWeek: teacher.lessonsPerWeek,
+        teachingWeeks: teacher.teachingWeeks,
+        basicTeachingLessons: teacher.basicTeachingLessons,
+        totalAssignment: teacher.totalAssignment,
+        departmentName: teacher.department.name,
+        teachingDetails: teachingDetails
+      };
+    }));
+
+    res.status(200).json(teachersData);
+  } catch (error) {
+    console.error('Error in getting all teachers below basic:', error);
+    res.status(500).json({ message: 'Lỗi server', error: error.message });
+  }
+});
+
+// Endpoint để lấy tất cả giáo viên trên ngưỡng
+statisticsRouter.get('/all-teachers-above-threshold', isAuth, isAdmin, async (req, res) => {
+  try {
+    const excludedDepartment = await Department.findOne({ name: "Tổ Giáo vụ – Đào tạo" });
+
+    const query = {
+      $expr: {
+        $gt: [
+          { $subtract: ['$totalAssignment', '$basicTeachingLessons'] },
+          { $multiply: ['$basicTeachingLessons', 0.25] }
+        ]
+      },
+      department: { $ne: excludedDepartment ? excludedDepartment._id : null }
+    };
+
+    const teachers = await Teacher.find(query).populate('department', 'name');
+
+    const teachersData = await Promise.all(teachers.map(async (teacher) => {
+      const assignments = await TeacherAssignment.find({ teacher: teacher._id })
+        .populate('class', 'name grade')
+        .populate('subject', 'name');
+
+      const teachingDetails = assignments.map(assignment => ({
+        className: assignment.class.name,
+        grade: assignment.class.grade,
+        subjectName: assignment.subject.name,
+        completedLessons: assignment.completedLessons
+      }));
+
+      return {
+        id: teacher._id,
+        name: teacher.name,
+        type: teacher.type,
+        lessonsPerWeek: teacher.lessonsPerWeek,
+        teachingWeeks: teacher.teachingWeeks,
+        basicTeachingLessons: teacher.basicTeachingLessons,
+        totalAssignment: teacher.totalAssignment,
+        excessLessons: teacher.totalAssignment - teacher.basicTeachingLessons,
+        departmentName: teacher.department.name,
+        teachingDetails: teachingDetails
+      };
+    }));
+
+    res.status(200).json(teachersData);
+  } catch (error) {
+    console.error('Error in getting all teachers above threshold:', error);
+    res.status(500).json({ message: 'Lỗi server', error: error.message });
+  }
+});
 
 statisticsRouter.get('/all-classes', isAuth, async (req, res) => {
   try {
@@ -803,5 +897,138 @@ statisticsRouter.get('/subject-statistics/:subjectId', isAuth, async (req, res) 
   }
 });
 
+statisticsRouter.get('/department-statistics', isAuth, async (req, res) => {
+  try {
+    const departmentStats = await Department.aggregate([
+      {
+        $match: {
+          name: { $ne: "Tổ Giáo vụ – Đào tạo" }
+        }
+      },
+      {
+        $lookup: {
+          from: 'teachers',
+          localField: '_id',
+          foreignField: 'department',
+          as: 'teachers'
+        }
+      },
+      {
+        $lookup: {
+          from: 'teacherassignments',
+          let: { departmentId: '$_id' },
+          pipeline: [
+            {
+              $lookup: {
+                from: 'teachers',
+                localField: 'teacher',
+                foreignField: '_id',
+                as: 'teacherInfo'
+              }
+            },
+            {
+              $unwind: '$teacherInfo'
+            },
+            {
+              $match: {
+                $expr: { $eq: ['$teacherInfo.department', '$$departmentId'] }
+              }
+            }
+          ],
+          as: 'assignments'
+        }
+      },
+      {
+        $project: {
+          name: 1,
+          totalAssignmentTime: { $ifNull: ['$totalAssignmentTime', 0] },
+          declaredTeachingLessons: { $ifNull: ['$declaredTeachingLessons', 0] },
+          teacherCount: { $size: '$teachers' },
+          teachersWithDeclarations: {
+            $size: {
+              $setUnion: '$assignments.teacher'
+            }
+          },
+          teachersAboveThreshold: {
+            $size: {
+              $filter: {
+                input: '$teachers',
+                as: 'teacher',
+                cond: {
+                  $gt: [
+                    { $subtract: ['$$teacher.totalAssignment', '$$teacher.basicTeachingLessons'] },
+                    { $multiply: ['$$teacher.basicTeachingLessons', 0.25] }
+                  ]
+                }
+              }
+            }
+          },
+          teachersBelowBasic: {
+            $size: {
+              $filter: {
+                input: '$teachers',
+                as: 'teacher',
+                cond: { $lt: ['$$teacher.totalAssignment', '$$teacher.basicTeachingLessons'] }
+              }
+            }
+          },
+          createdAt: 1,
+          updatedAt: 1
+        }
+      },
+      {
+        $sort: { name: 1 }
+      }
+    ]);
+
+    res.status(200).json(departmentStats);
+  } catch (error) {
+    console.error('Error fetching department statistics:', error);
+    res.status(500).json({ message: 'Lỗi server khi lấy thống kê khoa', error: error.message });
+  }
+});
+
+statisticsRouter.get('/department-teachers/:departmentId', isAuth, isAdmin, async (req, res) => {
+  try {
+    const { departmentId } = req.params;
+
+    const department = await Department.findById(departmentId);
+    if (!department) {
+      return res.status(404).json({ message: 'Không tìm thấy khoa' });
+    }
+
+    const teachers = await Teacher.find({ department: departmentId });
+
+    const teachersData = await Promise.all(teachers.map(async (teacher) => {
+      const assignments = await TeacherAssignment.find({ teacher: teacher._id })
+        .populate('class', 'name grade')
+        .populate('subject', 'name');
+
+      const teachingDetails = assignments.map(assignment => ({
+        className: assignment.class.name,
+        grade: assignment.class.grade,
+        subjectName: assignment.subject.name,
+        completedLessons: assignment.completedLessons
+      }));
+
+      return {
+        id: teacher._id,
+        name: teacher.name,
+        type: teacher.type,
+        lessonsPerWeek: teacher.lessonsPerWeek,
+        teachingWeeks: teacher.teachingWeeks,
+        basicTeachingLessons: teacher.basicTeachingLessons,
+        totalAssignment: teacher.totalAssignment,
+        departmentName: department.name,
+        teachingDetails: teachingDetails
+      };
+    }));
+
+    res.status(200).json(teachersData);
+  } catch (error) {
+    console.error('Error in getting department teachers:', error);
+    res.status(500).json({ message: 'Lỗi server', error: error.message });
+  }
+});
 
 export default statisticsRouter;

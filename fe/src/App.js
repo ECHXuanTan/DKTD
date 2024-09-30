@@ -5,6 +5,10 @@ import Dashboard from './pages/user/Dashboard';
 import AdminDashboard from './pages/user/AdminDashboard';
 import AdminActionResultScreen from './pages/user/AdminResultDashboard';
 import AdminResultDetail from './pages/user/AdminResultDetails';
+import AdminClassScreen from './pages/user/AdminClassScreen';
+import AdminDepartment from './pages/user/AdminDepartment';
+import AdminWarning from './pages/user/AdminWarning';
+
 import MinistryDeclare from './pages/Ministry/MinistryDeclareScreen';
 import ClassScreen from './pages/Ministry/ClassScreen';
 import ClassDetail from './pages/Ministry/ClassDetails.Screen';
@@ -30,6 +34,10 @@ const App = () => {
         <Route path="/admin-dashboard" element={<AdminDashboard />} />
         <Route path="/admin-result" element={<AdminActionResultScreen />} />
         <Route path="/admin-action-result/:id" element={<AdminResultDetail />} />
+        <Route path="/admin/class-statistics" element={<AdminClassScreen />} />
+        <Route path="/admin-dashboard/department/:departmentId" element={<AdminDepartment />} />
+        <Route path="/admin/warning" element={<AdminWarning />} />
+
         <Route path="/ministry-declare" element={<MinistryDeclare />} />
         <Route path="/ministry-class" element={<ClassScreen />} />
         <Route path="/ministry-teacher" element={<TeacherScreen />} />

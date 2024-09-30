@@ -1,0 +1,68 @@
+.adminDepartment {
+    padding: 20px;
+    max-width: 1370px;
+    margin: 0 auto;
+    width: 95%;
+    min-height: 75vh;
+}
+
+.loadingContainer {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+}
+
+.table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.tableHeader {
+    background-color: #f2f2f2;
+    font-weight: bold;
+    color: #2c3e50;
+    padding: 12px;
+    text-align: left;
+    border: 1px solid #ddd;
+}
+
+.table td {
+    padding: 12px;
+    text-align: left;
+    border: 1px solid #ddd;
+}
+
+.evenRow {
+    background-color: #f9f9f9;
+}
+
+.oddRow {
+    background-color: #ffffff;
+}
+
+.table tr:hover {
+    background-color: #f5f5f5;
+}
+
+.noTeachersMessage {
+    font-size: 1.2rem;
+    text-align: center;
+    margin-top: 2rem;
+    color: #666;
+}
+
+@media (max-width: 768px) {
+    .adminDepartment {
+        padding: 16px;
+        width: 100%;
+    }
+
+    .table {
+        font-size: 0.9rem;
+    }
+
+    .tableHeader, .table td {
+        padding: 8px;
+    }
+}

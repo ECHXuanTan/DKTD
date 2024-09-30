@@ -91,22 +91,22 @@ const MinistryDeclare = () => {
 
     const columns = [
         { field: 'name', headerName: 'Tên tổ bộ môn', flex: 1 },
-        { field: 'totalAssignmentTime', headerName: 'Tổng số tiết dạy', flex: 1 },
-        { field: 'declaredTeachingLessons', headerName: 'Số tiết đã khai báo', flex: 1 },
-        { field: 'completionPercentage', headerName: 'Tỉ lệ hoàn thành', flex: 1 },
+        { field: 'totalAssignmentTime', headerName: 'Tổng số tiết dạy', flex: 1, align: 'center', headerAlign: 'center' },
+        { field: 'declaredTeachingLessons', headerName: 'Số tiết đã khai báo', flex: 1, align: 'center', headerAlign: 'center' },
+        { field: 'completionPercentage', headerName: 'Tỉ lệ hoàn thành', flex: 1, align: 'center', headerAlign: 'center' },
         { field: 'completionStatus', headerName: 'Tình trạng', flex: 1 },
         { field: 'updatedAt', headerName: 'Lần cập nhật gần nhất', flex: 1 },
-        {
-            field: 'actions',
-            headerName: 'Hành động',
-            flex: 0.5,
-            renderCell: (params) => (
-                <EditIcon
-                    className={styles.editIcon}
-                    onClick={() => {/* Handle edit action */}}
-                />
-            ),
-        },
+        // {
+        //     field: 'actions',
+        //     headerName: 'Hành động',
+        //     flex: 0.5,
+        //     renderCell: (params) => (
+        //         <EditIcon
+        //             className={styles.editIcon}
+        //             onClick={() => {/* Handle edit action */}}
+        //         />
+        //     ),
+        // },
     ];
 
     const rows = departments.map((dept, index) => ({
