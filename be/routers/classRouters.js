@@ -513,5 +513,79 @@ classRouter.delete('/:id', isAuth, async (req, res) => {
   }
 });
 
+classRouter.put('/:id/update-subject/:subjectId', isAuth, async (req, res) => {
+  const session = await mongoose.startSession();
+  session.startTransaction();
+
+  try {
+    const { id, subjectId } = req.params;
+    const { lessonCount } = req.body;
+
+    const classToUpdate = await Class.findById(id).populate('subjects.subject').session(session);
+    if (!classToUpdate) {
+      throw new Error('Không tìm thấy lớp học với ID đã cung cấp');
+    }
+
+    const subjectIndex = classToUpdate.subjects.findIndex(s => s.subject._id.toString() === subjectId);
+    if (subjectIndex === -1) {
+      throw new Error('Không tìm thấy môn học trong lớp này');
+    }
+
+    // Prepare dataBefore with subject names
+    const classBefore = {
+      ...classToUpdate.toObject(),
+      subjects: classToUpdate.subjects.map(s => ({
+        subject: s.subject._id,
+        subjectName: s.subject.name,
+        lessonCount: s.lessonCount
+      }))
+    };
+
+    const oldLessonCount = classToUpdate.subjects[subjectIndex].lessonCount;
+    const lessonCountDifference = lessonCount - oldLessonCount;
+
+    classToUpdate.subjects[subjectIndex].lessonCount = lessonCount;
+
+    if (classToUpdate.subjects[subjectIndex].subject.department) {
+      await Department.findByIdAndUpdate(
+        classToUpdate.subjects[subjectIndex].subject.department,
+        { $inc: { totalAssignmentTime: lessonCountDifference } },
+        { session }
+      );
+    }
+
+    await classToUpdate.save({ session });
+
+    // Prepare dataAfter with subject names
+    const dataAfter = {
+      ...classToUpdate.toObject(),
+      subjects: classToUpdate.subjects.map(s => ({
+        subject: s.subject._id,
+        subjectName: s.subject.name,
+        lessonCount: s.lessonCount
+      }))
+    };
+
+    // Create result
+    const result = new Result({
+      action: 'UPDATE',
+      user: req.user._id,
+      entityType: 'Class',
+      entityId: id,
+      dataBefore: classBefore,
+      dataAfter: dataAfter
+    });
+
+    await result.save({ session });
+
+    await session.commitTransaction();
+    res.status(200).json({ message: "Cập nhật số tiết môn học thành công", class: dataAfter });
+  } catch (error) {
+    await session.abortTransaction();
+    res.status(400).json({ message: error.message });
+  } finally {
+    session.endSession();
+  }
+});
 
 export default classRouter;
