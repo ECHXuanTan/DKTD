@@ -108,13 +108,13 @@ const LeaderDashboard = () => {
                 <Grid container spacing={2} className={styles.statsGrid}>
                     <Grid item xs={12} sm={6} md={3}>
                         <Paper className={`${styles.statBox} ${styles.blueBox}`}>
-                            <Typography variant="h6">Tổng số giáo viên</Typography>
+                            <Typography variant="h6">Tổng số giáo viên của Tổ bộ môn</Typography>
                             <Typography variant="h4">{teachers.length}</Typography>
                         </Paper>
                     </Grid>
                     <Grid item xs={12} sm={6} md={3}>
                         <Paper className={`${styles.statBox} ${styles.greenBox}`}>
-                            <Typography variant="h6">Tổng số tiết đã khai báo</Typography>
+                            <Typography variant="h6">Tổng số tiết đã khai báo của Tổ bộ môn</Typography>
                             <Typography variant="h4">{teachers.reduce((sum, teacher) => sum + teacher.totalAssignment, 0)}</Typography>
                         </Paper>
                     </Grid>
@@ -164,7 +164,7 @@ const LeaderDashboard = () => {
                 </Box>
                 <TableContainer component={Paper}>
                     <Table className={styles.table}>
-                        <TableHead>
+                        <TableHead >
                             <TableRow>
                                 <TableCell className={styles.tableHeader}>STT</TableCell>
                                 <TableCell className={styles.tableHeader}>Tên giáo viên</TableCell>

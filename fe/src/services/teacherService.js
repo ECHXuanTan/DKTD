@@ -130,15 +130,15 @@ export const createManyTeachers = async (teachersData) => {
     const invalidTeachers = [];
 
     for (const teacher of teachersData) {
-      const errors = validateTeacherData(teacher);
+      const validationResult = validateTeacherData(teacher);
       
       // Kiểm tra sự tồn tại của Tổ chuyên môn	
       const departmentObj = departments.find(dept => dept.name === teacher['Tổ chuyên môn']);
       if (!departmentObj) {
-        errors.push("Không tìm thấy Tổ chuyên môn	");
+        validationResult.errors.push("Không tìm thấy Tổ chuyên môn");
       }
 
-      if (errors.length === 0) {
+      if (validationResult.errors.length === 0) {
         validatedTeachers.push({
           name: teacher['Tên'],
           email: teacher['Email'],
@@ -149,7 +149,7 @@ export const createManyTeachers = async (teachersData) => {
           teachingWeeks: parseInt(teacher['Số tuần dạy'])
         });
       } else {
-        invalidTeachers.push({ teacher, errors });
+        invalidTeachers.push({ name: validationResult.name, errors: validationResult.errors });
       }
     }
 
@@ -212,5 +212,8 @@ const validateTeacherData = (teacher) => {
     errors.push("Số tuần dạy phải là số nguyên dương");
   }
 
-  return errors;
+  return {
+    name: teacher['Tên'] || 'Không xác định',
+    errors: errors
+  };
 };

@@ -1,4 +1,3 @@
-// ClassScreen.js
 import React, { useState, useEffect } from 'react';
 import { Helmet } from 'react-helmet';
 import { useNavigate, Link } from 'react-router-dom';
@@ -39,6 +38,8 @@ const ClassScreen = () => {
     const [excelFile, setExcelFile] = useState(null);
     const [excelData, setExcelData] = useState(null);
     const [selectedSubjects, setSelectedSubjects] = useState([]);
+    const [isCreatingClass, setIsCreatingClass] = useState(false);
+    const [isUploadingExcel, setIsUploadingExcel] = useState(false);
 
     const [newClass, setNewClass] = useState({
         name: '',
@@ -195,6 +196,7 @@ const ClassScreen = () => {
             toast.error('Vui lòng điền đầy đủ thông tin cho tất cả các môn học.');
             return;
         }
+        setIsCreatingClass(true);
         try {
             const classData = {
                 ...newClass,
@@ -216,52 +218,10 @@ const ClassScreen = () => {
             } else {
                 toast.error('Đã có lỗi xảy ra');
             }
+        } finally {
+            setIsCreatingClass(false);
         }
     };
-    //     if (!excelFile) {
-    //         toast.error('Vui lòng chọn file Excel trước khi tải lên');
-    //         return;
-    //     }
-    
-    //     try {
-    //         await createClasses(excelData);
-    //         toast.success('Tải lên và tạo lớp thành công!');
-    //         const updatedClassData = await getClasses();
-    //         setClasses(updatedClassData);
-    //         setShowMultiClassModal(false);
-    //         setExcelData(null);
-    //         setExcelFile(null);
-    //     } catch (error) {
-    //         console.error('Error uploading Excel file:', error);
-    //         if (error.response && error.response.data && error.response.data.message) {
-    //             const errorMessage = error.response.data.message;
-    //             if (errorMessage.includes('Tên lớp đã tồn tại')) {
-    //                 const className = errorMessage.split('"')[1];
-    //                 toast.error(`Lớp ${className} đã tồn tại.`);
-    //             } else {
-    //                 toast.error('Đã có lỗi xảy ra');
-    //             }
-    //         } else {
-    //             toast.error('Đã có lỗi xảy ra');
-    //         }
-    //     }
-    // };
-
-    // const handleDownloadTemplate = () => {
-    //     const data = [
-    //         ['Tên lớp', 'Khối', 'Cơ sở', 'Môn học 1', 'Số tiết 1', 'Môn học 2', 'Số tiết 2', 'Môn học 3', 'Số tiết 3', 'Môn học 4', 'Số tiết 4', 'Môn học 5', 'Số tiết 5', 'Môn học 6', 'Số tiết 6', 'Môn học 7', 'Số tiết 7', 'Môn học 8', 'Số tiết 8', 'Môn học 9', 'Số tiết 9', 'Môn học 10', 'Số tiết 10', 'Môn học 11', 'Số tiết 11', 'Môn học 12', 'Số tiết 12', 'Môn học 13', 'Số tiết 13',],
-    //         ['10A1', '10', 'Quận 5', 'Toán', '45', 'Ngữ văn', '40', 'Văn', '40', ],
-    //         ['11B2', '11', 'Thủ Đức', 'Ngữ văn', '35', 'Hóa', '35', ],
-    //     ];
-
-    //     const ws = utils.aoa_to_sheet(data);
-    //     const wb = utils.book_new();
-    //     utils.book_append_sheet(wb, ws, "Template");
-
-    //     const excelBuffer = write(wb, { bookType: 'xlsx', type: 'array' });
-    //     const dataBlob = new Blob([excelBuffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet;charset=UTF-8' });
-    //     FileSaver.saveAs(dataBlob, 'class_template.xlsx');
-    // };
 
     const handleDownloadTemplate = () => {
         const subjectOrder = [
@@ -307,70 +267,22 @@ const ClassScreen = () => {
         reader.readAsArrayBuffer(file);
     };
 
-    // const handleExcelUpload = async () => {
-    //     if (!excelFile) {
-    //         toast.error('Vui lòng chọn file Excel trước khi tải lên');
-    //         return;
-    //     }
-
-    //     const expectedSubjects = [
-    //         'Toán', 'Tin học', 'Vật lý', 'Hóa học', 'Sinh học', 'Công nghệ', 'Tiếng Anh',
-    //         'Ngữ văn', 'Lịch sử', 'Địa lý', 'Giáo dục kinh tế - Pháp luật', 'Giáo dục Quốc phòng', 'Thể dục'
-    //     ];
-
-    //     // Check if all classes have the correct subjects
-    //     const invalidClasses = excelData.filter(classData => {
-    //         const subjects = Object.keys(classData).filter(key => key !== 'name' && key !== 'grade' && key !== 'campus');
-    //         return !subjects.every(subject => expectedSubjects.includes(subject)) || 
-    //                subjects.length !== expectedSubjects.length;
-    //     });
-
-    //     if (invalidClasses.length > 0) {
-    //         const invalidClassNames = invalidClasses.map(c => c.name).join(', ');
-    //         toast.error(`Các lớp sau có môn học không hợp lệ: ${invalidClassNames}`);
-    //         return;
-    //     }
-    
-    //     try {
-    //         await createClasses(excelData);
-    //         toast.success('Tải lên và tạo lớp thành công!');
-    //         const updatedClassData = await getClasses();
-    //         setClasses(updatedClassData);
-    //         setShowMultiClassModal(false);
-    //         setExcelData(null);
-    //         setExcelFile(null);
-    //     } catch (error) {
-    //         console.error('Error uploading Excel file:', error);
-    //         if (error.response && error.response.data && error.response.data.message) {
-    //             const errorMessage = error.response.data.message;
-    //             if (errorMessage.includes('Tên lớp đã tồn tại')) {
-    //                 const classNames = errorMessage.split(':')[1].trim();
-    //                 toast.error(`Các lớp sau đã tồn tại: ${classNames}`);
-    //             } else {
-    //                 toast.error(errorMessage);
-    //             }
-    //         } else {
-    //             toast.error('Đã có lỗi xảy ra khi tải lên file');
-    //         }
-    //     }
-    // };
-
     const handleExcelUpload = async () => {
         if (!excelFile) {
             toast.error('Vui lòng chọn file Excel trước khi tải lên');
             return;
         }
-    
+
         const expectedSubjects = [
             'Toán', 'Tin học', 'Vật lý', 'Hóa học', 'Sinh học', 'Công nghệ', 'Tiếng Anh',
             'Ngữ văn', 'Lịch sử', 'Địa lý', 'Giáo dục kinh tế - Pháp luật', 'Giáo dục Quốc phòng', 'Thể dục'
         ];
-    
+
         // Process the Excel data
         const processedClasses = excelData.map(classData => {
             const { name, grade, campus, ...subjectData } = classData;
             const subjects = [];
-    
+
             for (const subjectName of expectedSubjects) {
                 const lessonCount = parseInt(subjectData[subjectName], 10);
                 if (!isNaN(lessonCount) && lessonCount > 0) {
@@ -380,21 +292,22 @@ const ClassScreen = () => {
                     });
                 }
             }
-    
+
             return { name, grade, campus, subjects };
         });
-    
+
         // Validate the processed data
         const invalidClasses = processedClasses.filter(classData => 
             !classData.name || !classData.grade || !classData.campus || classData.subjects.length === 0
         );
-    
+
         if (invalidClasses.length > 0) {
             const invalidClassNames = invalidClasses.map(c => c.name || 'Unnamed').join(', ');
             toast.error(`Các lớp sau không hợp lệ hoặc không có môn học: ${invalidClassNames}`);
             return;
         }
-    
+
+        setIsUploadingExcel(true);
         try {
             await createClasses(processedClasses);
             toast.success('Tải lên và tạo lớp thành công!');
@@ -416,6 +329,8 @@ const ClassScreen = () => {
             } else {
                 toast.error('Đã có lỗi xảy ra khi tải lên file');
             }
+        } finally {
+            setIsUploadingExcel(false);
         }
     };
 
@@ -476,7 +391,7 @@ const ClassScreen = () => {
             <ToastContainer />
             <div className={styles.classDashboardMinistry}>
                 <Box m="20px">
-                    <Link to="/ministry-declare" style={{ display: 'block',textDecoration: 'none', marginBottom: '5px', fontSize: '20px' }}>
+                    <Link to="/ministry-declare" style={{ display: 'block', textDecoration: 'none', marginBottom: '5px', fontSize: '20px' }}>
                         <ArrowBackIcon />
                     </Link>
                     <Typography variant="h4" mb={2} className={styles.sectionTitle}>
@@ -565,204 +480,216 @@ const ClassScreen = () => {
             </div>
             <Footer />
         
-        {/* Modal for adding a single class */}
-        <Modal
-            isOpen={showSingleClassModal}
-            onRequestClose={() => setShowSingleClassModal(false)}
-            contentLabel="Tạo Lớp Mới"
-            className={styles.modal}
-            overlayClassName={styles.overlay}
-        >
-            <h2 className={styles.modalTitle}>Tạo Lớp Mới</h2>
-            <form onSubmit={handleSubmit} className={styles.form}>
-                <div className={styles.formGroup}>
-                    <label htmlFor="name">Tên lớp:</label>
-                    <input
-                        type="text"
-                        id="name"
-                        name="name"
-                        value={newClass.name}
-                        onChange={handleInputChange}
-                        required
-                    />
-                </div>
-                <div className={styles.formGroup}>
-                    <label htmlFor="grade">Khối:</label>
-                    <select
-                        id="grade"
-                        name="grade"
-                        value={newClass.grade}
-                        onChange={handleInputChange}
-                        required
-                    >
-                        <option value="">Chọn khối</option>
-                        <option value="10">Khối 10</option>
-                        <option value="11">Khối 11</option>
-                        <option value="12">Khối 12</option>
-                    </select>
-                </div>
-                <div className={styles.formGroup}>
-                    <label htmlFor="campus">Cơ sở:</label>
-                    <select
-                        id="campus"
-                        name="campus"
-                        value={newClass.campus}
-                        onChange={handleInputChange}
-                        required
-                    >
-                        <option value="">Chọn cơ sở</option>
-                        <option value="Quận 5">Quận 5</option>
-                        <option value="Thủ Đức">Thủ Đức</option>
-                    </select>
-                </div>
-                <div className={styles.subjectsContainer}>
-                    <h3>Danh sách môn học</h3>
-                    {newClass.subjects.map((subject, index) => (
-                        <div key={index} className={styles.subjectItem}>
-                            {!subject.isEditing ? (
-                                <div className={styles.subjectSummary}>
-                                    <span>{subjects.find(s => s._id === subject.subjectId)?.name} - {subject.lessonCount} tiết</span>
-                                    <div>
-                                        <button type="button" onClick={() => handleEditSubject(index)} className={styles.editButton}>
-                                            <EditIcon />
-                                        </button>
-                                        <button type="button" onClick={() => handleRemoveSubject(index)} className={styles.removeButton}>
-                                            <DeleteIcon />
-                                        </button>
+            {/* Modal for adding a single class */}
+            <Modal
+                isOpen={showSingleClassModal}
+                onRequestClose={() => setShowSingleClassModal(false)}
+                contentLabel="Tạo Lớp Mới"
+                className={styles.modal}
+                overlayClassName={styles.overlay}
+            >
+                <h2 className={styles.modalTitle}>Tạo Lớp Mới</h2>
+                <form onSubmit={handleSubmit} className={styles.form}>
+                    <div className={styles.formGroup}>
+                        <label htmlFor="name">Tên lớp:</label>
+                        <input
+                            type="text"
+                            id="name"
+                            name="name"
+                            value={newClass.name}
+                            onChange={handleInputChange}
+                            required
+                        />
+                    </div>
+                    <div className={styles.formGroup}>
+                        <label htmlFor="grade">Khối:</label>
+                        <select
+                            id="grade"
+                            name="grade"
+                            value={newClass.grade}
+                            onChange={handleInputChange}
+                            required
+                        >
+                            <option value="">Chọn khối</option>
+                            <option value="10">Khối 10</option>
+                            <option value="11">Khối 11</option>
+                            <option value="12">Khối 12</option>
+                        </select>
+                    </div>
+                    <div className={styles.formGroup}>
+                        <label htmlFor="campus">Cơ sở:</label>
+                        <select
+                            id="campus"
+                            name="campus"
+                            value={newClass.campus}
+                            onChange={handleInputChange}
+                            required
+                        >
+                            <option value="">Chọn cơ sở</option>
+                            <option value="Quận 5">Quận 5</option>
+                            <option value="Thủ Đức">Thủ Đức</option>
+                        </select>
+                    </div>
+                    <div className={styles.subjectsContainer}>
+                        <h3>Danh sách môn học</h3>
+                        {newClass.subjects.map((subject, index) => (
+                            <div key={index} className={styles.subjectItem}>
+                                {!subject.isEditing ? (
+                                    <div className={styles.subjectSummary}>
+                                        <span>{subjects.find(s => s._id === subject.subjectId)?.name} - {subject.lessonCount} tiết</span>
+                                        <div>
+                                            <button type="button" onClick={() => handleEditSubject(index)} className={styles.editButton}>
+                                                <EditIcon />
+                                            </button>
+                                            <button type="button" onClick={() => handleRemoveSubject(index)} className={styles.removeButton}>
+                                                <DeleteIcon />
+                                            </button>
+                                        </div>
                                     </div>
-                                </div>
+                                ) : (
+                                    <>
+                                        <div className={styles.subjectInputGroup}>
+                                            <label htmlFor={`subjectId-${index}`}>Môn học:</label>
+                                            <select
+                                                id={`subjectId-${index}`}
+                                                name="subjectId"
+                                                value={subject.subjectId}
+                                                onChange={(e) => handleInputChange(e, index)}
+                                                required
+                                            >
+                                                <option value="">Chọn môn học</option>
+                                                {subjects
+                                                    .filter(subj => !selectedSubjects.includes(subj._id))
+                                                    .map((subj) => (
+                                                        <option key={subj._id} value={subj._id}>
+                                                            {subj.name}
+                                                        </option>
+                                                    ))
+                                                }
+                                            </select>
+                                        </div>
+                                        <div className={styles.subjectInputGroup}>
+                                            <label htmlFor={`lessonCount-${index}`}>Số tiết:</label>
+                                            <input
+                                                type="number"
+                                                id={`lessonCount-${index}`}
+                                                name="lessonCount"
+                                                value={subject.lessonCount}
+                                                onChange={(e) => handleInputChange(e, index)}
+                                                required
+                                            />
+                                        </div>
+                                        <button type="button" onClick={() => handleSaveSubject(index)} className={styles.saveButton}>
+                                            Lưu
+                                        </button>
+                                    </>
+                                )}
+                            </div>
+                        ))}
+                    </div>
+                    <button type="button" onClick={handleAddSubject} className={styles.addButton}>
+                       Thêm môn học
+                    </button>
+                    <div className={styles.formActions}>
+                        <button type="submit" className={styles.submitButton} disabled={isCreatingClass}>
+                            {isCreatingClass ? (
+                                <Circles type="TailSpin" color="#FFF" height={20} width={20} />
                             ) : (
-                                <>
-                                    <div className={styles.subjectInputGroup}>
-                                        <label htmlFor={`subjectId-${index}`}>Môn học:</label>
-                                        <select
-                                            id={`subjectId-${index}`}
-                                            name="subjectId"
-                                            value={subject.subjectId}
-                                            onChange={(e) => handleInputChange(e, index)}
-                                            required
-                                        >
-                                            <option value="">Chọn môn học</option>
-                                            {subjects
-                                                .filter(subj => !selectedSubjects.includes(subj._id))
-                                                .map((subj) => (
-                                                    <option key={subj._id} value={subj._id}>
-                                                        {subj.name}
-                                                    </option>
-                                                ))
-                                            }
-                                        </select>
-                                    </div>
-                                    <div className={styles.subjectInputGroup}>
-                                        <label htmlFor={`lessonCount-${index}`}>Số tiết:</label>
-                                        <input
-                                            type="number"
-                                            id={`lessonCount-${index}`}
-                                            name="lessonCount"
-                                            value={subject.lessonCount}
-                                            onChange={(e) => handleInputChange(e, index)}
-                                            required
-                                        />
-                                    </div>
-                                    <button type="button" onClick={() => handleSaveSubject(index)} className={styles.saveButton}>
-                                        Lưu
-                                    </button>
-                                </>
+                                'Tạo Lớp'
                             )}
-                        </div>
-                    ))}
-                </div>
-                <button type="button" onClick={handleAddSubject} className={styles.addButton}>
-                   Thêm môn học
-                </button>
-                <div className={styles.formActions}>
-                    <button type="submit" className={styles.submitButton}>Tạo Lớp</button>
-                    <button type="button" onClick={() => setShowSingleClassModal(false)} className={styles.cancelButton}>Hủy</button>
-                </div>
-            </form>
-        </Modal>        
+                        </button>
+                        <button type="button" onClick={() => setShowSingleClassModal(false)} className={styles.cancelButton}>Hủy</button>
+                    </div>
+                </form>
+            </Modal>        
 
-        {/* Modal for uploading Excel file */}
-        <Modal
-            isOpen={showMultiClassModal}
-            onRequestClose={() => {
-                setShowMultiClassModal(false);
-                setExcelData(null);
-                setExcelFile(null);
-            }}
-            contentLabel="Tải lên file Excel"
-            className={styles.modalExcel}
-            overlayClassName={styles.overlay}
-        >
-            <h2 className={styles.modalTitle}>Tải lên file Excel</h2>
-            <form onSubmit={(e) => { e.preventDefault(); }} className={styles.form}>
-                <div className={styles.formGroup}>
-                    <label htmlFor="excel-upload">Chọn file Excel: <sapn style={{color: "red"}}>(File tải lên phải có các cột giống như file mẫu)</sapn></label>
-                    <input
-                        type="file"
-                        id="excel-upload"
-                        accept=".xlsx, .xls"
-                        onChange={handleFileUpload}
-                    />
-                </div>
-                {excelData && (
-                    <div className={styles.previewContainer}>
-                        <div className={styles.previewHeader}>
-                            <h3>Xem trước dữ liệu:</h3>
-                            <button 
-                                onClick={() => {
-                                    setExcelData(null);
-                                    setExcelFile(null);
-                                }}
-                                className={styles.closePreviewButton}
-                            >
-                                Đóng xem trước
-                            </button>
-                        </div>
-                        <table className={styles.previewTable}>
-                            <thead>
-                                <tr>
-                                    {Object.keys(excelData[0]).map((key) => (
-                                        <th key={key}>{key}</th>
-                                    ))}
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {excelData.map((row, index) => (
-                                    <tr key={index}>
-                                        {Object.values(row).map((value, idx) => (
-                                            <td key={idx}>{value}</td>
+            {/* Modal for uploading Excel file */}
+            <Modal
+                isOpen={showMultiClassModal}
+                onRequestClose={() => {
+                    setShowMultiClassModal(false);
+                    setExcelData(null);
+                    setExcelFile(null);
+                }}
+                contentLabel="Tải lên file Excel"
+                className={styles.modalExcel}
+                overlayClassName={styles.overlay}
+            >
+                <h2 className={styles.modalTitle}>Tải lên file Excel</h2>
+                <form onSubmit={(e) => { e.preventDefault(); }} className={styles.form}>
+                    <div className={styles.formGroup}>
+                        <label htmlFor="excel-upload">Chọn file Excel: <span style={{color: "red"}}>(File tải lên phải có các cột giống như file mẫu)</span></label>
+                        <input
+                            type="file"
+                            id="excel-upload"
+                            accept=".xlsx, .xls"
+                            onChange={handleFileUpload}
+                        />
+                    </div>
+                    {excelData && (
+                        <div className={styles.previewContainer}>
+                            <div className={styles.previewHeader}>
+                                <h3>Xem trước dữ liệu:</h3>
+                                <button 
+                                    onClick={() => {
+                                        setExcelData(null);
+                                        setExcelFile(null);
+                                    }}
+                                    className={styles.closePreviewButton}
+                                >
+                                    Đóng xem trước
+                                </button>
+                            </div>
+                            <table className={styles.previewTable}>
+                                <thead>
+                                    <tr>
+                                        {Object.keys(excelData[0]).map((key) => (
+                                            <th key={key}>{key}</th>
                                         ))}
                                     </tr>
-                                ))}
-                            </tbody>
-                        </table>
-                    </div>
-                )}
-                <div className={styles.formActions}>
-                    <button type="button" onClick={handleDownloadTemplate} className={styles.downloadButton}>
-                        Tải xuống mẫu Excel
-                    </button>
-                    {excelData && (
-                        <button type="button" onClick={handleExcelUpload} className={styles.submitButton}>
-                            <CloudUploadIcon /> Tải lên
-                        </button>
+                                </thead>
+                                <tbody>
+                                    {excelData.map((row, index) => (
+                                        <tr key={index}>
+                                            {Object.values(row).map((value, idx) => (
+                                                <td key={idx}>{value}</td>
+                                            ))}
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
                     )}
-                    <button 
-                        type="button" 
-                        onClick={() => {
-                            setShowMultiClassModal(false);
-                            setExcelData(null);
-                            setExcelFile(null);
-                        }} 
-                        className={styles.cancelButton}
-                    >
-                        Hủy
-                    </button>
-                </div>
-            </form>
-        </Modal>
-    </>
+                    <div className={styles.formActions}>
+                        <button type="button" onClick={handleDownloadTemplate} className={styles.downloadButton}>
+                            Tải xuống mẫu Excel
+                        </button>
+                        {excelData && (
+                            <button type="button" onClick={handleExcelUpload} className={styles.submitButton} disabled={isUploadingExcel}>
+                                {isUploadingExcel ? (
+                                    <Circles type="TailSpin" color="#FFF" height={20} width={20} />
+                                ) : (
+                                    <>
+                                        <CloudUploadIcon /> Tải lên
+                                    </>
+                                )}
+                            </button>
+                        )}
+                        <button 
+                            type="button" 
+                            onClick={() => {
+                                setShowMultiClassModal(false);
+                                setExcelData(null);
+                                setExcelFile(null);
+                            }} 
+                            className={styles.cancelButton}
+                        >
+                            Hủy
+                        </button>
+                    </div>
+                </form>
+            </Modal>
+        </>
     );
 }
 

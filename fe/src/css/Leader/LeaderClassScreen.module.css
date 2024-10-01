@@ -57,3 +57,10 @@
   align-items: center;
   height: 100vh;
 }
+
+.dataGrid :global(.MuiDataGrid-columnHeaders) {
+  border-bottom: none;
+  --DataGrid-containerBackground: #5585b5;
+  color: white;
+  --unstable_DataGrid-headWeight: 600;
+}

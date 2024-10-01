@@ -72,8 +72,6 @@ classRouter.post('/create-class', isAuth, async (req, res) => {
       subjects: []
     });
 
-    const subjectsWithDetails = [];
-
     for (const subjectData of subjects) {
       const { subjectId, lessonCount } = subjectData;
       const subject = await Subject.findById(subjectId).populate('department');
@@ -82,12 +80,6 @@ classRouter.post('/create-class', isAuth, async (req, res) => {
       }
       newClass.subjects.push({
         subject: subject._id,
-        lessonCount
-      });
-      subjectsWithDetails.push({
-        subject: subject._id,
-        subjectName: subject.name,
-        departmentName: subject.department.name,
         lessonCount
       });
       await Department.findByIdAndUpdate(
@@ -99,18 +91,24 @@ classRouter.post('/create-class', isAuth, async (req, res) => {
 
     await newClass.save({ session });
 
+    // Chuẩn bị dữ liệu cho Result
     const resultData = {
-      ...newClass.toObject(),
-      subjects: subjectsWithDetails
-    };
-
-    await Result.create({
       action: 'CREATE',
       user: req.user._id,
       entityType: 'Class',
-      entityId: newClass._id,
-      dataAfter: resultData
-    }, { session });
+      entityId: [newClass._id], // Đặt trong một mảng để phù hợp với cấu trúc của endpoint tạo nhiều lớp
+      dataAfter: [{  // Đặt trong một mảng để phù hợp với cấu trúc của endpoint tạo nhiều lớp
+        ...newClass.toObject(),
+        subjects: newClass.subjects.map(s => ({
+          subject: s.subject.toString(),
+          lessonCount: s.lessonCount
+        }))
+      }]
+    };
+
+    // Tạo Result
+    const result = new Result(resultData);
+    await result.save({ session });
 
     await session.commitTransaction();
     res.status(201).json({ message: "Lớp đã được tạo thành công", class: newClass });
@@ -121,114 +119,6 @@ classRouter.post('/create-class', isAuth, async (req, res) => {
     session.endSession();
   }
 });
-
-// classRouter.post('/create-classes', isAuth, async (req, res) => {
-//   const session = await mongoose.startSession();
-//   session.startTransaction();
-
-//   try {
-//     const classesData = req.body.classes;
-//     if (!Array.isArray(classesData) || classesData.length === 0) {
-//       throw new Error('Dữ liệu lớp học không hợp lệ');
-//     }
-
-//     const subjectOrder = [
-//       'Toán', 'Tin học', 'Vật lý', 'Hóa học', 'Sinh học', 'Công nghệ', 'Tiếng Anh',
-//       'Ngữ văn', 'Lịch sử', 'Địa lý', 'Giáo dục kinh tế - Pháp luật', 'Giáo dục Quốc phòng', 'Thể dục'
-//     ];
-
-//     const processedClasses = await Promise.all(classesData.map(async (classData) => {
-//       const { name, grade, campus, ...subjectData } = classData;
-      
-//       if (!name || !grade || !campus) {
-//         throw new Error(`Thiếu thông tin cơ bản cho lớp: ${name || 'Unknown'}`);
-//       }
-
-//       const subjects = [];
-//       for (const subjectName of subjectOrder) {
-//         const lessonCount = parseInt(subjectData[subjectName], 10);
-        
-//         if (!isNaN(lessonCount) && lessonCount > 0) {
-//           const subject = await Subject.findOne({ name: subjectName });
-//           if (!subject) {
-//             throw new Error(`Không tìm thấy môn học: ${subjectName}`);
-//           }
-//           subjects.push({ 
-//             subject: subject._id, 
-//             name: subject.name,
-//             lessonCount 
-//           });
-//         }
-//       }
-
-//       if (subjects.length === 0) {
-//         throw new Error(`Không có môn học hợp lệ cho lớp: ${name}`);
-//       }
-
-//       return { 
-//         name, 
-//         grade: parseInt(grade, 10), 
-//         campus, 
-//         subjects 
-//       };
-//     }));
-
-//     const classNames = processedClasses.map(c => c.name);
-//     const existingClasses = await Class.find({ name: { $in: classNames } });
-//     if (existingClasses.length > 0) {
-//       throw new Error(`Tên lớp đã tồn tại: ${existingClasses.map(c => c.name).join(', ')}`);
-//     }
-
-//     const createdClasses = [];
-//     for (const classData of processedClasses) {
-//       const newClass = new Class(classData);
-//       await newClass.save({ session });
-//       createdClasses.push(newClass);
-
-//       for (const subjectData of classData.subjects) {
-//         const subject = await Subject.findById(subjectData.subject).populate('department');
-//         if (subject && subject.department) {
-//           await Department.findByIdAndUpdate(
-//             subject.department._id,
-//             { $inc: { totalAssignmentTime: subjectData.lessonCount } },
-//             { session }
-//           );
-//         }
-//       }
-//     }
-
-//     // Tạo document Result
-//     const resultData = {
-//       action: 'CREATE',
-//       user: req.user._id,
-//       entityType: 'Class',
-//       entityId: createdClasses.map(c => c._id),
-//       dataAfter: createdClasses.map(c => ({
-//         ...c.toObject(),
-//         subjects: c.subjects.map(s => ({
-//           ...s.toObject(),
-//           subject: s.subject.toString(),
-//           name: s.name // Đảm bảo trường name được bao gồm
-//         }))
-//       }))
-//     };
-
-//     // Log dữ liệu resultData để debug
-//     console.log('Result data:', JSON.stringify(resultData, null, 2));
-
-//     const result = new Result(resultData);
-//     await result.save({ session });
-
-//     await session.commitTransaction();
-//     res.status(201).json({ message: "Các lớp đã được tạo thành công", classesCreated: createdClasses.length });
-//   } catch (error) {
-//     await session.abortTransaction();
-//     console.error('Chi tiết lỗi:', error);
-//     res.status(400).json({ message: error.message });
-//   } finally {
-//     session.endSession();
-//   }
-// });
 
 classRouter.post('/create-classes', isAuth, async (req, res) => {
   const session = await mongoose.startSession();

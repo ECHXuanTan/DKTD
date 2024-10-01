@@ -60,8 +60,9 @@
 }
 
 .dataGrid .MuiDataGrid-columnHeaders {
-    background-color: #1a237e;
+    --DataGrid-containerBackground: #1a237e;
     color: white;
+    
 }
 
 .dataGrid .MuiDataGrid-row:nth-of-type(even) {
