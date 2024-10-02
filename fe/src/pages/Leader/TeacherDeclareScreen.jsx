@@ -37,6 +37,7 @@ const TeacherDeclareScreen = () => {
     const [editingClassSubjectInfo, setEditingClassSubjectInfo] = useState({});
     const [showDeleteConfirmModal, setShowDeleteConfirmModal] = useState(false);
     const [deletingAssignment, setDeletingAssignment] = useState(null);
+    const [classSubjectError, setClassSubjectError] = useState('');
     const { id } = useParams();
     const navigate = useNavigate();
 
@@ -78,9 +79,15 @@ const TeacherDeclareScreen = () => {
                 try {
                     const info = await getClassSubjectInfo(selectedClass, selectedSubject);
                     setClassSubjectInfo(info);
+                    setClassSubjectError('');
                 } catch (error) {
                     console.error('Error fetching class subject info:', error);
-                    toast.error('Error fetching class information');
+                    if (error.response && error.response.status === 404) {
+                        setClassSubjectError('Môn học không được khai báo trong lớp này');
+                    } else {
+                        toast.error('Error fetching class information');
+                    }
+                    setClassSubjectInfo({});
                 }
             }
         };
@@ -287,18 +294,24 @@ const TeacherDeclareScreen = () => {
                         <option key={subject._id} value={subject._id}>{subject.name}</option>
                     ))}
                 </select>
-                {classSubjectInfo.remainingLessons !== undefined && (
+                {classSubjectError ? (
+                    <p style={{textAlign:'center', fontWeight:'600', color: '#dc2f2f'}}>{classSubjectError}</p>
+                ) : classSubjectInfo.remainingLessons !== undefined ? (
                     <p>Số tiết còn trống: {classSubjectInfo.remainingLessons}</p>
-                )}
+                ) : null}
                 <input 
                     className={styles.input}
                     type="number" 
                     placeholder="Số tiết"
                     value={lessonCount}
                     onChange={(e) => setLessonCount(e.target.value)}
-                    // max={classSubjectInfo.remainingLessons || ''}
+                    disabled={!!classSubjectError}
                 />
-                <button className={styles.button} type="submit" disabled={isLoading}>
+                <button 
+                    className={styles.button} 
+                    type="submit" 
+                    disabled={isLoading || !!classSubjectError}
+                >
                     {isLoading ? <LoadingSpinner/> : 'Khai báo tiết dạy'}
                 </button>
             </form>

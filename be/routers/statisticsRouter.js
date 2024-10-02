@@ -248,13 +248,20 @@ statisticsRouter.get('/teacher-assignments/:teacherId', isAuth, async (req, res)
         $project: {
           grade: 1,
           className: 1,
+          classNameForSort: {
+            $concat: [
+              { $substr: ['$className', 0, 2] },  // Lấy 2 ký tự đầu (khối lớp)
+              '_',  // Thêm dấu '_' để đảm bảo sắp xếp đúng
+              { $substr: ['$className', 3, -1] }  // Lấy phần còn lại của tên lớp
+            ]
+          },
           subjectName: 1,
           assignedLessons: 1,
           declaredLessons: '$lessonCount.lessonCount'
         }
       },
       {
-        $sort: { grade: 1, className: 1, subjectName: 1 }
+        $sort: { classNameForSort: 1 }  // Sắp xếp theo trường mới tạo
       }
     ]);
 

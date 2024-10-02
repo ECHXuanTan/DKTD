@@ -1,5 +1,5 @@
 .header {
-  background-color: #e3f4fd;
+  background-color: #ecfeff;
   color: #333;
   padding: 10px 120px;
   display: flex;
@@ -10,10 +10,11 @@
 .logo-container {
   display: flex;
   align-items: center;
+  width: 100%;
 }
 
 .logo {
-  max-height: 81px;
+  max-height: 100px;
   margin-right: 10px;
   padding: 2px 0;
 }

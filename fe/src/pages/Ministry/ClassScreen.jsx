@@ -627,39 +627,67 @@ const ClassScreen = () => {
                         />
                     </div>
                     {excelData && (
-                        <div className={styles.previewContainer}>
-                            <div className={styles.previewHeader}>
-                                <h3>Xem trước dữ liệu:</h3>
-                                <button 
-                                    onClick={() => {
-                                        setExcelData(null);
-                                        setExcelFile(null);
-                                    }}
-                                    className={styles.closePreviewButton}
-                                >
-                                    Đóng xem trước
-                                </button>
-                            </div>
-                            <table className={styles.previewTable}>
-                                <thead>
-                                    <tr>
-                                        {Object.keys(excelData[0]).map((key) => (
-                                            <th key={key}>{key}</th>
-                                        ))}
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {excelData.map((row, index) => (
-                                        <tr key={index}>
-                                            {Object.values(row).map((value, idx) => (
-                                                <td key={idx}>{value}</td>
-                                            ))}
-                                        </tr>
-                                    ))}
-                                </tbody>
-                            </table>
-                        </div>
-                    )}
+    <div className={styles.previewContainer}>
+        <div className={styles.previewHeader}>
+            <h3>Xem trước dữ liệu:</h3>
+            <button 
+                onClick={() => {
+                    setExcelData(null);
+                    setExcelFile(null);
+                }}
+                className={styles.closePreviewButton}
+            >
+                Đóng xem trước
+            </button>
+        </div>
+        <div className={styles.tableWrapper}>
+            <table className={styles.previewTable}>
+                <thead>
+                    <tr>
+                        <th>Tên lớp</th>
+                        <th>Khối</th>
+                        <th>Cơ sở</th>
+                        <th>Toán</th>
+                        <th>Tin học</th>
+                        <th>Vật lý</th>
+                        <th>Hóa học</th>
+                        <th>Sinh học</th>
+                        <th>Công nghệ</th>
+                        <th>Tiếng Anh</th>
+                        <th>Ngữ văn</th>
+                        <th>Lịch sử</th>
+                        <th>Địa lý</th>
+                        <th>Giáo dục kinh tế - Pháp luật</th>
+                        <th>Giáo dục Quốc phòng</th>
+                        <th>Thể dục</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {excelData.map((row, index) => (
+                        <tr key={index}>
+                            <td>{row['name'] || '-'}</td>
+                            <td>{row['grade'] || '-'}</td>
+                            <td>{row['campus'] || '-'}</td>
+                            <td className={!row['Toán'] ? styles.emptyCell : ''}>{row['Toán'] || '-'}</td>
+                            <td className={!row['Tin học'] ? styles.emptyCell : ''}>{row['Tin học'] || '-'}</td>
+                            <td className={!row['Vật lý'] ? styles.emptyCell : ''}>{row['Vật lý'] || '-'}</td>
+                            <td className={!row['Hóa học'] ? styles.emptyCell : ''}>{row['Hóa học'] || '-'}</td>
+                            <td className={!row['Sinh học'] ? styles.emptyCell : ''}>{row['Sinh học'] || '-'}</td>
+                            <td className={!row['Công nghệ'] ? styles.emptyCell : ''}>{row['Công nghệ'] || '-'}</td>
+                            <td className={!row['Tiếng Anh'] ? styles.emptyCell : ''}>{row['Tiếng Anh'] || '-'}</td>
+                            <td className={!row['Ngữ văn'] ? styles.emptyCell : ''}>{row['Ngữ văn'] || '-'}</td>
+                            <td className={!row['Lịch sử'] ? styles.emptyCell : ''}>{row['Lịch sử'] || '-'}</td>
+                            <td className={!row['Địa lý'] ? styles.emptyCell : ''}>{row['Địa lý'] || '-'}</td>
+                            <td className={!row['Giáo dục kinh tế - Pháp luật'] ? styles.emptyCell : ''}>{row['Giáo dục kinh tế - Pháp luật'] || '-'}</td>
+                            <td className={!row['Giáo dục Quốc phòng'] ? styles.emptyCell : ''}>{row['Giáo dục Quốc phòng'] || '-'}</td>
+                            <td className={!row['Thể dục'] ? styles.emptyCell : ''}>{row['Thể dục'] || '-'}</td>
+                        </tr>
+                    ))}
+                </tbody>
+            </table>
+        </div>
+    </div>
+)}
                     <div className={styles.formActions}>
                         <button type="button" onClick={handleDownloadTemplate} className={styles.downloadButton}>
                             Tải xuống mẫu Excel

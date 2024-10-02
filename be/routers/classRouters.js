@@ -579,7 +579,7 @@ classRouter.put('/:id/update-subject/:subjectId', isAuth, async (req, res) => {
     await result.save({ session });
 
     await session.commitTransaction();
-    res.status(200).json({ message: "Cập nhật số tiết môn học thành công", class: dataAfter });
+    res.status(200).json({ message: "Cập nhật số tiết môn học thành công ahihi", class: dataAfter });
   } catch (error) {
     await session.abortTransaction();
     res.status(400).json({ message: error.message });

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import logo from '../assets/images/pho-thong-nang-khieu-logo.png';
+import logo from '../assets/images/logo ptnk.svg';
 import '../css/Header.css';
 import { IconButton, Menu, MenuItem } from '@mui/material';
 import AccountCircleIcon from '@mui/icons-material/AccountCircle'
