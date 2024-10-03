@@ -1,15 +1,15 @@
 import React, { useState, useEffect } from 'react';
 import { Helmet } from 'react-helmet';
-import { useParams, useNavigate, Link } from 'react-router-dom';
+import { useParams, useNavigate } from 'react-router-dom';
 import { Circles } from 'react-loader-spinner';
 import { FaEdit, FaTrash } from 'react-icons/fa';
 import Header from '../../components/Header.js';
 import Footer from '../../components/Footer.js';
 import { getUser } from '../../services/authServices.js';
 import { getTeacherById } from '../../services/teacherService.js';
-import { getClassByDepartment } from '../../services/classServices.js';
 import { getAllAssignmentTeachers, getClassSubjectInfo, createAssignment, editAssignment, deleteAssignment } from '../../services/assignmentServices.js';
 import { getSubjectsByDepartment } from '../../services/subjectServices.js';
+import { getClassesBySubject } from '../../services/classServices.js';
 import { toast, ToastContainer } from 'react-toastify';
 import Modal from 'react-modal';
 import 'react-toastify/dist/ReactToastify.css';
@@ -55,8 +55,6 @@ const TeacherDeclareScreen = () => {
                     const teacherData = await getTeacherById(id);
                     if(teacherData){
                         setTeacher(teacherData);
-                        const classData = await getClassByDepartment(teacherData.department._id);
-                        setClasses(classData);
                         const assignmentData = await getAllAssignmentTeachers(teacherData._id);
                         setAssignments(assignmentData);
                         const subjectData = await getSubjectsByDepartment(teacherData.department._id);
@@ -75,9 +73,9 @@ const TeacherDeclareScreen = () => {
 
     useEffect(() => {
         const fetchClassSubjectInfo = async () => {
-            if (selectedClass && selectedSubject) {
+            if (selectedClass && selectedSubject && teacher) {
                 try {
-                    const info = await getClassSubjectInfo(selectedClass, selectedSubject);
+                    const info = await getClassSubjectInfo(selectedClass, selectedSubject, teacher._id);
                     setClassSubjectInfo(info);
                     setClassSubjectError('');
                 } catch (error) {
@@ -91,17 +89,43 @@ const TeacherDeclareScreen = () => {
                 }
             }
         };
-
+    
         fetchClassSubjectInfo();
-    }, [selectedClass, selectedSubject]);
+    }, [selectedClass, selectedSubject, teacher]);
+
+    const handleSubjectChange = async (e) => {
+        const subjectId = e.target.value;
+        setSelectedSubject(subjectId);
+        setSelectedClass('');
+        setClassSubjectInfo({});
+        if (subjectId) {
+            try {
+                const classesData = await getClassesBySubject(subjectId);
+                
+                // Filter out classes that already have assignments for this subject
+                const filteredClasses = classesData.classes.filter(cls => 
+                    !assignments.some(assignment => 
+                        assignment.subjectId === subjectId && assignment.classId === cls._id
+                    )
+                );
+                
+                setClasses(filteredClasses);
+                
+                if (filteredClasses.length === 0) {
+                    toast.info('Tất cả các lớp đã được khai báo cho môn học này');
+                }
+            } catch (error) {
+                console.error('Error fetching classes by subject:', error);
+                toast.error('Error fetching classes for the selected subject');
+            }
+        } else {
+            setClasses([]);
+        }
+    };
 
     const handleClassChange = (e) => {
         setSelectedClass(e.target.value);
         setClassSubjectInfo({});
-    };
-
-    const handleSubjectChange = (e) => {
-        setSelectedSubject(e.target.value);
     };
 
     const handleDeclare = async (e) => {
@@ -123,11 +147,9 @@ const TeacherDeclareScreen = () => {
             setShowModal(false);
             toast.success('Khai báo tiết dạy thành công');
             
-            // Cập nhật danh sách assignments
             const updatedAssignments = await getAllAssignmentTeachers(teacher._id);
             setAssignments(updatedAssignments);
             
-            // Reset form
             setSelectedClass('');
             setSelectedSubject('');
             setLessonCount('');
@@ -148,7 +170,7 @@ const TeacherDeclareScreen = () => {
         setEditingAssignment(assignment);
         setNewLessonCount(assignment.completedLessons.toString());
         try {
-            const info = await getClassSubjectInfo(assignment.classId, assignment.subjectId);
+            const info = await getClassSubjectInfo(assignment.classId, assignment.subjectId, teacher._id);
             setEditingClassSubjectInfo(info);
         } catch (error) {
             console.error('Error fetching class subject info:', error);
@@ -274,16 +296,6 @@ const TeacherDeclareScreen = () => {
         >
             <h2>Khai báo lớp</h2>
             <form onSubmit={handleDeclare} className={styles.form}>
-                <select 
-                    className={styles.select}
-                    value={selectedClass} 
-                    onChange={handleClassChange}
-                >
-                    <option value="">Chọn lớp</option>
-                    {classes.map((cls) => (
-                        <option key={cls._id} value={cls._id}>{cls.name}</option>
-                    ))}
-                </select>
                 <select
                     className={styles.select}
                     value={selectedSubject}
@@ -294,6 +306,20 @@ const TeacherDeclareScreen = () => {
                         <option key={subject._id} value={subject._id}>{subject.name}</option>
                     ))}
                 </select>
+                <select 
+                    className={styles.select}
+                    value={selectedClass} 
+                    onChange={handleClassChange}
+                    disabled={!selectedSubject || classes.length === 0}
+                >
+                    <option value="">Chọn lớp</option>
+                    {classes.map((cls) => (
+                        <option key={cls._id} value={cls._id}>{cls.name}</option>
+                    ))}
+                </select>
+                {classes.length === 0 && selectedSubject && (
+                    <p style={{textAlign:'center', fontWeight:'600', color: '#dc2f2f'}}>Không có lớp nào khả dụng cho môn học này</p>
+                )}
                 {classSubjectError ? (
                     <p style={{textAlign:'center', fontWeight:'600', color: '#dc2f2f'}}>{classSubjectError}</p>
                 ) : classSubjectInfo.remainingLessons !== undefined ? (
@@ -332,7 +358,6 @@ const TeacherDeclareScreen = () => {
                         type="number"
                         value={newLessonCount}
                         onChange={(e) => setNewLessonCount(e.target.value)}
-                        // max={editingClassSubjectInfo.remainingLessons + (editingAssignment?.completedLessons || 0)}
                         required
                     />
                     <button className={styles.button} type="submit" disabled={isLoading}>
@@ -355,7 +380,7 @@ const TeacherDeclareScreen = () => {
                     {isLoading ? <LoadingSpinner size={20} /> : 'Xóa'}
                     </button>
                 </div>
-                </div>
+            </div>
         </Modal>
 
         <Footer/>

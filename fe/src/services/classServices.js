@@ -137,6 +137,22 @@ export const getClassByDepartment = async (departmentId) => {
   }
 };
 
+export const getClassesBySubject = async (subjectId) => {
+  try {
+    const userToken = localStorage.getItem('userToken');
+    const response = await api.get(`api/class/by-subject/${subjectId}`, {
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${userToken}`,
+      },
+    });
+    return response.data;
+  } catch (error) {
+    console.error('Error fetching classes by subject:', error);
+    throw error;
+  }
+};
+
 export const deleteClass = async (classId) => {
   try {
     const userToken = localStorage.getItem('userToken');

@@ -48,11 +48,12 @@ classRouter.get('/:id', async (req, res) => {
 });
 
 classRouter.post('/create-class', isAuth, async (req, res) => {
+  
   const session = await mongoose.startSession();
   session.startTransaction();
 
   try {
-    const { name, grade, campus, subjects } = req.body;
+    const { name, grade, campus, subjects, isSpecial } = req.body;
 
     const existingClass = await Class.findOne({ name });
     if (existingClass) {
@@ -69,18 +70,20 @@ classRouter.post('/create-class', isAuth, async (req, res) => {
       name,
       grade,
       campus,
+      isSpecial,
       subjects: []
     });
 
     for (const subjectData of subjects) {
-      const { subjectId, lessonCount } = subjectData;
+      const { subjectId, lessonCount, maxTeachers } = subjectData;
       const subject = await Subject.findById(subjectId).populate('department');
       if (!subject) {
         throw new Error(`Không tìm thấy môn học với ID: ${subjectId}`);
       }
       newClass.subjects.push({
         subject: subject._id,
-        lessonCount
+        lessonCount,
+        maxTeachers: isSpecial ? (maxTeachers || 1) : 1
       });
       await Department.findByIdAndUpdate(
         subject.department._id,
@@ -91,22 +94,14 @@ classRouter.post('/create-class', isAuth, async (req, res) => {
 
     await newClass.save({ session });
 
-    // Chuẩn bị dữ liệu cho Result
     const resultData = {
       action: 'CREATE',
       user: req.user._id,
       entityType: 'Class',
-      entityId: [newClass._id], // Đặt trong một mảng để phù hợp với cấu trúc của endpoint tạo nhiều lớp
-      dataAfter: [{  // Đặt trong một mảng để phù hợp với cấu trúc của endpoint tạo nhiều lớp
-        ...newClass.toObject(),
-        subjects: newClass.subjects.map(s => ({
-          subject: s.subject.toString(),
-          lessonCount: s.lessonCount
-        }))
-      }]
+      entityId: newClass._id,
+      dataAfter: newClass
     };
 
-    // Tạo Result
     const result = new Result(resultData);
     await result.save({ session });
 
@@ -131,21 +126,22 @@ classRouter.post('/create-classes', isAuth, async (req, res) => {
     }
 
     const processedClasses = await Promise.all(classesData.map(async (classData) => {
-      const { name, grade, campus, subjects } = classData;
+      const { name, grade, campus, subjects, isSpecial } = classData;
       
       if (!name || !grade || !campus) {
         throw new Error(`Thiếu thông tin cơ bản cho lớp: ${name || 'Unknown'}`);
       }
 
       const processedSubjects = await Promise.all(subjects.map(async (subjectData) => {
-        const { name: subjectName, lessonCount } = subjectData;
+        const { name: subjectName, lessonCount, maxTeachers } = subjectData;
         const subject = await Subject.findOne({ name: subjectName });
         if (!subject) {
           throw new Error(`Không tìm thấy môn học: ${subjectName}`);
         }
         return { 
           subject: subject._id,
-          lessonCount: parseInt(lessonCount, 10)
+          lessonCount: parseInt(lessonCount, 10),
+          maxTeachers: isSpecial ? (parseInt(maxTeachers, 10) || 1) : 1
         };
       }));
 
@@ -153,6 +149,7 @@ classRouter.post('/create-classes', isAuth, async (req, res) => {
         name, 
         grade: parseInt(grade, 10), 
         campus, 
+        isSpecial: !!isSpecial,
         subjects: processedSubjects 
       };
     }));
@@ -181,7 +178,6 @@ classRouter.post('/create-classes', isAuth, async (req, res) => {
       }
     }
 
-    // Tạo document Result
     const resultData = {
       action: 'CREATE',
       user: req.user._id,
@@ -191,7 +187,8 @@ classRouter.post('/create-classes', isAuth, async (req, res) => {
         ...c.toObject(),
         subjects: c.subjects.map(s => ({
           subject: s.subject.toString(),
-          lessonCount: s.lessonCount
+          lessonCount: s.lessonCount,
+          maxTeachers: s.maxTeachers
         }))
       }))
     };
@@ -281,6 +278,62 @@ classRouter.get('/department-classes/:departmentId', isAuth, async (req, res) =>
     res.json(classes);
   } catch (error) {
     res.status(500).json({ message: "Error fetching department classes", error: error.message });
+  }
+});
+
+classRouter.get('/by-subject/:subjectId', isAuth, async (req, res) => {
+  try {
+    const { subjectId } = req.params;
+
+    // Kiểm tra xem môn học có tồn tại không
+    const subject = await Subject.findById(subjectId);
+    if (!subject) {
+      return res.status(404).json({ message: 'Không tìm thấy môn học với ID đã cung cấp' });
+    }
+
+    // Tìm tất cả các lớp có chứa môn học này
+    const classes = await Class.aggregate([
+      {
+        $match: {
+          'subjects.subject': new mongoose.Types.ObjectId(subjectId)
+        }
+      },
+      {
+        $project: {
+          name: 1,
+          grade: 1,
+          campus: 1,
+          isSpecial: 1,
+          subject: {
+            $filter: {
+              input: '$subjects',
+              as: 'subject',
+              cond: { $eq: ['$$subject.subject', new mongoose.Types.ObjectId(subjectId)] }
+            }
+          }
+        }
+      },
+      {
+        $unwind: '$subject'
+      },
+      {
+        $project: {
+          name: 1,
+          grade: 1,
+          campus: 1,
+          isSpecial: 1,
+          lessonCount: '$subject.lessonCount',
+          maxTeachers: '$subject.maxTeachers'
+        }
+      }
+    ]);
+
+    res.status(200).json({
+      subject: subject.name,
+      classes: classes
+    });
+  } catch (error) {
+    res.status(500).json({ message: 'Lỗi khi lấy danh sách lớp học theo môn học', error: error.message });
   }
 });
 

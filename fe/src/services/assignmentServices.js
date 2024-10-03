@@ -15,10 +15,10 @@ export const getAllAssignmentTeachers = async (id) => {
     }
   };
 
-  export const getClassSubjectInfo = async (classId, subjectId) => {
+  export const getClassSubjectInfo = async (classId, subjectId, teacherId) => {
     try {
       const userToken = localStorage.getItem('userToken');
-      const response = await api.get(`api/assignment/class-subject-info/${classId}/${subjectId}`, {
+      const response = await api.get(`api/assignment/class-subject-info/${classId}/${subjectId}/${teacherId}`, {
         headers: {
           Authorization: `Bearer ${userToken}`,
         },

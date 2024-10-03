@@ -1,0 +1,195 @@
+.overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: rgba(0, 0, 0, 0.5);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+.modal {
+    background-color: white;
+    padding: 30px;
+    border-radius: 8px;
+    width: 400px;
+    max-height: 80vh;
+    overflow-y: auto;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+.modalTitle {
+    margin-bottom: 20px;
+    color: #333;
+    font-size: 24px;
+    text-align: center;
+}
+
+.form {
+    display: flex;
+    flex-direction: column;
+}
+
+.formGroup {
+    margin-bottom: 20px;
+}
+
+.form label {
+    display: block;
+    margin-bottom: 8px;
+    font-weight: bold;
+    color: #555;
+}
+
+.form input,
+.form select {
+    width: 70%;
+    padding: 10px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    font-size: 14px;
+}
+
+.subjectsContainer {
+    margin-bottom: 20px;
+}
+
+.subjectsContainer h3 {
+    margin-bottom: 10px;
+    color: #555;
+}
+
+.subjectItem {
+    margin-bottom: 15px;
+    padding: 10px;
+    border: 1px solid #eee;
+    border-radius: 4px;
+    background-color: #f9f9f9;
+}
+
+.subjectSummary {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.subjectInputGroup {
+    margin-bottom: 10px;
+}
+
+.editButton,
+.removeButton,
+.saveButton {
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-size: 16px;
+    margin-left: 10px;
+    padding: 5px 10px;
+    border-radius: 4px;
+}
+
+.editButton {
+    color: #4CAF50;
+}
+
+.removeButton {
+    color: #f44336;
+}
+
+.saveButton {
+    background-color: #2196F3;
+    color: white;
+}
+
+.addButton {
+    background-color: #4CAF50;
+    color: white;
+    border: none;
+    padding: 10px;
+    border-radius: 4px;
+    cursor: pointer;
+    margin-top: 10px;
+    font-size: 14px;
+    width: 100%;
+    margin: 0 auto;
+}
+
+.formActions {
+    display: flex;
+    justify-content: space-between;
+    margin-top: 20px;
+}
+
+.submitButton,
+.cancelButton {
+    padding: 10px 20px;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 14px;
+    transition: background-color 0.3s;
+    width: 48%;
+    margin: 0;
+}
+
+.submitButton {
+    background-color: #1976d2;
+    color: white;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+.submitButton:hover {
+    background-color: #1565c0;
+}
+
+.cancelButton {
+    background-color: #f44336;
+    color: white;
+}
+
+.cancelButton:hover {
+    background-color: #d32f2f;
+}
+
+/* ... (các styles khác giữ nguyên) */
+
+.specialClassCheckbox {
+    margin-bottom: 15px;
+}
+
+.specialClassCheckbox label {
+    display: flex;
+    align-items: center;
+    cursor: pointer;
+}
+
+.specialClassCheckbox input[type="checkbox"] {
+    margin-right: 10px;
+    width: auto;
+}
+
+.specialClassCheckbox span {
+    font-weight: normal;
+}
+
+@media (max-width: 768px) {
+    .modal {
+        width: 90%;
+        padding: 20px;
+    }
+
+    .formActions {
+        flex-direction: column;
+    }
+
+    .submitButton,
+    .cancelButton {
+        width: 100%;
+        margin-bottom: 10px;
+    }
+}
