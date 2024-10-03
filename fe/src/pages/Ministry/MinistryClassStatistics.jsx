@@ -8,7 +8,7 @@ import { getUser } from '../../services/authServices.js';
 import { getAllClasses } from '../../services/statisticsServices';
 import { toast, ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
-import { Box, Typography, TextField, Select, MenuItem, InputAdornment, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Paper, Button } from '@mui/material';
+import { Box, Typography, TextField, Select, MenuItem, InputAdornment, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Paper, Button, TablePagination } from '@mui/material';
 import SearchIcon from '@mui/icons-material/Search';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import styles from '../../css/Ministry/MinistryClassStatistics.module.css';
@@ -21,6 +21,8 @@ const MinistryClassStatistics = () => {
     const [loading, setLoading] = useState(true);
     const [searchQuery, setSearchQuery] = useState('');
     const [gradeFilter, setGradeFilter] = useState('');
+    const [page, setPage] = useState(0);
+    const [rowsPerPage, setRowsPerPage] = useState(25);
     const navigate = useNavigate();
 
     useEffect(() => {
@@ -56,16 +58,29 @@ const MinistryClassStatistics = () => {
 
     const handleSearchChange = (event) => {
         setSearchQuery(event.target.value);
+        setPage(0);
     };
 
     const handleGradeFilterChange = (event) => {
         setGradeFilter(event.target.value);
+        setPage(0);
+    };
+
+    const handleChangePage = (event, newPage) => {
+        setPage(newPage);
+    };
+
+    const handleChangeRowsPerPage = (event) => {
+        setRowsPerPage(parseInt(event.target.value, 10));
+        setPage(0);
     };
 
     const filteredClasses = classes.filter((classItem) =>
         classItem.className.toLowerCase().includes(searchQuery.toLowerCase()) &&
         (gradeFilter === '' || classItem.grade === parseInt(gradeFilter))
     );
+
+    const paginatedClasses = filteredClasses.slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage);
 
     const uniqueGrades = [...new Set(classes.map(classItem => classItem.grade))];
 
@@ -123,75 +138,86 @@ const MinistryClassStatistics = () => {
                         <ExportAllClassesButton user={user?.user} />
                     </Box>
                 </Box>
-                <TableContainer component={Paper}>
-                    <Table className={styles.table}>
-                        <TableHead>
-                            <TableRow>
-                                <TableCell>STT</TableCell>
-                                <TableCell>Tên lớp</TableCell>
-                                <TableCell>Khối</TableCell>
-                                <TableCell>Môn học</TableCell>
-                                <TableCell>Số tiết</TableCell>
-                                <TableCell>Giáo viên</TableCell>
-                                <TableCell>Số tiết khai báo</TableCell>
-                                <TableCell>Hành động</TableCell>
-                            </TableRow>
-                        </TableHead>
-                        <TableBody>
-                            {filteredClasses.map((classItem, index) => {
-                                const rowSpan = classItem.subjects.reduce((sum, subject) => sum + (subject.assignments.length || 1), 0);
-                                return classItem.subjects.map((subject, subjectIndex) => {
-                                    const subjectRowSpan = subject.assignments.length || 1;
-                                    return subject.assignments.length > 0 ? (
-                                        subject.assignments.map((assignment, assignmentIndex) => (
-                                            <TableRow key={`${classItem._id}-${subject.name}-${assignmentIndex}`}>
-                                                {subjectIndex === 0 && assignmentIndex === 0 && (
+                <div className={styles.tableWrapper}>
+                    <TableContainer component={Paper} className={styles.tableContainer}>
+                        <Table stickyHeader className={styles.table}>
+                            <TableHead>
+                                <TableRow>
+                                    <TableCell>STT</TableCell>
+                                    <TableCell>Tên lớp</TableCell>
+                                    <TableCell>Khối</TableCell>
+                                    <TableCell>Môn học</TableCell>
+                                    <TableCell>Số tiết</TableCell>
+                                    <TableCell>Giáo viên</TableCell>
+                                    <TableCell>Số tiết khai báo</TableCell>
+                                    <TableCell>Hành động</TableCell>
+                                </TableRow>
+                            </TableHead>
+                            <TableBody>
+                                {paginatedClasses.flatMap((classItem, index) => {
+                                    const rowSpan = classItem.subjects.reduce((sum, subject) => sum + (subject.assignments.length || 1), 0);
+                                    return classItem.subjects.flatMap((subject, subjectIndex) => {
+                                        const subjectRowSpan = subject.assignments.length || 1;
+                                        return subject.assignments.length > 0 ? (
+                                            subject.assignments.map((assignment, assignmentIndex) => (
+                                                <TableRow key={`${classItem._id}-${subject.name}-${assignmentIndex}`}>
+                                                    {subjectIndex === 0 && assignmentIndex === 0 && (
+                                                        <>
+                                                            <TableCell rowSpan={rowSpan}>{page * rowsPerPage + index + 1}</TableCell>
+                                                            <TableCell rowSpan={rowSpan}>{classItem.className}</TableCell>
+                                                            <TableCell rowSpan={rowSpan}>{classItem.grade}</TableCell>
+                                                        </>
+                                                    )}
+                                                    {assignmentIndex === 0 && (
+                                                        <>
+                                                            <TableCell rowSpan={subjectRowSpan}>{subject.name}</TableCell>
+                                                            <TableCell rowSpan={subjectRowSpan}>{subject.lessonCount}</TableCell>
+                                                        </>
+                                                    )}
+                                                    <TableCell>{assignment.teacherName}</TableCell>
+                                                    <TableCell>{assignment.completedLessons}</TableCell>
+                                                    {subjectIndex === 0 && assignmentIndex === 0 && (
+                                                        <TableCell rowSpan={rowSpan}>
+                                                            <SingleClassReport user={user?.user} classId={classItem._id} />
+                                                        </TableCell>
+                                                    )}
+                                                </TableRow>
+                                            ))
+                                        ) : (
+                                            <TableRow key={`${classItem._id}-${subject.name}`}>
+                                                {subjectIndex === 0 && (
                                                     <>
-                                                        <TableCell rowSpan={rowSpan}>{index + 1}</TableCell>
+                                                        <TableCell rowSpan={rowSpan}>{page * rowsPerPage + index + 1}</TableCell>
                                                         <TableCell rowSpan={rowSpan}>{classItem.className}</TableCell>
                                                         <TableCell rowSpan={rowSpan}>{classItem.grade}</TableCell>
                                                     </>
                                                 )}
-                                                {assignmentIndex === 0 && (
-                                                    <>
-                                                        <TableCell rowSpan={subjectRowSpan}>{subject.name}</TableCell>
-                                                        <TableCell rowSpan={subjectRowSpan}>{subject.lessonCount}</TableCell>
-                                                    </>
-                                                )}
-                                                <TableCell>{assignment.teacherName}</TableCell>
-                                                <TableCell>{assignment.completedLessons}</TableCell>
-                                                {subjectIndex === 0 && assignmentIndex === 0 && (
+                                                <TableCell>{subject.name}</TableCell>
+                                                <TableCell>{subject.lessonCount}</TableCell>
+                                                <TableCell>Chưa phân công</TableCell>
+                                                <TableCell>0</TableCell>
+                                                {subjectIndex === 0 && (
                                                     <TableCell rowSpan={rowSpan}>
                                                         <SingleClassReport user={user?.user} classId={classItem._id} />
                                                     </TableCell>
                                                 )}
                                             </TableRow>
-                                        ))
-                                    ) : (
-                                        <TableRow key={`${classItem._id}-${subject.name}`}>
-                                            {subjectIndex === 0 && (
-                                                <>
-                                                    <TableCell rowSpan={rowSpan}>{index + 1}</TableCell>
-                                                    <TableCell rowSpan={rowSpan}>{classItem.className}</TableCell>
-                                                    <TableCell rowSpan={rowSpan}>{classItem.grade}</TableCell>
-                                                </>
-                                            )}
-                                            <TableCell>{subject.name}</TableCell>
-                                            <TableCell>{subject.lessonCount}</TableCell>
-                                            <TableCell>Chưa phân công</TableCell>
-                                            <TableCell>0</TableCell>
-                                            {subjectIndex === 0 && (
-                                                <TableCell rowSpan={rowSpan}>
-                                                    <SingleClassReport user={user?.user} classId={classItem._id} />
-                                                </TableCell>
-                                            )}
-                                        </TableRow>
-                                    );
-                                });
-                            })}
-                        </TableBody>
-                    </Table>
-                </TableContainer>
+                                        );
+                                    });
+                                })}
+                            </TableBody>
+                        </Table>
+                    </TableContainer>
+                    <TablePagination
+                        rowsPerPageOptions={[25, 50, 100]}
+                        component="div"
+                        count={filteredClasses.length}
+                        rowsPerPage={rowsPerPage}
+                        page={page}
+                        onPageChange={handleChangePage}
+                        onRowsPerPageChange={handleChangeRowsPerPage}
+                    />
+                </div>
             </Box>
         </div>
         <Footer/>

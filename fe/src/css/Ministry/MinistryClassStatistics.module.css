@@ -13,6 +13,18 @@
     height: 100vh;
 }
 
+.tableWrapper {
+    display: flex;
+    flex-direction: column;
+    max-height: 900px;
+}
+
+.tableContainer {
+    flex: 1;
+    overflow-y: auto;
+    margin-bottom: 0;
+}
+
 .table {
     width: 100%;
     border-collapse: collapse;
@@ -29,6 +41,9 @@
 .table th {
     background-color: #f2f2f2;
     font-weight: bold;
+    position: sticky;
+    top: 0;
+    z-index: 1;
 }
 
 .table tr:nth-child(even) {

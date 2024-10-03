@@ -211,7 +211,7 @@ const MultiClassModal = ({ isOpen, onClose, onClassesAdded }) => {
                                 <Circles type="TailSpin" color="#FFF" height={20} width={20} />
                             ) : (
                                 <>
-                                    <CloudUploadIcon /> Tải lên
+                                    <CloudUploadIcon style={{marginRight: '5px'}}/> Tải lên
                                 </>
                             )}
                         </button>
