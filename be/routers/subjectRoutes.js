@@ -7,7 +7,7 @@ const subjectRouter = express.Router();
 
 subjectRouter.post('/create', isAuth, async (req, res) => {
   try {
-    const { name, department } = req.body;
+    const { name, department, isSpecialized } = req.body;
 
     if (!name || !department) {
       return res.status(400).json({ message: 'Name and department are required' });
@@ -15,7 +15,8 @@ subjectRouter.post('/create', isAuth, async (req, res) => {
 
     const newSubject = new Subject({
       name,
-      department
+      department,
+      isSpecialized: isSpecialized || false  
     });
 
     await newSubject.save();
@@ -32,12 +33,29 @@ subjectRouter.post('/create', isAuth, async (req, res) => {
 
 subjectRouter.get('/', isAuth, async (req, res) => {
     try {
-      const subjects = await Subject.find().select('name').populate('department', 'name').lean();
+      const subjects = await Subject.find().select('name isSpecialized').populate('department', 'name').lean();
       res.json(subjects);
     } catch (error) {
       console.error('Error fetching subjects:', error);
       res.status(500).json({ message: 'Error fetching subjects', error: error.message });
     }
+});
+
+subjectRouter.get('/non-specialized', isAuth, async (req, res) => {
+  try {
+    const subjects = await Subject.find({
+      isSpecialized: false,
+      name: { $ne: 'CCSHL' }  // Loại trừ môn CCSHL
+    })
+    .select('name department')
+    .populate('department', 'name')
+    .lean();
+
+    res.json(subjects);
+  } catch (error) {
+    console.error('Error fetching non-specialized subjects:', error);
+    res.status(500).json({ message: 'Error fetching non-specialized subjects', error: error.message });
+  }
 });
 
 subjectRouter.get('/:id', isAuth, async (req, res) => {
@@ -66,5 +84,7 @@ subjectRouter.get('/department/:departmentId', isAuth, async (req, res) => {
       res.status(500).json({ message: 'Error fetching subjects by department', error: error.message });
     }
 });
+
+
 
 export default subjectRouter;

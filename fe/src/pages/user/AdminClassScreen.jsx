@@ -47,13 +47,18 @@ const AdminClassScreen = () => {
         const userData = await getUser();
         setUser(userData);
 
-        if (userData && userData.user) {
-          if (!userData.user.isAdmin) {
-            navigate('/dashboard');
-            return;
+        if (!userData || userData.user.role !== 2) {
+          // Redirect based on user role
+          switch(userData.user.role) {
+            case 1:
+              navigate('/ministry-dashboard');
+              break;
+            case 0:
+              navigate('/user-dashboard');
+              break;
+            default:
+              navigate('/login');
           }
-          const subjectData = await getSubject();
-          setSubjects(subjectData);
         }
         setLoading(false);
       } catch (error) {

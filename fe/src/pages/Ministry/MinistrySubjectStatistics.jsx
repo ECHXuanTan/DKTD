@@ -8,7 +8,7 @@ import { getUser } from '../../services/authServices.js';
 import { getSubjectsAssignments } from '../../services/statisticsServices';
 import { toast, ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
-import { Box, Typography, TextField, Select, MenuItem, InputAdornment, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Paper } from '@mui/material';
+import { Box, Typography, TextField, Select, MenuItem, InputAdornment, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Paper, TablePagination } from '@mui/material';
 import SearchIcon from '@mui/icons-material/Search';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import ExportAllSubjectsButton from './Component/AllSubjectsReport.jsx';
@@ -21,6 +21,8 @@ const MinistrySubjectStatistics = () => {
     const [loading, setLoading] = useState(true);
     const [searchQuery, setSearchQuery] = useState('');
     const [gradeFilter, setGradeFilter] = useState('');
+    const [page, setPage] = useState(0);
+    const [rowsPerPage, setRowsPerPage] = useState(25);
     const navigate = useNavigate();
 
     useEffect(() => {
@@ -30,9 +32,18 @@ const MinistrySubjectStatistics = () => {
                 setUser(userData);
                 
                 if (userData) {
-                    if (userData.user.isAdmin) {
-                        navigate('/admin-dashboard');
-                        return;
+                    if (!userData || userData.user.role !== 1) {
+                        // Redirect based on user role
+                        switch(userData.user.role) {
+                          case 2:
+                            navigate('/admin-dashboard');
+                            break;
+                          case 0:
+                            navigate('/user-dashboard');
+                            break;
+                          default:
+                            navigate('/login');
+                        }
                     }
                     const subjectsData = await getSubjectsAssignments();
                     if (Array.isArray(subjectsData) && subjectsData.length > 0) {
@@ -56,10 +67,21 @@ const MinistrySubjectStatistics = () => {
 
     const handleSearchChange = (event) => {
         setSearchQuery(event.target.value);
+        setPage(0);
     };
 
     const handleGradeFilterChange = (event) => {
         setGradeFilter(event.target.value);
+        setPage(0);
+    };
+
+    const handleChangePage = (event, newPage) => {
+        setPage(newPage);
+    };
+
+    const handleChangeRowsPerPage = (event) => {
+        setRowsPerPage(parseInt(event.target.value, 10));
+        setPage(0);
     };
 
     const filteredSubjects = subjects.filter((subject) => {
@@ -74,6 +96,8 @@ const MinistrySubjectStatistics = () => {
             gradeFilter === '' || classItem.grade === parseInt(gradeFilter)
         )
     }));
+
+    const paginatedSubjects = filteredSubjects.slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage);
 
     const calculateTotalDeclaredLessons = (classes) => {
         return classes.reduce((sum, classItem) => sum + classItem.declaredLessons, 0);
@@ -147,86 +171,98 @@ const MinistrySubjectStatistics = () => {
                             <ExportAllSubjectsButton user={user.user} />
                         </Box>
                     </Box>
-                    <TableContainer component={Paper}>
-                        <Table className={styles.table}>
-                            <TableHead>
-                                <TableRow>
-                                    <TableCell>STT</TableCell>
-                                    <TableCell>Môn học</TableCell>
-                                    <TableCell style={{ width: '100px' }}>Tổng số tiết được khai báo</TableCell>
-                                    <TableCell style={{ width: '100px' }}>Tổng số tiết đã phân công</TableCell>
-                                    <TableCell style={{ width: '100px' }}>Tỉ lệ hoàn thành (%)</TableCell>
-                                    <TableCell>Lớp</TableCell>
-                                    <TableCell style={{ width: '100px' }}>Số tiết được khai báo</TableCell>
-                                    <TableCell>Giáo viên</TableCell>
-                                    <TableCell style={{ width: '100px' }}>Số tiết đã khai báo</TableCell>
-                                    <TableCell>Xuất báo cáo</TableCell>
-                                </TableRow>
-                            </TableHead>
-                            <TableBody>
-                                {filteredSubjects.map((subject, index) => {
-                                    const totalDeclaredLessons = calculateTotalDeclaredLessons(subject.classes);
-                                    const totalAssignedLessons = calculateTotalAssignedLessons(subject.classes);
-                                    const completionRate = calculateCompletionRate(totalAssignedLessons, totalDeclaredLessons);
-                                    
-                                    return subject.classes.map((classItem, classIndex) => (
-                                        <React.Fragment key={`${subject.subjectId}-${classItem.classId}`}>
-                                            <TableRow>
-                                                {classIndex === 0 && (
-                                                    <>
+                    <div className={styles.tableWrapper}>
+                        <TableContainer component={Paper} className={styles.tableContainer}>
+                            <Table stickyHeader className={styles.table}>
+                                <TableHead>
+                                    <TableRow>
+                                        <TableCell>STT</TableCell>
+                                        <TableCell>Môn học</TableCell>
+                                        <TableCell style={{ width: '100px' }}>Tổng số tiết được khai báo</TableCell>
+                                        <TableCell style={{ width: '100px' }}>Tổng số tiết đã phân công</TableCell>
+                                        <TableCell style={{ width: '100px' }}>Tỉ lệ hoàn thành (%)</TableCell>
+                                        <TableCell>Lớp</TableCell>
+                                        <TableCell style={{ width: '100px' }}>Số tiết được khai báo</TableCell>
+                                        <TableCell>Giáo viên</TableCell>
+                                        <TableCell style={{ width: '100px' }}>Số tiết đã khai báo</TableCell>
+                                        <TableCell>Xuất báo cáo</TableCell>
+                                    </TableRow>
+                                </TableHead>
+                                <TableBody>
+                                    {paginatedSubjects.map((subject, index) => {
+                                        const totalDeclaredLessons = calculateTotalDeclaredLessons(subject.classes);
+                                        const totalAssignedLessons = calculateTotalAssignedLessons(subject.classes);
+                                        const completionRate = calculateCompletionRate(totalAssignedLessons, totalDeclaredLessons);
+                                        
+                                        return subject.classes.map((classItem, classIndex) => (
+                                            <React.Fragment key={`${subject.subjectId}-${classItem.classId}`}>
+                                                <TableRow>
+                                                    {classIndex === 0 && (
+                                                        <>
+                                                            <TableCell rowSpan={subject.classes.reduce((sum, c) => sum + Math.max(c.assignments.length, 1), 0)}>
+                                                                {page * rowsPerPage + index + 1}
+                                                            </TableCell>
+                                                            <TableCell rowSpan={subject.classes.reduce((sum, c) => sum + Math.max(c.assignments.length, 1), 0)}>
+                                                                {subject.subjectName}
+                                                            </TableCell>
+                                                            <TableCell rowSpan={subject.classes.reduce((sum, c) => sum + Math.max(c.assignments.length, 1), 0)}>
+                                                                {totalDeclaredLessons}
+                                                            </TableCell>
+                                                            <TableCell rowSpan={subject.classes.reduce((sum, c) => sum + Math.max(c.assignments.length, 1), 0)}>
+                                                                {totalAssignedLessons}
+                                                            </TableCell>
+                                                            <TableCell rowSpan={subject.classes.reduce((sum, c) => sum + Math.max(c.assignments.length, 1), 0)}>
+                                                                {completionRate}%
+                                                            </TableCell>
+                                                        </>
+                                                    )}
+                                                    <TableCell rowSpan={classItem.assignments.length || 1}>{classItem.className}</TableCell>
+                                                    <TableCell rowSpan={classItem.assignments.length || 1}>{classItem.declaredLessons}</TableCell>
+                                                    {classItem.assignments.length > 0 ? (
+                                                        <>
+                                                            <TableCell>{classItem.assignments[0].teacherName}</TableCell>
+                                                            <TableCell>{classItem.assignments[0].assignedLessons}</TableCell>
+                                                        </>
+                                                    ) : (
+                                                        <>
+                                                            <TableCell>-</TableCell>
+                                                            <TableCell>0</TableCell>
+                                                        </>
+                                                    )}
+                                                    {classIndex === 0 && (
                                                         <TableCell rowSpan={subject.classes.reduce((sum, c) => sum + Math.max(c.assignments.length, 1), 0)}>
-                                                            {index + 1}
+                                                            <ExportSingleSubjectButton 
+                                                                user={user.user}
+                                                                subjectId={subject.subjectId}
+                                                                subjectName={subject.subjectName}
+                                                                grade={gradeFilter}
+                                                            />
                                                         </TableCell>
-                                                        <TableCell rowSpan={subject.classes.reduce((sum, c) => sum + Math.max(c.assignments.length, 1), 0)}>
-                                                            {subject.subjectName}
-                                                        </TableCell>
-                                                        <TableCell rowSpan={subject.classes.reduce((sum, c) => sum + Math.max(c.assignments.length, 1), 0)}>
-                                                            {totalDeclaredLessons}
-                                                        </TableCell>
-                                                        <TableCell rowSpan={subject.classes.reduce((sum, c) => sum + Math.max(c.assignments.length, 1), 0)}>
-                                                            {totalAssignedLessons}
-                                                        </TableCell>
-                                                        <TableCell rowSpan={subject.classes.reduce((sum, c) => sum + Math.max(c.assignments.length, 1), 0)}>
-                                                            {completionRate}%
-                                                        </TableCell>
-                                                    </>
-                                                )}
-                                                <TableCell rowSpan={classItem.assignments.length || 1}>{classItem.className}</TableCell>
-                                                <TableCell rowSpan={classItem.assignments.length || 1}>{classItem.declaredLessons}</TableCell>
-                                                {classItem.assignments.length > 0 ? (
-                                                    <>
-                                                        <TableCell>{classItem.assignments[0].teacherName}</TableCell>
-                                                        <TableCell>{classItem.assignments[0].assignedLessons}</TableCell>
-                                                    </>
-                                                ) : (
-                                                    <>
-                                                        <TableCell>-</TableCell>
-                                                        <TableCell>0</TableCell>
-                                                    </>
-                                                )}
-                                                {classIndex === 0 && (
-                                                    <TableCell rowSpan={subject.classes.reduce((sum, c) => sum + Math.max(c.assignments.length, 1), 0)}>
-                                                        <ExportSingleSubjectButton 
-                                                            user={user.user}
-                                                            subjectId={subject.subjectId}
-                                                            subjectName={subject.subjectName}
-                                                            grade={gradeFilter}
-                                                        />
-                                                    </TableCell>
-                                                )}
-                                            </TableRow>
-                                            {classItem.assignments.slice(1).map((assignment, assignmentIndex) => (
-                                                <TableRow key={`${subject.subjectId}-${classItem.classId}-${assignmentIndex}`}>
-                                                    <TableCell>{assignment.teacherName}</TableCell>
-                                                    <TableCell>{assignment.assignedLessons}</TableCell>
+                                                    )}
                                                 </TableRow>
-                                            ))}
-                                        </React.Fragment>
-                                    ));
-                                })}
-                            </TableBody>
-                        </Table>
-                    </TableContainer>
+                                                {classItem.assignments.slice(1).map((assignment, assignmentIndex) => (
+                                                    <TableRow key={`${subject.subjectId}-${classItem.classId}-${assignmentIndex}`}>
+                                                        <TableCell>{assignment.teacherName}</TableCell>
+                                                        <TableCell>{assignment.assignedLessons}</TableCell>
+                                                    </TableRow>
+                                                ))}
+                                            </React.Fragment>
+                                        ));
+                                    })}
+                                </TableBody>
+                            </Table>
+                        </TableContainer>
+                        <TablePagination
+                            rowsPerPageOptions={[25, 50, 100]}
+                            component="div"
+                            count={filteredSubjects.length}
+                            rowsPerPage={rowsPerPage}
+                            page={page}
+                            onPageChange={handleChangePage}
+                            onRowsPerPageChange={handleChangeRowsPerPage}
+                            style={{overflow: 'unset'}}
+                        />
+                    </div>
                 </Box>
             </div>
             <Footer />

@@ -52,7 +52,7 @@
 }
 
 .dataGridContainer {
-    height: 70vh;
+    height: 85vh !important;
     width: 100%;
     border-radius: 8px;
     overflow: hidden;
@@ -62,6 +62,21 @@
 .dataGrid {
     border: none;
 }
+
+.dataGrid :global(.MuiDataGrid-columnHeaders) {
+    border-bottom: none;
+    --DataGrid-containerBackground: #5585b5;
+    color: white;
+    --unstable_DataGrid-headWeight: 600;
+  }
+
+  .rowOdd {
+    background-color: #f9f9f9;
+  }
+  
+  .rowEven {
+    background-color: white;
+  }
 
 .modal {
     position: absolute;
@@ -86,6 +101,8 @@
     display: flex;
     justify-content: center;
     align-items: center;
+    z-index: 9999;
+
 }
 
 .modalTitle {

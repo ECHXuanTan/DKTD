@@ -11,7 +11,9 @@ const teacherRoutes = express.Router();
 teacherRoutes.get('/teacher', isAuth, async (req, res) => {
   try {
     const userEmail = req.user.email;
-    const teacher = await Teacher.findOne({ email: userEmail }).populate('department', 'name');
+    const teacher = await Teacher.findOne({ email: userEmail })
+      .populate('department', 'name')
+      .populate('teachingSubjects', 'name');
 
     if (!teacher) {
       return res.status(404).json({ message: 'Không tìm thấy thông tin giáo viên' });
@@ -33,12 +35,9 @@ teacherRoutes.get('/department-teachers', isAuth, async (req, res) => {
       return res.status(404).json({ message: 'Không tìm thấy thông tin giáo viên' });
     }
 
-    if (!currentTeacher.isLeader) {
-      return res.status(403).json({ message: 'Chỉ trưởng bộ môn mới có quyền truy cập thông tin này' });
-    }
-
     const departmentTeachers = await Teacher.find({ department: currentTeacher.department._id })
-      .populate('department', 'id name totalAssignmentTime declaredTeachingLessons');
+      .populate('department', 'id name totalAssignmentTime declaredTeachingLessons')
+      .populate('teachingSubjects', 'name');
 
     const teachersWithAssignments = await Promise.all(departmentTeachers.map(async (teacher) => {
       const assignments = await TeacherAssignment.find({ teacher: teacher._id })
@@ -71,8 +70,8 @@ teacherRoutes.get('/department-teacher-stats', isAuth, async (req, res) => {
     const userEmail = req.user.email;
     const currentTeacher = await Teacher.findOne({ email: userEmail });
 
-    if (!currentTeacher || !currentTeacher.isLeader) {
-      return res.status(403).json({ message: 'Chỉ tổ trưởng mới có quyền truy cập thông tin này' });
+    if (!currentTeacher) {
+      return res.status(403).json({ message: 'Không tìm thấy thông tin giáo viên' });
     }
 
     const departmentTeachers = await Teacher.find({ department: currentTeacher.department });
@@ -108,8 +107,8 @@ teacherRoutes.get('/department-class-stats', isAuth, async (req, res) => {
     const userEmail = req.user.email;
     const currentTeacher = await Teacher.findOne({ email: userEmail });
 
-    if (!currentTeacher || !currentTeacher.isLeader) {
-      return res.status(403).json({ message: 'Chỉ tổ trưởng mới có quyền truy cập thông tin này' });
+    if (!currentTeacher) {
+      return res.status(403).json({ message: 'Không tìm thấy thông tin giáo viên' });
     }
 
     const departmentSubjects = await Subject.find({ department: currentTeacher.department });
@@ -186,7 +185,10 @@ teacherRoutes.get('/department-class-stats', isAuth, async (req, res) => {
 
 teacherRoutes.get('/', isAuth, async (req, res) => {
   try {
-    const teachers = await Teacher.find().populate('department', 'name').lean();
+    const teachers = await Teacher.find()
+      .populate('department', 'name')
+      .populate('teachingSubjects', 'name')
+      .lean();
     res.json(teachers);
   } catch (error) {
     console.error('Error fetching all teachers:', error);
@@ -196,31 +198,70 @@ teacherRoutes.get('/', isAuth, async (req, res) => {
 
 teacherRoutes.post('/create', isAuth, async (req, res) => {
   try {
-    const { email, name, phone, department, type, lessonsPerWeek, teachingWeeks } = req.body;
+    const { 
+      email, 
+      name, 
+      phone, 
+      department, 
+      type, 
+      lessonsPerWeek, 
+      teachingWeeks,
+      reducedLessonsPerWeek,
+      reducedWeeks,
+      reductionReason,
+      teachingSubjects
+    } = req.body;
 
+    // Check if an email already exists
     const existingTeacher = await Teacher.findOne({ email });
     if (existingTeacher) {
       return res.status(400).json({ message: 'Email đã được sử dụng' });
     }
-    
-    const position = 'Giáo viên';
-    const basicTeachingLessons = lessonsPerWeek * teachingWeeks;
 
+    // Only check for duplicate phone if phone is provided and non-empty
+    const phoneValue = phone && phone.trim() !== '' ? phone : undefined;
+    if (phoneValue) {
+      const existingPhoneNumber = await Teacher.findOne({ phone: phoneValue });
+      if (existingPhoneNumber) {
+        return res.status(400).json({ message: 'Số điện thoại đã được sử dụng' });
+      }
+    }
+
+    const position = 'Giáo viên';
+    let basicTeachingLessons = 0;
+    let totalReducedLessons = 0;
+
+    // Additional validations for "Cơ hữu" teachers
+    if (type === 'Cơ hữu') {
+      if (!lessonsPerWeek || !teachingWeeks) {
+        return res.status(400).json({ message: 'Số tiết dạy một tuần và số tuần dạy là bắt buộc cho giáo viên cơ hữu' });
+      }
+      basicTeachingLessons = lessonsPerWeek * teachingWeeks;
+      totalReducedLessons = reducedLessonsPerWeek * reducedWeeks;
+    }
+
+    // Construct the new teacher object, conditionally including phone if it's defined
     const newTeacher = new Teacher({
       email,
       name,
-      phone,
+      ...(phoneValue && { phone: phoneValue }), // Only add phone if it's defined
       position,
       department,
       type,
-      lessonsPerWeek,
-      teachingWeeks,
-      basicTeachingLessons
+      teachingSubjects,
+      ...(type === 'Cơ hữu' && { 
+        lessonsPerWeek, 
+        teachingWeeks, 
+        basicTeachingLessons,
+        reducedLessonsPerWeek,
+        reducedWeeks,
+        totalReducedLessons,
+        reductionReason
+      })
     });
 
     const savedTeacher = await newTeacher.save();
 
-    // Create result
     await Result.create({
       action: 'CREATE',
       user: req.user._id,
@@ -250,7 +291,21 @@ teacherRoutes.post('/create-many', isAuth, async (req, res) => {
     const errors = [];
 
     for (const teacherData of teachers) {
-      const { email, name, phone, department, type, lessonsPerWeek, teachingWeeks } = teacherData;
+      const { 
+        email, 
+        name, 
+        phone, 
+        position,
+        department, 
+        type, 
+        teachingSubjects,
+        lessonsPerWeek, 
+        teachingWeeks,
+        reducedLessonsPerWeek,
+        reducedWeeks,
+        reductionReason,
+        homeroom
+      } = teacherData;
 
       const existingTeacher = await Teacher.findOne({ email });
       if (existingTeacher) {
@@ -258,8 +313,27 @@ teacherRoutes.post('/create-many', isAuth, async (req, res) => {
         continue;
       }
 
-      const position = 'Giáo viên';
-      const basicTeachingLessons = lessonsPerWeek * teachingWeeks;
+      if (phone) {
+        const existingPhoneNumber = await Teacher.findOne({ phone });
+        if (existingPhoneNumber) {
+          errors.push({ email, message: 'Số điện thoại đã được sử dụng' });
+          continue;
+        }
+      }
+
+      let basicTeachingLessons = 0;
+      let totalReducedLessons = 0;
+
+      if (type === 'Cơ hữu') {
+        if (!lessonsPerWeek || !teachingWeeks) {
+          errors.push({ email, message: 'Số tiết dạy một tuần và số tuần dạy là bắt buộc cho giáo viên cơ hữu' });
+          continue;
+        }
+        basicTeachingLessons = lessonsPerWeek * teachingWeeks;
+        if (reducedLessonsPerWeek && reducedWeeks) {
+          totalReducedLessons = reducedLessonsPerWeek * reducedWeeks;
+        }
+      }
 
       const newTeacher = new Teacher({
         email,
@@ -268,14 +342,20 @@ teacherRoutes.post('/create-many', isAuth, async (req, res) => {
         position,
         department,
         type,
-        lessonsPerWeek,
-        teachingWeeks,
-        basicTeachingLessons
+        teachingSubjects,
+        totalAssignment: 0,
+        lessonsPerWeek, 
+        teachingWeeks, 
+        basicTeachingLessons,
+        reducedLessonsPerWeek,
+        reducedWeeks,
+        totalReducedLessons,
+        reductionReason,
+        homeroom
       });
 
       const savedTeacher = await newTeacher.save();
 
-      // Create result
       await Result.create({
         action: 'CREATE',
         user: req.user._id,
@@ -300,7 +380,21 @@ teacherRoutes.post('/create-many', isAuth, async (req, res) => {
 teacherRoutes.put('/update/:id', isAuth, async (req, res) => {
   try {
     const { id } = req.params;
-    const { name, email, phone, department, type, lessonsPerWeek, teachingWeeks } = req.body;
+    const {
+      name,
+      email,
+      phone,
+      position,
+      department,
+      teachingSubjects,
+      type,
+      lessonsPerWeek,
+      teachingWeeks,
+      reducedLessonsPerWeek,
+      reducedWeeks,
+      reductionReason,
+      homeroom
+    } = req.body;
 
     const teacher = await Teacher.findById(id);
 
@@ -313,23 +407,32 @@ teacherRoutes.put('/update/:id', isAuth, async (req, res) => {
     teacher.name = name || teacher.name;
     teacher.email = email || teacher.email;
     teacher.phone = phone || teacher.phone;
+    teacher.position = position || teacher.position;
     teacher.department = department || teacher.department;
-    teacher.type = type || teacher.type;
+    teacher.teachingSubjects = teachingSubjects || teacher.teachingSubjects;
+    teacher.type = type;
+    teacher.homeroom = homeroom || teacher.homeroom;
 
-    if (lessonsPerWeek !== undefined) {
-      teacher.lessonsPerWeek = lessonsPerWeek;
-    }
-    if (teachingWeeks !== undefined) {
-      teacher.teachingWeeks = teachingWeeks;
-    }
-
-    if (lessonsPerWeek !== undefined || teachingWeeks !== undefined) {
+    if (type === 'Cơ hữu') {
+      teacher.lessonsPerWeek = lessonsPerWeek !== undefined ? lessonsPerWeek : teacher.lessonsPerWeek;
+      teacher.teachingWeeks = teachingWeeks !== undefined ? teachingWeeks : teacher.teachingWeeks;
       teacher.basicTeachingLessons = teacher.lessonsPerWeek * teacher.teachingWeeks;
+      teacher.reducedLessonsPerWeek = reducedLessonsPerWeek !== undefined ? reducedLessonsPerWeek : teacher.reducedLessonsPerWeek;
+      teacher.reducedWeeks = reducedWeeks !== undefined ? reducedWeeks : teacher.reducedWeeks;
+      teacher.totalReducedLessons = teacher.reducedLessonsPerWeek * teacher.reducedWeeks;
+      teacher.reductionReason = reductionReason || teacher.reductionReason;
+    } else if (type === 'Thỉnh giảng') {
+      teacher.lessonsPerWeek = 0;
+      teacher.teachingWeeks = 0;
+      teacher.basicTeachingLessons = 0;
+      teacher.reducedLessonsPerWeek = 0;
+      teacher.reducedWeeks = 0;
+      teacher.totalReducedLessons = 0;
+      teacher.reductionReason = '';
     }
 
     const updatedTeacher = await teacher.save();
 
-    // Create result
     await Result.create({
       action: 'UPDATE',
       user: req.user._id,
@@ -358,18 +461,11 @@ teacherRoutes.delete('/delete/:id', isAuth, async (req, res) => {
       return res.status(404).json({ message: 'Không tìm thấy giáo viên' });
     }
 
-    // Check if the teacher is a leader
-    if (teacher.isLeader) {
-      return res.status(400).json({ message: 'Không thể xóa giáo viên là trưởng bộ môn' });
-    }
-
-    // Check if the teacher has any assignments
     const hasAssignments = await TeacherAssignment.exists({ teacher: id });
     if (hasAssignments) {
       return res.status(400).json({ message: 'Không thể xóa giáo viên đã có khai báo giảng dạy' });
     }
 
-    // Create result before deleting
     await Result.create({
       action: 'DELETE',
       user: req.user._id,
@@ -392,7 +488,10 @@ teacherRoutes.delete('/delete/:id', isAuth, async (req, res) => {
 teacherRoutes.get('/teacher/:id', isAuth, async (req, res) => {
   try {
     const { id } = req.params;
-    const teacher = await Teacher.findById(id).populate('department', 'name').lean();
+    const teacher = await Teacher.findById(id)
+      .populate('department', 'name')
+      .populate('teachingSubjects', 'name')
+      .lean();
 
     if (!teacher) {
       return res.status(404).json({ message: 'Không tìm thấy thông tin giáo viên' });

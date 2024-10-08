@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useParams, Link, useNavigate, } from 'react-router-dom';
 import { Helmet } from 'react-helmet';
 import { Circles } from 'react-loader-spinner';
 import Header from '../../components/Header';
 import Footer from '../../components/Footer';
 import { getDepartmentTeachersById } from '../../services/statisticsServices';
+import { getUser } from '../../services/authServices.js';
 import { toast, ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import { Box, Typography, TextField, InputAdornment, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Paper } from '@mui/material';
@@ -17,6 +18,35 @@ const AdminDepartment = () => {
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const { departmentId } = useParams();
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    const fetchAdminAndStats = async () => {
+      try {
+        const userData = await getUser();
+        if (!userData || userData.user.role !== 2) {
+          // Redirect based on user role
+          switch(userData.user.role) {
+            case 1:
+              navigate('/ministry-dashboard');
+              break;
+            case 0:
+              navigate('/user-dashboard');
+              break;
+            default:
+              navigate('/login');
+          }
+        } else {
+        }
+      } catch (error) {
+        console.error('Error fetching data:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchAdminAndStats();
+  }, [navigate]);
 
   useEffect(() => {
     const fetchTeachers = async () => {

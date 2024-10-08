@@ -23,7 +23,7 @@ export const generateToken = (user) => {
       _id: user._id,
       name: user.name,
       email: user.email,
-      isAdmin: user.isAdmin,
+      role: user.role,
     },
     user.privateKey,
     {
@@ -61,9 +61,25 @@ export const isAuth = async (req, res, next) => {
 };
 
 export const isAdmin = (req, res, next) => {
-  if (req.user && req.user.isAdmin) {
+  if (req.user && req.user.role === 2) {
     next();
   } else {
     res.status(401).send({ message: 'Invalid Admin Token' });
+  }
+};
+
+export const isGiaoVu = (req, res, next) => {
+  if (req.user && (req.user.role === 1 || req.user.role === 2)) {
+    next();
+  } else {
+    res.status(401).send({ message: 'Unauthorized: Requires Giao Vu or Admin role' });
+  }
+};
+
+export const isToTruong = (req, res, next) => {
+  if (req.user && (req.user.role === 0)) {
+    next();
+  } else {
+    res.status(401).send({ message: 'Unauthorized: Requires To Truong role' });
   }
 };

@@ -39,14 +39,23 @@ const ClassDetail = () => {
             setUser(userData);
             
             if (userData) {
-              if (userData.user.isAdmin) {
-                navigate('/admin-dashboard');
-                return;
-              }
-              const data = await getClassById(id);
-              setClass(data);
-              const subjectsData = await getSubject();
-              setAllSubjects(subjectsData);
+                if (!userData || userData.user.role !== 1) {
+                    // Redirect based on user role
+                    switch(userData.user.role) {
+                        case 2:
+                        navigate('/admin-dashboard');
+                        break;
+                        case 0:
+                        navigate('/user-dashboard');
+                        break;
+                        default:
+                        navigate('/login');
+                    }
+                }
+                const data = await getClassById(id);
+                setClass(data);
+                const subjectsData = await getSubject();
+                setAllSubjects(subjectsData);
             }
             setLoading(false);
           } catch (err) {

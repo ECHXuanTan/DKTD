@@ -1,93 +1,87 @@
 import express from 'express';
 import User from '../models/userModel.js';
-import Teacher from '../models/teacherModel.js';
 import { generateToken, generateKeyPair } from '../utils.js';
 
 const authRoutes = express.Router();
 
 authRoutes.post('/check-user', async (req, res) => {
     try {
-        const { email, googleId, name } = req.body;
+        const { email, googleId, name, password } = req.body;
 
-        // First, check for an existing user with this email
         let user = await User.findOne({ email });
 
         if (user) {
-            // If user exists and is admin, allow login
-            if (user.isAdmin) {
-                const token = generateToken(user);
-                return res.json({ 
-                    success: true, 
-                    token: token,
-                    isAdmin: user.isAdmin
-                });
-            }
-            
-            // If user exists but is not admin, update googleId if necessary
             if (googleId && user.googleId !== googleId) {
                 user.googleId = googleId;
                 await user.save();
             }
-        }
 
-        // If user is not admin or doesn't exist, check for a teacher
-        let teacher = await Teacher.findOne({ email: email });
-
-        if (teacher) {
-            // If teacher exists, check if they are a leader
-            if (!teacher.isLeader) {
-                return res.status(404).json({ 
-                    success: false, 
-                    message: 'Unauthorized: Teacher is not a leader',
-                    teacherInfo: { name: teacher.name, email: teacher.email }
-                });
-            }
-
-            // If teacher is a leader, create or update user
-            if (!user) {
-                const { publicKey, privateKey } = generateKeyPair();
-                user = new User({
-                    googleId,
-                    name,
-                    email,
-                    password: '',
-                    isAdmin: false,
-                    publicKey,
-                    privateKey,
-                    teacher: teacher._id
-                });
-
-                await user.save();
-
-                // Update teacher with user reference
-                teacher.user = user._id;
-                await teacher.save();
-            } else if (!user.teacher) {
-                // If user exists but doesn't have teacher reference, add it
-                user.teacher = teacher._id;
-                await user.save();
-
-                teacher.user = user._id;
-                await teacher.save();
+            if (password) {
+                const isMatch = await user.matchPassword(password);
+                if (!isMatch) {
+                    return res.status(401).json({ 
+                        success: false, 
+                        message: 'Invalid credentials'
+                    });
+                }
             }
 
             const token = generateToken(user);
             return res.json({ 
                 success: true, 
                 token: token,
-                isAdmin: user.isAdmin
+                role: user.role
             });
         }
 
-        // If no teacher found and user is not admin, return error
         return res.status(404).json({ 
             success: false, 
-            message: 'Unauthorized: User is not an admin and no corresponding teacher found',
+            message: 'User not found',
             userInfo: { name, email }
         });
 
     } catch (error) {
         console.error('Error checking user:', error);
+        res.status(500).json({ success: false, message: 'Server error' });
+    }
+});
+
+authRoutes.post('/create-user', async (req, res) => {
+    try {
+        const { name, email, password, role } = req.body;
+
+        const userExists = await User.findOne({ email });
+
+        if (userExists) {
+            return res.status(400).json({ message: 'User already exists' });
+        }
+
+        const { publicKey, privateKey } = generateKeyPair();
+        const user = await User.create({
+            name,
+            email,
+            password,
+            role: role || 0,  // Default role is 0 if not provided
+            publicKey,
+            privateKey
+        });
+
+        if (user) {
+            res.status(201).json({
+                success: true,
+                message: 'User created successfully',
+                user: {
+                    _id: user._id,
+                    name: user.name,
+                    email: user.email,
+                    role: user.role
+                }
+            });
+        } else {
+            res.status(400).json({ success: false, message: 'Invalid user data' });
+        }
+    } catch (error) {
+        console.error('Error creating user:', error);
         res.status(500).json({ success: false, message: 'Server error' });
     }
 });

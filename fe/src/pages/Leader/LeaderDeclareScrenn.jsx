@@ -33,9 +33,18 @@ const LeaderDashboard = () => {
                 setUser(userData);
                 
                 if (userData) {
-                    if (userData.user.isAdmin) {
-                        navigate('/admin-dashboard');
-                        return;
+                    if (!userData || userData.user.role !== 0) {
+                        // Redirect based on user role
+                        switch(userData.user.role) {
+                          case 1:
+                            navigate('/ministry-declare');
+                            break;
+                          case 0:
+                            navigate('/user-dashboard');
+                            break;
+                          default:
+                            navigate('/login');
+                        }
                     }
                     const teachersData = await getDepartmentTeachers();
                     if (Array.isArray(teachersData) && teachersData.length > 0) {

@@ -9,7 +9,7 @@ import { isAuth } from '../utils.js';
 
 const classRouter = express.Router();
 
-classRouter.get('/classes', async (req, res) => {
+classRouter.get('/classes', isAuth, async (req, res) => {
   try {
     const classes = await Class.find()
       .populate({
@@ -28,7 +28,7 @@ classRouter.get('/classes', async (req, res) => {
   }
 });
 
-classRouter.get('/:id', async (req, res) => {
+classRouter.get('/:id', isAuth, async (req, res) => {
   try {
     const classId = req.params.id;
     const classData = await Class.findById(classId)

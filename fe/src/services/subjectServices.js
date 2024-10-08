@@ -31,3 +31,19 @@ export const getSubjectsByDepartment = async (departmentId) => {
     throw error;
   }
 };
+
+export const getNonSpecializedSubjects = async () => {
+  try {
+    const userToken = localStorage.getItem('userToken');
+    const response = await api.get(`api/subjects/non-specialized`, {
+      headers: {
+        'Content-type': 'application/json',
+        Authorization: `Bearer ${userToken}`,
+      },
+    });
+    return response.data;
+  } catch (error) {
+    console.error('Error fetching non-specialized subjects:', error);
+    throw error;
+  }
+};

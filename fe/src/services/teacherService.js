@@ -144,9 +144,12 @@ export const createManyTeachers = async (teachersData) => {
           email: teacher['Email'],
           phone: teacher['Số điện thoại'],
           department: departmentObj._id,
-          type: teacher['Loại giáo viên'],
-          lessonsPerWeek: parseInt(teacher['Số tiết dạy một tuần']),
-          teachingWeeks: parseInt(teacher['Số tuần dạy'])
+          type: teacher['Hình thức giáo viên'],
+          lessonsPerWeek: teacher['Hình thức giáo viên'] === 'Cơ hữu' ? parseInt(teacher['Số tiết dạy một tuần']) : 0,
+          teachingWeeks: teacher['Hình thức giáo viên'] === 'Cơ hữu' ? parseInt(teacher['Số tuần dạy']) : 0,
+          reducedLessonsPerWeek: teacher['Hình thức giáo viên'] === 'Cơ hữu' ? parseInt(teacher['Số tiết giảm 1 tuần'] || 0) : 0,
+          reducedWeeks: teacher['Hình thức giáo viên'] === 'Cơ hữu' ? parseInt(teacher['Số tuần giảm'] || 0) : 0,
+          reductionReason: teacher['Hình thức giáo viên'] === 'Cơ hữu' ? teacher['Nội dung giảm'] : ''
         });
       } else {
         invalidTeachers.push({ name: validationResult.name, errors: validationResult.errors });
@@ -188,9 +191,12 @@ const validateTeacherData = (teacher) => {
   if (!teacher['Email']) errors.push("Email là bắt buộc");
   if (!teacher['Số điện thoại']) errors.push("Số điện thoại là bắt buộc");
   if (!teacher['Tổ chuyên môn']) errors.push("Tổ chuyên môn là bắt buộc");
-  if (!teacher['Loại giáo viên']) errors.push("Loại giáo viên là bắt buộc");
-  if (!teacher['Số tiết dạy một tuần']) errors.push("Số tiết dạy một tuần là bắt buộc");
-  if (!teacher['Số tuần dạy']) errors.push("Số tuần dạy là bắt buộc");
+  if (!teacher['Hình thức giáo viên']) errors.push("Hình thức giáo viên là bắt buộc");
+  
+  if (teacher['Hình thức giáo viên'] === 'Cơ hữu') {
+    if (!teacher['Số tiết dạy một tuần']) errors.push("Số tiết dạy một tuần là bắt buộc cho giáo viên cơ hữu");
+    if (!teacher['Số tuần dạy']) errors.push("Số tuần dạy là bắt buộc cho giáo viên cơ hữu");
+  }
 
   // Kiểm tra định dạng email
   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -204,12 +210,21 @@ const validateTeacherData = (teacher) => {
     errors.push("Số điện thoại không hợp lệ");
   }
 
-  // Kiểm tra số tiết dạy một tuần và số tuần dạy
-  if (isNaN(parseInt(teacher['Số tiết dạy một tuần'])) || parseInt(teacher['Số tiết dạy một tuần']) <= 0) {
-    errors.push("Số tiết dạy một tuần phải là số nguyên dương");
-  }
-  if (isNaN(parseInt(teacher['Số tuần dạy'])) || parseInt(teacher['Số tuần dạy']) <= 0) {
-    errors.push("Số tuần dạy phải là số nguyên dương");
+  // Kiểm tra số tiết dạy một tuần và số tuần dạy cho giáo viên cơ hữu
+  if (teacher['Hình thức giáo viên'] === 'Cơ hữu') {
+    if (isNaN(parseInt(teacher['Số tiết dạy một tuần'])) || parseInt(teacher['Số tiết dạy một tuần']) <= 0) {
+      errors.push("Số tiết dạy một tuần phải là số nguyên dương");
+    }
+    if (isNaN(parseInt(teacher['Số tuần dạy'])) || parseInt(teacher['Số tuần dạy']) <= 0) {
+      errors.push("Số tuần dạy phải là số nguyên dương");
+    }
+    // Kiểm tra số tiết giảm và số tuần giảm (nếu có)
+    if (teacher['Số tiết giảm 1 tuần'] && (isNaN(parseInt(teacher['Số tiết giảm 1 tuần'])) || parseInt(teacher['Số tiết giảm 1 tuần']) < 0)) {
+      errors.push("Số tiết giảm 1 tuần phải là số nguyên không âm");
+    }
+    if (teacher['Số tuần giảm'] && (isNaN(parseInt(teacher['Số tuần giảm'])) || parseInt(teacher['Số tuần giảm']) < 0)) {
+      errors.push("Số tuần giảm phải là số nguyên không âm");
+    }
   }
 
   return {

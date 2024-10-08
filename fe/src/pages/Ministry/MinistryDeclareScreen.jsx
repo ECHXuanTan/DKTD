@@ -11,15 +11,12 @@ import Footer from '../../components/Footer.js';
 import { getAllDepartment } from '../../services/departmentService.js';
 import { getUser } from '../../services/authServices.js';
 import { getTeacherByEmail } from '../../services/teacherService.js';
-import { Box, Typography, MenuItem, Select, Paper } from '@mui/material';
-import { DataGrid } from '@mui/x-data-grid';
-import EditIcon from '@mui/icons-material/Edit';
+import { Box, Typography, MenuItem, Select, Paper, Table, TableBody, TableCell, TableContainer, TableHead, TableRow } from '@mui/material';
 
 Modal.setAppElement('#root');
 
 const MinistryDeclare = () => { 
     const [user, setUser] = useState(null);
-    const [teacher, setTeacher] = useState(null);
     const [departments, setDepartments] = useState([]);
     const [errorMessage, setErrorMessage] = useState('');
     const [showModal, setShowModal] = useState(false);
@@ -33,14 +30,20 @@ const MinistryDeclare = () => {
           try {
             const userData = await getUser();
             setUser(userData);
-            const teacherData = await getTeacherByEmail();
-            setTeacher(teacherData);
-            console.log(teacherData);
             if (userData) {
-              if (userData.user.isAdmin) {
-                navigate('/admin-dashboard');
-                return;
-              }
+                if (!userData || userData.user.role !== 1) {
+                    // Redirect based on user role
+                    switch(userData.user.role) {
+                      case 2:
+                        navigate('/admin-dashboard');
+                        break;
+                      case 0:
+                        navigate('/user-dashboard');
+                        break;
+                      default:
+                        navigate('/login');
+                    }
+                }
               const departmentData = await getAllDepartment();
               setDepartments(departmentData.filter(dept => dept.name !== "Tổ Giáo vụ – Đào tạo"));
             }
@@ -89,36 +92,6 @@ const MinistryDeclare = () => {
         return `${Math.round((declared / total) * 100)}%`;
     };
 
-    const columns = [
-        { field: 'name', headerName: 'Tên tổ bộ môn', flex: 1 },
-        { field: 'totalAssignmentTime', headerName: 'Tổng số tiết dạy', flex: 1, align: 'center', headerAlign: 'center' },
-        { field: 'declaredTeachingLessons', headerName: 'Số tiết đã khai báo', flex: 1, align: 'center', headerAlign: 'center' },
-        { field: 'completionPercentage', headerName: 'Tỉ lệ hoàn thành', flex: 1, align: 'center', headerAlign: 'center' },
-        { field: 'completionStatus', headerName: 'Tình trạng', flex: 1 },
-        { field: 'updatedAt', headerName: 'Lần cập nhật gần nhất', flex: 1 },
-        // {
-        //     field: 'actions',
-        //     headerName: 'Hành động',
-        //     flex: 0.5,
-        //     renderCell: (params) => (
-        //         <EditIcon
-        //             className={styles.editIcon}
-        //             onClick={() => {/* Handle edit action */}}
-        //         />
-        //     ),
-        // },
-    ];
-
-    const rows = departments.map((dept, index) => ({
-        id: dept._id,
-        name: dept.name,
-        totalAssignmentTime: dept.totalAssignmentTime || "Chưa khai báo",
-        updatedAt: dept.totalAssignmentTime ? new Date(dept.updatedAt).toLocaleString() : "-",
-        declaredTeachingLessons: dept.totalAssignmentTime ? `${dept.declaredTeachingLessons}/${dept.totalAssignmentTime}` : "Chưa khai báo",
-        completionStatus: getCompletionStatus(dept.declaredTeachingLessons, dept.totalAssignmentTime),
-        completionPercentage: getCompletionPercentage(dept.declaredTeachingLessons, dept.totalAssignmentTime),
-    }));
-
     if (loading) {
         return (
             <div className={styles.loadingContainer}>
@@ -138,14 +111,8 @@ const MinistryDeclare = () => {
             <Box m="20px">
                 <Paper elevation={3} className={styles.welcomeBox}>
                     <Typography variant="h4" className={styles.welcomeTitle}>
-                        Chào mừng giáo viên {teacher?.name} đến với trang khai báo tiết dạy!
+                        Chào mừng giáo viên {user?.user.name} đến với trang khai báo tiết dạy!
                     </Typography>
-                    <Box className={styles.teacherInfo}>
-                        <Typography><strong>Họ và tên:</strong> {teacher?.name}</Typography>
-                        <Typography><strong>Email:</strong> {teacher?.email}</Typography>
-                        <Typography><strong>Tổ:</strong> {teacher?.department?.name}</Typography>
-                        <Typography><strong>Chức vụ:</strong> {teacher?.position}</Typography>
-                    </Box>
                 </Paper>
                 
                 <Box display="flex" justifyContent="space-between" mb={2} className={styles.optionsContainer}>
@@ -176,19 +143,35 @@ const MinistryDeclare = () => {
                         <MenuItem value="warning">Cảnh báo</MenuItem>
                     </Select>
                     </Box>
-                    
                 </Box>
-                <Box className={styles.dataGridContainer}>
-                    <DataGrid
-                        rows={rows}
-                        columns={columns}
-                        pageSize={10}
-                        rowsPerPageOptions={[10]}
-                        className={styles.dataGrid}
-                        disableSelectionOnClick
-                        autoHeight
-                    />
-                </Box>
+                <TableContainer component={Paper} className={styles.tableContainer}>
+                    <Table className={styles.table}>
+                        <TableHead>
+                            <TableRow>
+                                <TableCell className={styles.tableHeader}>STT</TableCell>
+                                <TableCell className={styles.tableHeader}>Tên tổ bộ môn</TableCell>
+                                <TableCell className={`${styles.tableHeader} ${styles.centerAlign}`}>Tổng số tiết dạy</TableCell>
+                                <TableCell className={styles.tableHeader}>Số tiết đã khai báo</TableCell>
+                                <TableCell className={`${styles.tableHeader} ${styles.centerAlign}`}>Tỉ lệ hoàn thành</TableCell>
+                                <TableCell className={styles.tableHeader}>Tình trạng</TableCell>
+                                <TableCell className={styles.tableHeader}>Lần cập nhật gần nhất</TableCell>
+                            </TableRow>
+                        </TableHead>
+                        <TableBody>
+                            {departments.map((dept, index) => (
+                                <TableRow key={dept._id} className={index % 2 === 0 ? styles.evenRow : styles.oddRow}>
+                                    <TableCell>{index + 1}</TableCell>
+                                    <TableCell>{dept.name}</TableCell>
+                                    <TableCell className={styles.centerAlign}>{dept.totalAssignmentTime || "Chưa khai báo"}</TableCell>
+                                    <TableCell>{dept.declaredTeachingLessons || "Chưa khai báo"}</TableCell>
+                                    <TableCell className={styles.centerAlign}>{getCompletionPercentage(dept.declaredTeachingLessons, dept.totalAssignmentTime)}</TableCell>
+                                    <TableCell>{getCompletionStatus(dept.declaredTeachingLessons, dept.totalAssignmentTime)}</TableCell>
+                                    <TableCell>{dept.totalAssignmentTime ? new Date(dept.updatedAt).toLocaleString() : "-"}</TableCell>
+                                </TableRow>
+                            ))}
+                        </TableBody>
+                    </Table>
+                </TableContainer>
             </Box>
             <Modal
                 isOpen={showModal}

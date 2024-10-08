@@ -1,6 +1,6 @@
 import express from 'express';
 import mongoose from 'mongoose';
-import { isAuth } from '../utils.js';
+import { isAuth, isToTruong } from '../utils.js';
 import TeacherAssignment from '../models/teacherAssignmentModels.js';
 import Class from '../models/classModels.js';
 import Teacher from '../models/teacherModel.js';
@@ -11,7 +11,7 @@ import Result from '../models/resultModel.js'; // Import the Result model
 const assignmentRouter = express.Router();
 
 // Endpoint tạo assignment
-assignmentRouter.post('/assign', isAuth, async (req, res) => {
+assignmentRouter.post('/assign', isAuth, isToTruong, async (req, res) => {
   const session = await mongoose.startSession();
   session.startTransaction();
 
@@ -113,7 +113,7 @@ assignmentRouter.post('/assign', isAuth, async (req, res) => {
 });
 
 // Endpoint sửa assignment
-assignmentRouter.put('/edit', isAuth, async (req, res) => {
+assignmentRouter.put('/edit', isAuth, isToTruong, async (req, res) => {
   const session = await mongoose.startSession();
   session.startTransaction();
 
@@ -234,7 +234,7 @@ assignmentRouter.put('/edit', isAuth, async (req, res) => {
 });
 
 // Endpoint xóa assignment
-assignmentRouter.delete('/delete', isAuth, async (req, res) => {
+assignmentRouter.delete('/delete', isAuth, isToTruong, async (req, res) => {
   const session = await mongoose.startSession();
   session.startTransaction();
 
@@ -322,7 +322,7 @@ assignmentRouter.delete('/delete', isAuth, async (req, res) => {
   }
 });
 
-assignmentRouter.get('/teacher/:teacherId', isAuth, async (req, res) => {
+assignmentRouter.get('/teacher/:teacherId', isAuth, isToTruong, async (req, res) => {
   try {
     const { teacherId } = req.params;
 
@@ -354,7 +354,7 @@ assignmentRouter.get('/teacher/:teacherId', isAuth, async (req, res) => {
   }
 });
 
-assignmentRouter.get('/class-subject-info/:classId/:subjectId/:teacherId?', isAuth, async (req, res) => {
+assignmentRouter.get('/class-subject-info/:classId/:subjectId/:teacherId?', isAuth, isToTruong, async (req, res) => {
   try {
     const { classId, subjectId, teacherId } = req.params;
 
@@ -417,7 +417,7 @@ assignmentRouter.get('/class-subject-info/:classId/:subjectId/:teacherId?', isAu
   }
 });
 
-assignmentRouter.get('/by-subject/:subjectId', isAuth, async (req, res) => {
+assignmentRouter.get('/by-subject/:subjectId', isAuth, isToTruong, async (req, res) => {
   try {
     const { subjectId } = req.params;
 

@@ -8,7 +8,7 @@ import { getUser } from '../../services/authServices.js';
 import { getAllTeachers } from '../../services/statisticsServices';
 import { toast, ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
-import { Box, Typography, TextField, Select, MenuItem, InputAdornment, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Paper } from '@mui/material';
+import { Box, Typography, TextField, Select, MenuItem, InputAdornment, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Paper, TablePagination } from '@mui/material';
 import SearchIcon from '@mui/icons-material/Search';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import styles from '../../css/Ministry/MinistryTeacherStatic.module.css';
@@ -20,6 +20,8 @@ const MinistryTeacherStatic = () => {
     const [loading, setLoading] = useState(true);
     const [searchQuery, setSearchQuery] = useState('');
     const [departmentFilter, setDepartmentFilter] = useState('');
+    const [page, setPage] = useState(0);
+    const [rowsPerPage, setRowsPerPage] = useState(25);
     const navigate = useNavigate();
 
     useEffect(() => {
@@ -29,19 +31,28 @@ const MinistryTeacherStatic = () => {
             setUser(userData);
             
             if (userData) {
-              if (userData.user.isAdmin) {
-                navigate('/admin-dashboard');
-                return;
-              }
-              const teachersData = await getAllTeachers();
-              if (Array.isArray(teachersData) && teachersData.length > 0) {
-                const filteredTeachers = teachersData.filter(teacher => teacher.departmentName !== "Tổ Giáo vụ – Đào tạo");
-                const sortedTeachers = filteredTeachers.sort((a, b) => a.name.localeCompare(b.name));
-                setTeachers(sortedTeachers);
-              } else {
-                console.error('Invalid teachers data:', teachersData);
-                toast.error('Định dạng dữ liệu giáo viên không hợp lệ. Vui lòng thử lại sau.');
-              }
+                if (!userData || userData.user.role !== 1) {
+                    // Redirect based on user role
+                    switch(userData.user.role) {
+                      case 2:
+                        navigate('/admin-dashboard');
+                        break;
+                      case 0:
+                        navigate('/user-dashboard');
+                        break;
+                      default:
+                        navigate('/login');
+                    }
+                }
+                const teachersData = await getAllTeachers();
+                if (Array.isArray(teachersData) && teachersData.length > 0) {
+                    const filteredTeachers = teachersData.filter(teacher => teacher.departmentName !== "Tổ Giáo vụ – Đào tạo");
+                    const sortedTeachers = filteredTeachers.sort((a, b) => a.name.localeCompare(b.name));
+                    setTeachers(sortedTeachers);
+                } else {
+                    console.error('Invalid teachers data:', teachersData);
+                    toast.error('Định dạng dữ liệu giáo viên không hợp lệ. Vui lòng thử lại sau.');
+                }
             }
           } catch (error) {
             console.error('Error fetching data:', error);
@@ -56,10 +67,21 @@ const MinistryTeacherStatic = () => {
 
     const handleSearchChange = (event) => {
         setSearchQuery(event.target.value);
+        setPage(0);
     };
 
     const handleDepartmentFilterChange = (event) => {
         setDepartmentFilter(event.target.value);
+        setPage(0);
+    };
+
+    const handleChangePage = (event, newPage) => {
+        setPage(newPage);
+    };
+
+    const handleChangeRowsPerPage = (event) => {
+        setRowsPerPage(parseInt(event.target.value, 10));
+        setPage(0);
     };
 
     const formatTeachingDetails = (teachingDetails) => {
@@ -91,6 +113,8 @@ const MinistryTeacherStatic = () => {
         teacher.departmentName.toLowerCase().includes(searchQuery.toLowerCase())) &&
         (departmentFilter === '' || teacher.departmentName === departmentFilter)
     );
+
+    const paginatedTeachers = filteredTeachers.slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage);
 
     const uniqueDepartments = [...new Set(teachers.map(teacher => teacher.departmentName))];
 
@@ -149,42 +173,54 @@ const MinistryTeacherStatic = () => {
                         <ExportAllTeachersButton user={user?.user} />
                     </Box>
                 </Box>
-                <TableContainer component={Paper}>
-                    <Table className={styles.table}>
-                        <TableHead>
-                            <TableRow>
-                                <TableCell>STT</TableCell>
-                                <TableCell>Tên giáo viên</TableCell>
-                                <TableCell>Tổ bộ môn</TableCell>
-                                <TableCell>Tiết/Tuần</TableCell>
-                                <TableCell>Số tuần dạy</TableCell>
-                                <TableCell>Số tiết cơ bản</TableCell>
-                                <TableCell>Tổng số tiết</TableCell>
-                                <TableCell>Tỉ lệ hoàn thành</TableCell>
-                                <TableCell>Số tiết dư</TableCell>
-                                <TableCell>Chi tiết khai báo</TableCell>
-                            </TableRow>
-                        </TableHead>
-                        <TableBody>
-                            {filteredTeachers.map((teacher, index) => (
-                                <TableRow key={teacher.id}>
-                                    <TableCell>{index + 1}</TableCell>
-                                    <TableCell>{teacher.name}</TableCell>
-                                    <TableCell>{teacher.departmentName}</TableCell>
-                                    <TableCell>{teacher.lessonsPerWeek}</TableCell>
-                                    <TableCell>{teacher.teachingWeeks}</TableCell>
-                                    <TableCell>{teacher.basicTeachingLessons}</TableCell>
-                                    <TableCell>{teacher.totalAssignment > 0 ? teacher.totalAssignment : "Chưa khai báo"}</TableCell>
-                                    <TableCell>{`${calculateCompletionPercentage(teacher.totalAssignment, teacher.basicTeachingLessons)}%`}</TableCell>
-                                    <TableCell>{calculateExcessLessons(teacher.totalAssignment, teacher.basicTeachingLessons)}</TableCell>
-                                    <TableCell style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
-                                        {formatTeachingDetails(teacher.teachingDetails || [])}
-                                    </TableCell>
+                <div className={styles.tableWrapper}>
+                    <TableContainer component={Paper} className={styles.tableContainer}>
+                        <Table stickyHeader className={styles.table}>
+                            <TableHead>
+                                <TableRow>
+                                    <TableCell>STT</TableCell>
+                                    <TableCell>Tên giáo viên</TableCell>
+                                    <TableCell>Tổ bộ môn</TableCell>
+                                    <TableCell>Tiết/Tuần</TableCell>
+                                    <TableCell>Số tuần dạy</TableCell>
+                                    <TableCell>Số tiết cơ bản</TableCell>
+                                    <TableCell>Tổng số tiết</TableCell>
+                                    <TableCell>Tỉ lệ hoàn thành</TableCell>
+                                    <TableCell>Số tiết dư</TableCell>
+                                    <TableCell>Chi tiết khai báo</TableCell>
                                 </TableRow>
-                            ))}
-                        </TableBody>
-                    </Table>
-                </TableContainer>
+                            </TableHead>
+                            <TableBody>
+                                {paginatedTeachers.map((teacher, index) => (
+                                    <TableRow key={teacher.id}>
+                                        <TableCell>{page * rowsPerPage + index + 1}</TableCell>
+                                        <TableCell>{teacher.name}</TableCell>
+                                        <TableCell>{teacher.departmentName}</TableCell>
+                                        <TableCell>{teacher.lessonsPerWeek}</TableCell>
+                                        <TableCell>{teacher.teachingWeeks}</TableCell>
+                                        <TableCell>{teacher.basicTeachingLessons}</TableCell>
+                                        <TableCell>{teacher.totalAssignment > 0 ? teacher.totalAssignment : "Chưa khai báo"}</TableCell>
+                                        <TableCell>{`${calculateCompletionPercentage(teacher.totalAssignment, teacher.basicTeachingLessons)}%`}</TableCell>
+                                        <TableCell>{calculateExcessLessons(teacher.totalAssignment, teacher.basicTeachingLessons)}</TableCell>
+                                        <TableCell style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
+                                            {formatTeachingDetails(teacher.teachingDetails || [])}
+                                        </TableCell>
+                                    </TableRow>
+                                ))}
+                            </TableBody>
+                        </Table>
+                    </TableContainer>
+                    <TablePagination
+                        rowsPerPageOptions={[25, 50, 100]}
+                        component="div"
+                        count={filteredTeachers.length}
+                        rowsPerPage={rowsPerPage}
+                        page={page}
+                        onPageChange={handleChangePage}
+                        onRowsPerPageChange={handleChangeRowsPerPage}
+                        style={{overflow: 'unset'}}
+                    />
+                </div>
             </Box>
         </div>
         <Footer/>

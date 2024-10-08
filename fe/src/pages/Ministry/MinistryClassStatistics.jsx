@@ -32,18 +32,27 @@ const MinistryClassStatistics = () => {
             setUser(userData);
             
             if (userData) {
-              if (userData.user.isAdmin) {
-                navigate('/admin-dashboard');
-                return;
-              }
-              const classesData = await getAllClasses();
-              if (Array.isArray(classesData) && classesData.length > 0) {
-                const sortedClasses = classesData.sort((a, b) => a.className.localeCompare(b.className));
-                setClasses(sortedClasses);
-              } else {
-                console.error('Invalid classes data:', classesData);
-                toast.error('Định dạng dữ liệu lớp học không hợp lệ. Vui lòng thử lại sau.');
-              }
+                if (!userData || userData.user.role !== 1) {
+                    // Redirect based on user role
+                    switch(userData.user.role) {
+                      case 2:
+                        navigate('/admin-dashboard');
+                        break;
+                      case 0:
+                        navigate('/user-dashboard');
+                        break;
+                      default:
+                        navigate('/login');
+                    }
+                }
+                const classesData = await getAllClasses();
+                if (Array.isArray(classesData) && classesData.length > 0) {
+                    const sortedClasses = classesData.sort((a, b) => a.className.localeCompare(b.className));
+                    setClasses(sortedClasses);
+                } else {
+                    console.error('Invalid classes data:', classesData);
+                    toast.error('Định dạng dữ liệu lớp học không hợp lệ. Vui lòng thử lại sau.');
+                }
             }
           } catch (error) {
             console.error('Error fetching data:', error);
@@ -216,6 +225,7 @@ const MinistryClassStatistics = () => {
                         page={page}
                         onPageChange={handleChangePage}
                         onRowsPerPageChange={handleChangeRowsPerPage}
+                        style={{overflow: 'unset'}}
                     />
                 </div>
             </Box>

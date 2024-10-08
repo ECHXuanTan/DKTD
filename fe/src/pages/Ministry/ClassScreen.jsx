@@ -50,9 +50,18 @@ const ClassScreen = () => {
                 setUser(userData);
                 
                 if (userData) {
-                    if (userData.user && userData.user.isAdmin) {
-                        navigate('/admin-dashboard');
-                        return;
+                    if (!userData || userData.user.role !== 1) {
+                        // Redirect based on user role
+                        switch(userData.user.role) {
+                          case 2:
+                            navigate('/admin-dashboard');
+                            break;
+                          case 0:
+                            navigate('/user-dashboard');
+                            break;
+                          default:
+                            navigate('/login');
+                        }
                     }
                     const classData = await getClasses();
                     setClasses(classData);
@@ -222,7 +231,7 @@ const ClassScreen = () => {
         { field: 'name', label: 'Tên lớp', width: '15%' },
         { field: 'grade', label: 'Khối', width: '5%' },
         { field: 'campus', label: 'Cơ sở', width: '8%' },
-        { field: 'updatedAt', label: 'Lần điều chỉnh gần nhất', width: '15%' },
+        { field: 'updatedAt', label: 'Lần điều chỉnh gần nhất', width: '12%' },
         { field: 'subjects', label: 'Môn học', width: '15%' },
         { field: 'lessonCount', label: 'Số tiết', width: '10%' },
         { field: 'subjectActions', label: 'Thao tác môn học', width: '15%', align: 'center' },
@@ -345,7 +354,7 @@ const ClassScreen = () => {
                     <div className={styles.tableWrapper}>
                         <TableContainer component={Paper} className={styles.tableContainer}>
                             <Table stickyHeader className={styles.table}>
-                                <TableHead>
+                                <TableHead >
                                     <TableRow>
                                         {columns.map((column) => (
                                             <TableCell key={column.field} style={{ width: column.width }}>

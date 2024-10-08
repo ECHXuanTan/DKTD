@@ -1,3 +1,5 @@
+/* MinistrySubjectStatistics.module.css */
+
 .dashboardMinistry {
     padding: 20px;
     max-width: 1370px;
@@ -13,9 +15,22 @@
     height: 100vh;
 }
 
+.tableWrapper {
+    display: flex;
+    flex-direction: column;
+    max-height: 900px;
+}
+
+.tableContainer {
+    flex: 1;
+    overflow-y: auto;
+    margin-bottom: 0;
+}
+
 .table {
     width: 100%;
-    border-collapse: collapse;
+    border-collapse: separate;
+    border-spacing: 0;
 }
 
 .table th,
@@ -29,15 +44,123 @@
 .table th {
     background-color: #f2f2f2;
     font-weight: bold;
+    position: sticky;
+    top: 0;
+    z-index: 1;
 }
 
 .table tr:nth-child(even) {
     background-color: #f9f9f9;
 }
 
+.table tr:hover {
+    background-color: #f5f5f5;
+}
+
+.table thead th {
+    position: sticky;
+    top: 0;
+    background-color: #f2f2f2;
+    z-index: 2;
+}
+
+.table thead th::after {
+    content: '';
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    height: 1px;
+    background-color: #ddd;
+}
+
+.tableContainer::-webkit-scrollbar {
+    width: 10px;
+}
+
+.tableContainer::-webkit-scrollbar-track {
+    background: #f1f1f1;
+}
+
+.tableContainer::-webkit-scrollbar-thumb {
+    background: #888;
+    border-radius: 5px;
+}
+
+.tableContainer::-webkit-scrollbar-thumb:hover {
+    background: #555;
+}
+
 @media (max-width: 768px) {
     .dashboardMinistry {
         padding: 10px;
         width: 100%;
+    }
+
+    .table th,
+    .table td {
+        padding: 8px;
+        font-size: 14px;
+    }
+}
+
+/* Additional styles for subject-specific elements */
+
+.subjectName {
+    font-weight: bold;
+}
+
+.classInfo {
+    display: flex;
+    flex-direction: column;
+}
+
+.teacherInfo {
+    display: flex;
+    justify-content: space-between;
+}
+
+.exportButton {
+    margin-top: 10px;
+}
+
+/* Styles for the sticky header */
+.stickyHeader {
+    position: sticky;
+    top: 0;
+    background-color: #f2f2f2;
+    z-index: 2;
+}
+
+/* Styles for better responsive design */
+@media (max-width: 1024px) {
+    .table {
+        font-size: 14px;
+    }
+
+    .table th,
+    .table td {
+        padding: 8px;
+    }
+}
+
+@media (max-width: 768px) {
+    .dashboardMinistry {
+        padding: 10px;
+        width: 100%;
+    }
+
+    .table {
+        font-size: 12px;
+    }
+
+    .table th,
+    .table td {
+        padding: 6px;
+    }
+
+    .exportButton {
+        font-size: 12px;
+        padding: 6px 10px;
     }
 }

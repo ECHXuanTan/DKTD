@@ -8,7 +8,7 @@ import { getUser } from '../../services/authServices.js';
 import { getBelowTeachers, getAboveTeachers } from '../../services/statisticsServices';
 import { toast, ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
-import { Box, Typography, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Paper, Select, MenuItem, TextField, InputAdornment } from '@mui/material';
+import { Box, Typography, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Paper, Select, MenuItem, TextField, InputAdornment, TablePagination } from '@mui/material';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import SearchIcon from '@mui/icons-material/Search';
 import ExportBelowTeachersButton from './Component/BelowTeachersReport.jsx';
@@ -24,6 +24,9 @@ const TeacherWorkloadStatistics = () => {
     const [aboveDepartmentFilter, setAboveDepartmentFilter] = useState('');
     const [belowSearchQuery, setBelowSearchQuery] = useState('');
     const [aboveSearchQuery, setAboveSearchQuery] = useState('');
+    const [belowPage, setBelowPage] = useState(0);
+    const [abovePage, setAbovePage] = useState(0);
+    const [rowsPerPage, setRowsPerPage] = useState(25);
     const navigate = useNavigate();
 
     useEffect(() => {
@@ -33,9 +36,18 @@ const TeacherWorkloadStatistics = () => {
                 setUser(userData);
 
                 if (userData) {
-                    if (userData.user.isAdmin) {
-                        navigate('/admin-dashboard');
-                        return;
+                    if (!userData || userData.user.role !== 1) {
+                        // Redirect based on user role
+                        switch(userData.user.role) {
+                          case 2:
+                            navigate('/admin-dashboard');
+                            break;
+                          case 0:
+                            navigate('/user-dashboard');
+                            break;
+                          default:
+                            navigate('/login');
+                        }
                     }
                     const belowTeachersData = await getBelowTeachers();
                     const aboveTeachersData = await getAboveTeachers();
@@ -57,11 +69,23 @@ const TeacherWorkloadStatistics = () => {
         return [...new Set(teachers.map(teacher => teacher.departmentName))];
     };
 
-    const renderTeacherTable = (teachers, title, departmentFilter, setDepartmentFilter, searchQuery, setSearchQuery, ExportButton) => {
+    const handleChangePage = (setPage) => (event, newPage) => {
+        setPage(newPage);
+    };
+
+    const handleChangeRowsPerPage = (event) => {
+        setRowsPerPage(parseInt(event.target.value, 10));
+        setBelowPage(0);
+        setAbovePage(0);
+    };
+
+    const renderTeacherTable = (teachers, title, departmentFilter, setDepartmentFilter, searchQuery, setSearchQuery, ExportButton, page, setPage) => {
         const filteredTeachers = teachers.filter(teacher => 
             (departmentFilter === '' || teacher.departmentName === departmentFilter) &&
             teacher.name.toLowerCase().includes(searchQuery.toLowerCase())
         );
+
+        const paginatedTeachers = filteredTeachers.slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage);
 
         const uniqueDepartments = getUniqueDepartments(teachers);
 
@@ -99,66 +123,78 @@ const TeacherWorkloadStatistics = () => {
                         <ExportButton user={user?.user} />
                     </Box>
                 </Box>
-                <TableContainer component={Paper}>
-                    <Table className={styles.table}>
-                        <TableHead>
-                            <TableRow>
-                                <TableCell>STT</TableCell>
-                                <TableCell>Tên giáo viên</TableCell>
-                                <TableCell>Tổ bộ môn</TableCell>
-                                <TableCell>Tiết/Tuần</TableCell>
-                                <TableCell>Số tuần dạy</TableCell>
-                                <TableCell>Số tiết cơ bản</TableCell>
-                                <TableCell>Tổng số tiết</TableCell>
-                                <TableCell>Tỉ lệ hoàn thành</TableCell>
-                                <TableCell>Số tiết dư</TableCell>
-                                <TableCell>Lớp</TableCell>
-                                <TableCell>Môn học</TableCell>
-                                <TableCell>Số tiết khai báo</TableCell>
-                            </TableRow>
-                        </TableHead>
-                        <TableBody>
-                            {filteredTeachers.map((teacher, index) => {
-                                const rowSpan = Math.max(teacher.teachingDetails?.length || 1, 1);
-                                return (
-                                    <React.Fragment key={teacher.id}>
-                                        <TableRow>
-                                            <TableCell rowSpan={rowSpan}>{index + 1}</TableCell>
-                                            <TableCell rowSpan={rowSpan}>{teacher.name}</TableCell>
-                                            <TableCell rowSpan={rowSpan}>{teacher.departmentName}</TableCell>
-                                            <TableCell rowSpan={rowSpan}>{teacher.lessonsPerWeek}</TableCell>
-                                            <TableCell rowSpan={rowSpan}>{teacher.teachingWeeks}</TableCell>
-                                            <TableCell rowSpan={rowSpan}>{teacher.basicTeachingLessons}</TableCell>
-                                            <TableCell rowSpan={rowSpan}>{teacher.totalAssignment > 0 ? teacher.totalAssignment : "Chưa khai báo"}</TableCell>
-                                            <TableCell rowSpan={rowSpan}>{`${((teacher.totalAssignment / teacher.basicTeachingLessons) * 100).toFixed(2)}%`}</TableCell>
-                                            <TableCell rowSpan={rowSpan}>{Math.max(0, teacher.totalAssignment - teacher.basicTeachingLessons)}</TableCell>
-                                            {teacher.teachingDetails && teacher.teachingDetails.length > 0 ? (
-                                                <>
-                                                    <TableCell>{teacher.teachingDetails[0].className}</TableCell>
-                                                    <TableCell>{teacher.teachingDetails[0].subjectName}</TableCell>
-                                                    <TableCell>{teacher.teachingDetails[0].completedLessons}</TableCell>
-                                                </>
-                                            ) : (
-                                                <>
-                                                    <TableCell rowSpan={rowSpan}>-</TableCell>
-                                                    <TableCell rowSpan={rowSpan}>-</TableCell>
-                                                    <TableCell rowSpan={rowSpan}>-</TableCell>
-                                                </>
-                                            )}
-                                        </TableRow>
-                                        {teacher.teachingDetails && teacher.teachingDetails.slice(1).map((detail, detailIndex) => (
-                                            <TableRow key={`${teacher.id}-${detailIndex}`}>
-                                                <TableCell>{detail.className}</TableCell>
-                                                <TableCell>{detail.subjectName}</TableCell>
-                                                <TableCell>{detail.completedLessons}</TableCell>
+                <div className={styles.tableWrapper}>
+                    <TableContainer component={Paper} className={styles.tableContainer}>
+                        <Table stickyHeader className={styles.table}>
+                            <TableHead>
+                                <TableRow>
+                                    <TableCell>STT</TableCell>
+                                    <TableCell>Tên giáo viên</TableCell>
+                                    <TableCell>Tổ bộ môn</TableCell>
+                                    <TableCell>Tiết/Tuần</TableCell>
+                                    <TableCell>Số tuần dạy</TableCell>
+                                    <TableCell>Số tiết cơ bản</TableCell>
+                                    <TableCell>Tổng số tiết</TableCell>
+                                    <TableCell>Tỉ lệ hoàn thành</TableCell>
+                                    <TableCell>Số tiết dư</TableCell>
+                                    <TableCell>Lớp</TableCell>
+                                    <TableCell>Môn học</TableCell>
+                                    <TableCell>Số tiết khai báo</TableCell>
+                                </TableRow>
+                            </TableHead>
+                            <TableBody>
+                                {paginatedTeachers.map((teacher, index) => {
+                                    const rowSpan = Math.max(teacher.teachingDetails?.length || 1, 1);
+                                    return (
+                                        <React.Fragment key={teacher.id}>
+                                            <TableRow>
+                                                <TableCell rowSpan={rowSpan}>{page * rowsPerPage + index + 1}</TableCell>
+                                                <TableCell rowSpan={rowSpan}>{teacher.name}</TableCell>
+                                                <TableCell rowSpan={rowSpan}>{teacher.departmentName}</TableCell>
+                                                <TableCell rowSpan={rowSpan}>{teacher.lessonsPerWeek}</TableCell>
+                                                <TableCell rowSpan={rowSpan}>{teacher.teachingWeeks}</TableCell>
+                                                <TableCell rowSpan={rowSpan}>{teacher.basicTeachingLessons}</TableCell>
+                                                <TableCell rowSpan={rowSpan}>{teacher.totalAssignment > 0 ? teacher.totalAssignment : "Chưa khai báo"}</TableCell>
+                                                <TableCell rowSpan={rowSpan}>{`${((teacher.totalAssignment / teacher.basicTeachingLessons) * 100).toFixed(2)}%`}</TableCell>
+                                                <TableCell rowSpan={rowSpan}>{Math.max(0, teacher.totalAssignment - teacher.basicTeachingLessons)}</TableCell>
+                                                {teacher.teachingDetails && teacher.teachingDetails.length > 0 ? (
+                                                    <>
+                                                        <TableCell>{teacher.teachingDetails[0].className}</TableCell>
+                                                        <TableCell>{teacher.teachingDetails[0].subjectName}</TableCell>
+                                                        <TableCell>{teacher.teachingDetails[0].completedLessons}</TableCell>
+                                                    </>
+                                                ) : (
+                                                    <>
+                                                        <TableCell rowSpan={rowSpan}>-</TableCell>
+                                                        <TableCell rowSpan={rowSpan}>-</TableCell>
+                                                        <TableCell rowSpan={rowSpan}>-</TableCell>
+                                                    </>
+                                                )}
                                             </TableRow>
-                                        ))}
-                                    </React.Fragment>
-                                );
-                            })}
-                        </TableBody>
-                    </Table>
-                </TableContainer>
+                                            {teacher.teachingDetails && teacher.teachingDetails.slice(1).map((detail, detailIndex) => (
+                                                <TableRow key={`${teacher.id}-${detailIndex}`}>
+                                                    <TableCell>{detail.className}</TableCell>
+                                                    <TableCell>{detail.subjectName}</TableCell>
+                                                    <TableCell>{detail.completedLessons}</TableCell>
+                                                </TableRow>
+                                            ))}
+                                        </React.Fragment>
+                                    );
+                                })}
+                            </TableBody>
+                        </Table>
+                    </TableContainer>
+                    <TablePagination
+                        rowsPerPageOptions={[25, 50, 100]}
+                        component="div"
+                        count={filteredTeachers.length}
+                        rowsPerPage={rowsPerPage}
+                        page={page}
+                        onPageChange={handleChangePage(setPage)}
+                        onRowsPerPageChange={handleChangeRowsPerPage}
+                        style={{overflow: 'unset'}}
+                    />
+                </div>
             </Box>
         );
     };
@@ -192,7 +228,9 @@ const TeacherWorkloadStatistics = () => {
                         setBelowDepartmentFilter,
                         belowSearchQuery,
                         setBelowSearchQuery,
-                        ExportBelowTeachersButton
+                        ExportBelowTeachersButton,
+                        belowPage,
+                        setBelowPage
                     )}
                     {renderTeacherTable(
                         aboveTeachers,
@@ -201,7 +239,9 @@ const TeacherWorkloadStatistics = () => {
                         setAboveDepartmentFilter,
                         aboveSearchQuery,
                         setAboveSearchQuery,
-                        ExportAboveTeachersButton
+                        ExportAboveTeachersButton,
+                        abovePage,
+                        setAbovePage
                     )}
                 </Box>
             </div>

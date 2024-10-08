@@ -22,8 +22,18 @@ const AdminDashboard = () => {
     const fetchAdminAndStats = async () => {
       try {
         const userData = await getUser();
-        if (!userData || !userData.user.isAdmin) {
-          navigate('/dashboard');
+        if (!userData || userData.user.role !== 2) {
+          // Redirect based on user role
+          switch(userData.user.role) {
+            case 1:
+              navigate('/ministry-dashboard');
+              break;
+            case 0:
+              navigate('/user-dashboard');
+              break;
+            default:
+              navigate('/login');
+          }
         } else {
           setAdmin(userData.user);
           const stats = await getDepartmentStatistics();

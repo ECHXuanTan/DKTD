@@ -32,9 +32,7 @@ const corsOptions = {
   origin: function (origin, callback) {
     const allowedOrigins = [
       process.env.FRONTEND_URL,
-      'https://dkmh-deploy-1.onrender.com',
       'http://localhost:3000',
-      'https://dkmh.ptnk.edu.vn',
       'https://khaibao-client.onrender.com'
       // Thêm các domain khác ở đây
     ].filter(Boolean);

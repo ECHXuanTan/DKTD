@@ -67,12 +67,13 @@
 }
 
 .table th {
-    background-color: #bed8ee;
+    background-color: #5585b5;
     font-weight: bold;
     font-size: 16px;
     position: sticky;
     top: 0;
     z-index: 2;
+    color: white;
 }
 
 .tableFooter {

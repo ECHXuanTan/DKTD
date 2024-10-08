@@ -68,8 +68,6 @@ departmentRoutes.put(
   }
 );
 
-
-
 departmentRoutes.post('/create', isAuth, isAdmin, async (req, res) => {
   try {
     const { name } = req.body;

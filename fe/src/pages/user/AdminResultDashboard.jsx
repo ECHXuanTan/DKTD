@@ -34,9 +34,18 @@ export default function AdminActionResultScreen() {
         setUser(userData);
        
         if (userData) {
-          if (!userData.user.isAdmin) {
-            navigate('/dashboard');
-            return;
+          if (!userData || userData.user.role !== 2) {
+           // Redirect based on user role
+          switch(userData.user.role) {
+            case 1:
+              navigate('/ministry-dashboard');
+              break;
+            case 0:
+              navigate('/user-dashboard');
+              break;
+            default:
+              navigate('/login');
+          }
           }
           const resultsData = await getAllResult();
           setResults(resultsData.existingResult);
@@ -205,7 +214,7 @@ export default function AdminActionResultScreen() {
       <div className={styles.pageWrapper}>
         <section className={styles.resultSection}>
           <Box m="20px">
-            <Link to="/leader-declare" style={{ textDecoration: 'none', padding: '5px', fontSize: '20px' }}>
+            <Link to="/admin-dashboard" style={{ textDecoration: 'none', padding: '5px', fontSize: '20px' }}>
                 <ArrowBackIcon />
             </Link>
             <Typography variant="h4" className={styles.sectionTitle}>

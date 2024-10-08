@@ -5,17 +5,25 @@
     min-height: 75vh;    
 }
 
+.loadingContainer {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+}
+
 .welcomeBox {
     padding: 20px;
     margin-bottom: 50px;
-    background-color: #e3f2fd;
-    border-radius: 8px;
+    background-color: #f8f9fa;
+    border-radius: 12px;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
 }
 
 .welcomeTitle {
-    font-size: 1.8rem;
+    font-size: 2.5rem !important;
     font-weight: 600 !important;
-    color: #1a237e;
+    color: #2c3e50;
     padding-bottom: 25px;
 }
 
@@ -23,6 +31,10 @@
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
     gap: 10px;
+    padding: 20px;
+    background-color: #ffffff;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 
 .teacherInfo p {
@@ -33,12 +45,12 @@
     font-size: 1.5rem;
     font-weight: bold;
     margin-bottom: 1rem;
-    color: #1a237e;
+    color: #2c3e50;
 }
 
 .optionsContainer {
     display: flex;
-    justify-content: flex-end;
+    justify-content: space-between;
     align-items: center;
     margin-bottom: 1rem;
 }
@@ -48,45 +60,50 @@
     margin-left: 1rem;
 }
 
-.dataGridContainer {
-    width: 100%;
-}
-
-.dataGrid {
-    background-color: white;
+.tableContainer {
+    margin-top: 24px;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
     border-radius: 8px;
     overflow: hidden;
-    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
 }
 
-.dataGrid .MuiDataGrid-columnHeaders {
-    --DataGrid-containerBackground: #1a237e;
-    color: white;
-    
+.table {
+    width: 100%;
+    border-collapse: collapse;
 }
 
-.dataGrid .MuiDataGrid-row:nth-of-type(even) {
-    background-color: #e3f2fd;
+.tableHeader {
+    background-color: #5585b5 !important;
+    color: white !important;
+    font-weight: bold !important;
+    padding: 12px !important;
+    text-align: left !important;
 }
 
-.dataGrid .MuiDataGrid-row:nth-of-type(odd) {
-    background-color: white;
+.centerAlign {
+    text-align: center !important;
 }
 
-.editIcon {
-    color: #1976d2;
-    cursor: pointer;
+.table td {
+    padding: 12px !important;
+    text-align: left !important;
+    border-bottom: 1px solid #ddd !important;
 }
 
-.editIcon:hover {
-    color: #115293;
+.table td.centerAlign {
+    text-align: center !important;
 }
 
-.loadingContainer {
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    height: 100vh;
+.evenRow {
+    background-color: #f9f9f9;
+}
+
+.oddRow {
+    background-color: #ffffff;
+}
+
+.table tr:hover {
+    background-color: #f5f5f5;
 }
 
 .modal {
@@ -111,6 +128,15 @@
 }
 
 @media (max-width: 768px) {
+    .dashboardMinistry {
+        padding: 16px;
+        width: 100%;
+    }
+
+    .welcomeTitle {
+        font-size: 2rem !important;
+    }
+
     .optionsContainer {
         flex-direction: column;
         align-items: stretch;
@@ -124,5 +150,17 @@
 
     .teacherInfo {
         grid-template-columns: 1fr;
+    }
+
+    .table {
+        font-size: 0.9rem;
+    }
+
+    .tableHeader, .table td {
+        padding: 8px !important;
+    }
+
+    .centerAlign, .table td.centerAlign {
+        text-align: center !important;
     }
 }

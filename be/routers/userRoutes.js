@@ -1,7 +1,7 @@
 // In userRoutes.js
 import express from 'express';
 import User from '../models/userModel.js';
-import { generateToken, isAuth, isAdmin } from '../utils.js';
+import { generateToken, isAuth, } from '../utils.js';
 
 const userRoutes = express.Router();
 
@@ -10,8 +10,8 @@ userRoutes.get('/profile', isAuth, async (req, res) => {
     const user = await User.findById(req.user._id).lean();
     if (user) {
       // Select only the fields you want to send
-      const { _id, name, email, isAdmin } = user;
-      res.status(200).json({ user: { _id, name, email, isAdmin } });
+      const { _id, name, email, role } = user;
+      res.status(200).json({ user: { _id, name, email, role } });
     } else {
       res.status(404).json({ message: 'User not found' });
     }

@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import { getResultById } from '../../services/resultServices';
+import { getUser } from '../../services/authServices.js';
 import '../../css/ActionResult.css';
 import { Circles } from 'react-loader-spinner';
 
@@ -11,6 +12,35 @@ const AdminResultDetail = () => {
   const [error, setError] = useState(null);
   const { id } = useParams();
   const navigate = useNavigate();
+
+  useEffect(() => {
+    const fetchAdminAndStats = async () => {
+      try {
+        const userData = await getUser();
+        if (!userData || userData.user.role !== 2) {
+          // Redirect based on user role
+          switch(userData.user.role) {
+            case 1:
+              navigate('/ministry-dashboard');
+              break;
+            case 0:
+              navigate('/user-dashboard');
+              break;
+            default:
+              navigate('/login');
+          }
+        } else {
+         
+        }
+      } catch (error) {
+        console.error('Error fetching data:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchAdminAndStats();
+  }, [navigate]);
 
   useEffect(() => {
     const fetchResult = async () => {

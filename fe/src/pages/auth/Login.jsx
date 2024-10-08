@@ -7,7 +7,6 @@ import logo from '../../assets/images/pho-thong-nang-khieu-logo.png';
 import '../../css/Login.css';
 import { authService } from '../../services/authServices';
 import { getUser } from '../../services/authServices';
-import { getTeacherByEmail } from '../../services/teacherService';
 
 const clientID = "772775577887-mid4fgus3v3k22i6r30me6dpgkv1e8j8.apps.googleusercontent.com";
 
@@ -17,47 +16,36 @@ const Login = () => {
   const navigate = useNavigate();
 
   useEffect(() => {
-    const fetchUserAndData = async () => {
+    const fetchUser = async () => {
         try {
             const userData = await getUser();
-            setUser(userData);
-            const teacherData = await getTeacherByEmail();
-            if (userData) {
-                if (userData.user && userData.user.isAdmin) {
-                    navigate('/admin-dashboard');
-                    return;
-                } 
-                else if (teacherData.position==="Giáo vụ") {
-                  navigate('/ministry-declare');
-                } else if (teacherData.position==="Tổ trưởng" || teacherData.position==="Tổ phó") {
-                  navigate('/leader-declare');
+            setUser(userData.user);
+            console.log("userData", userData.user);
+            if (userData.user) {
+                switch(userData.user.role) {
+                    case 2:
+                        navigate('/admin-dashboard');
+                        break;
+                    case 1:
+                        navigate('/ministry-declare');
+                        break;
+                    case 0:
+                        navigate('/user-dashboard');
+                        break;
+                    default:
+                        setErrorMessage('Invalid user role');
                 }
             } 
         } catch (error) {
-            console.error('Error fetching data:', error);
+            console.error('Error fetching user data:', error);
             setErrorMessage(error.message);
         }
     };
-    fetchUserAndData();
-}, [navigate]);
-
-  const isAdminEmail = (email) => {
-    const adminEmails = ['dnvu.ctv@ptnk.edu.vn', 'hmthong@ptnk.edu.vn'];
-    return adminEmails.includes(email);
-  };
+    fetchUser();
+  }, [navigate]);
 
   const onLoginSuccess = async (credentialResponse) => {
     const decoded = jwtDecode(credentialResponse.credential);
-    
-    // if (!decoded.email.endsWith('@ptnk.edu.vn')) {
-    //   setErrorMessage('Đăng nhập không hợp lệ! Vui lòng dùng email ptnk.edu.vn');
-    //   return;
-    // }
-
-    // if (!checkLoginTime() && !isAdminEmail(decoded.email)) {
-    //   setErrorMessage('Đã hết hạn đăng ký');
-    //   return;
-    // }
   
     try {
       const result = await authService.checkUser({
@@ -68,15 +56,18 @@ const Login = () => {
       console.log(result);
       if (result.success) {
         setErrorMessage('');
-        if (result.isAdmin) {
-          navigate('/admin-dashboard');
-        } else {
-          const teacherData = await getTeacherByEmail();
-           if (teacherData.position==="Giáo vụ") {
-            navigate('/ministry-declare');
-          } else if (teacherData.position==="Tổ trưởng" || teacherData.position==="Tổ phó") {
-            navigate('/leader-declare');
-          }
+        switch(result.role) {
+            case 2:
+                navigate('/admin-dashboard');
+                break;
+            case 1:
+                navigate('/ministry-declare');
+                break;
+            case 0:
+                navigate('/user-dashboard');
+                break;
+            default:
+                setErrorMessage('Invalid user role');
         }
       } else {
         setErrorMessage('Đăng nhập thất bại. Vui lòng thử lại.');
@@ -84,9 +75,9 @@ const Login = () => {
     } catch (error) {
       console.error('Error during login:', error);
       if (error.response && error.response.status === 404) {
-        const teacherInfo = error.response.data.userInfo;
+        const userInfo = error.response.data.userInfo;
         setErrorMessage(
-          `Không tìm thấy thông tin giáo viên\nHọ và tên: ${teacherInfo.name}\nEmail: ${teacherInfo.email}`
+          `Không tìm thấy thông tin người dùng\nHọ và tên: ${userInfo.name}\nEmail: ${userInfo.email}`
         );
       } else {
         setErrorMessage('Đăng nhập thất bại. Vui lòng thử lại.');
@@ -111,11 +102,10 @@ const Login = () => {
             <img src={logo} alt="Pho Thong Nang Khieu Logo" className="login-logo" />
             <h1 className="login-title">Đăng nhập</h1>
             <p className="login-subtitle">Hệ thống khai báo số lượng tiết dạy</p>
-            {/* <p className="login-subtitle">Hãy đăng nhập bằng tài khoản email ptnk.edu.vn</p> */}
             {errorMessage && (
               <p className="error-message">
                 {errorMessage.split('\n').map((line, index) => (
-                  <span key={index} className={line.includes('Họ và tên') || line.includes('Email') ? 'student-info' : ''}>
+                  <span key={index} className={line.includes('Họ và tên') || line.includes('Email') ? 'user-info' : ''}>
                     {line}<br />
                   </span>
                 ))}

@@ -204,7 +204,7 @@ const ExportSingleSubjectButton = ({ user, subjectId, subjectName, grade }) => {
             variant="contained" 
             onClick={exportToPDF}
             size="small"
-            style={{ backgroundColor: '#4caf50', color: 'white' }}
+            style={{ backgroundColor: '#4caf50', color: 'white', fontSize: '12px' }}
         >
             Xuất báo cáo
         </Button>
