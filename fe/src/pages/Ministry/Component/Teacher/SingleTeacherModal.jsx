@@ -1,18 +1,39 @@
 import React, { useState, useEffect } from 'react';
 import Modal from 'react-modal';
+import { toast } from 'react-toastify';
+import { createTeacher } from '../../../../services/teacherService';
 import styles from '../../../../css/Ministry/components/TeacherModalStyles.module.css';
 
-const SingleTeacherModal = ({ isOpen, onClose, newTeacher, handleInputChange, handleSubmit, departments, nonSpecializedSubjects }) => {
+const SingleTeacherModal = ({ isOpen, onClose, departments, nonSpecializedSubjects, onTeacherAdded }) => {
+    const [newTeacher, setNewTeacher] = useState({
+        name: '',
+        email: '',
+        phone: '',
+        position: 'Giáo viên',
+        department: '',
+        teachingSubjects: '',
+        type: '',
+        lessonsPerWeek: '',
+        teachingWeeks: '',
+        reducedLessonsPerWeek: '',
+        reducedWeeks: '',
+        reductionReason: '',
+    });
     const [basicTeachingLessons, setBasicTeachingLessons] = useState(0);
     const [totalReducedLessons, setTotalReducedLessons] = useState(0);
     const [phoneError, setPhoneError] = useState('');
 
     useEffect(() => {
         if (newTeacher.type === 'Cơ hữu') {
-            setBasicTeachingLessons(newTeacher.lessonsPerWeek * newTeacher.teachingWeeks);
-            setTotalReducedLessons(newTeacher.reducedLessonsPerWeek * newTeacher.reducedWeeks);
+            const lessonsPerWeek = parseInt(newTeacher.lessonsPerWeek) || 0;
+            const teachingWeeks = parseInt(newTeacher.teachingWeeks) || 0;
+            const reducedLessonsPerWeek = parseInt(newTeacher.reducedLessonsPerWeek) || 0;
+            const reducedWeeks = parseInt(newTeacher.reducedWeeks) || 0;
+
+            setBasicTeachingLessons(lessonsPerWeek * teachingWeeks);
+            setTotalReducedLessons(reducedLessonsPerWeek * reducedWeeks);
         }
-    }, [newTeacher.lessonsPerWeek, newTeacher.teachingWeeks, newTeacher.reducedLessonsPerWeek, newTeacher.reducedWeeks, newTeacher.type]);
+    }, [newTeacher]);
 
     const validatePhoneNumber = (phone) => {
         if (!phone) return true;
@@ -20,23 +41,54 @@ const SingleTeacherModal = ({ isOpen, onClose, newTeacher, handleInputChange, ha
         return phoneRegex.test(phone);
     };
 
-    const handlePhoneChange = (e) => {
+    const handleInputChange = (e) => {
         const { name, value } = e.target;
-        handleInputChange(e);
-        if (value && !validatePhoneNumber(value)) {
-            setPhoneError('Số điện thoại không hợp lệ');
-        } else {
-            setPhoneError('');
+        setNewTeacher(prev => ({ ...prev, [name]: value }));
+        
+        if (name === 'phone') {
+            if (value && !validatePhoneNumber(value)) {
+                setPhoneError('Số điện thoại không hợp lệ');
+            } else {
+                setPhoneError('');
+            }
         }
     };
 
-    const handleFormSubmit = (e) => {
+    const handleSubmit = async (e) => {
         e.preventDefault();
         if (newTeacher.phone && !validatePhoneNumber(newTeacher.phone)) {
             setPhoneError('Số điện thoại không hợp lệ');
             return;
         }
-        handleSubmit(e);
+        try {
+            const teacherData = {
+                ...newTeacher,
+                position: 'Giáo viên',
+            };
+    
+            if (newTeacher.type === 'Thỉnh giảng') {
+                delete teacherData.lessonsPerWeek;
+                delete teacherData.teachingWeeks;
+                delete teacherData.reducedLessonsPerWeek;
+                delete teacherData.reducedWeeks;
+                delete teacherData.reductionReason;
+            }
+    
+            await createTeacher(teacherData);
+            onClose();
+            toast.success('Tạo giáo viên mới thành công!');
+            if (onTeacherAdded) {
+                onTeacherAdded();
+            }
+        } catch (error) {
+            console.error('Error creating teacher:', error);
+            
+            if (error.response && error.response.data && error.response.data.message) {
+                toast.error(error.response.data.message);
+            } else {
+                toast.error('Có lỗi xảy ra khi tạo giáo viên mới.');
+            }
+        }
     };
 
     return (
@@ -48,7 +100,7 @@ const SingleTeacherModal = ({ isOpen, onClose, newTeacher, handleInputChange, ha
             overlayClassName={styles.overlay}
         >
             <h2 className={styles.modalTitle}>Tạo Giáo Viên Mới</h2>
-            <form onSubmit={handleFormSubmit} className={styles.form}>
+            <form onSubmit={handleSubmit} className={styles.form}>
                 <div className={styles.formRow}>
                     <div className={styles.formGroup}>
                         <label htmlFor="name">Họ và tên giáo viên:</label>
@@ -82,7 +134,7 @@ const SingleTeacherModal = ({ isOpen, onClose, newTeacher, handleInputChange, ha
                             id="phone"
                             name="phone"
                             value={newTeacher.phone}
-                            onChange={handlePhoneChange}
+                            onChange={handleInputChange}
                         />
                         {phoneError && <span className={styles.error}>{phoneError}</span>}
                     </div>
@@ -108,25 +160,11 @@ const SingleTeacherModal = ({ isOpen, onClose, newTeacher, handleInputChange, ha
                         </select>
                     </div>
                     <div className={styles.formGroup}>
-                        <label htmlFor="type">Loại giáo viên:</label>
-                        <select
-                            id="type"
-                            name="type"
-                            value={newTeacher.type}
-                            onChange={handleInputChange}
-                            required
-                        >
-                            <option value="">Chọn loại giáo viên</option>
-                            <option value="Cơ hữu">Cơ hữu</option>
-                            <option value="Thỉnh giảng">Thỉnh giảng</option>
-                        </select>
-                    </div>
-                    <div className={styles.formGroup}>
                         <label htmlFor="teachingSubjects">Môn học giảng dạy:</label>
                         <select
                             id="teachingSubjects"
                             name="teachingSubjects"
-                            value={newTeacher.teachingSubjects || ''}
+                            value={newTeacher.teachingSubjects}
                             onChange={handleInputChange}
                             required
                         >
@@ -136,6 +174,20 @@ const SingleTeacherModal = ({ isOpen, onClose, newTeacher, handleInputChange, ha
                                     {subject.name}
                                 </option>
                             ))}
+                        </select>
+                    </div>
+                    <div className={styles.formGroup}>
+                        <label htmlFor="type">Hình thức giáo viên:</label>
+                        <select
+                            id="type"
+                            name="type"
+                            value={newTeacher.type}
+                            onChange={handleInputChange}
+                            required
+                        >
+                            <option value="">Chọn hình thức giáo viên</option>
+                            <option value="Cơ hữu">Cơ hữu</option>
+                            <option value="Thỉnh giảng">Thỉnh giảng</option>
                         </select>
                     </div>
                 </div>

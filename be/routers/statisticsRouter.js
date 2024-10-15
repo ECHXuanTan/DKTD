@@ -56,7 +56,7 @@ statisticsRouter.get('/department-teachers', isAuth, async (req, res) => {
     res.status(500).json({ message: 'Lỗi server', error: error.message });
   }
 });
-
+ 
 statisticsRouter.get('/all-teachers', isAuth, async (req, res) => {
   try {
     const teachers = await Teacher.find().populate('department', 'name');
@@ -384,117 +384,46 @@ statisticsRouter.get('/all-teachers-above-threshold', isAuth, isAdmin, async (re
 
 statisticsRouter.get('/all-classes', isAuth, async (req, res) => {
   try {
-    const classes = await Class.aggregate([
-      {
-        $lookup: {
-          from: 'subjects',
-          localField: 'subjects.subject',
-          foreignField: '_id',
-          as: 'subjectDetails'
-        }
-      },
-      {
-        $lookup: {
-          from: 'teacherassignments',
-          let: { classId: '$_id', subjectIds: '$subjects.subject' },
-          pipeline: [
-            {
-              $match: {
-                $expr: {
-                  $and: [
-                    { $eq: ['$class', '$$classId'] },
-                    { $in: ['$subject', '$$subjectIds'] }
-                  ]
-                }
-              }
-            },
-            {
-              $lookup: {
-                from: 'teachers',
-                localField: 'teacher',
-                foreignField: '_id',
-                as: 'teacherInfo'
-              }
-            },
-            {
-              $unwind: '$teacherInfo'
-            },
-            {
-              $project: {
-                _id: 1,
-                teacherId: '$teacher',
-                teacherName: '$teacherInfo.name',
-                completedLessons: 1,
-                subject: 1
-              }
-            }
-          ],
-          as: 'assignments'
-        }
-      },
-      {
-        $project: {
-          className: '$name',
-          grade: 1,
-          classId: '$_id',
-          subjects: {
-            $map: {
-              input: '$subjects',
-              as: 'subject',
-              in: {
-                $mergeObjects: [
-                  {
-                    $arrayElemAt: [
-                      {
-                        $filter: {
-                          input: '$subjectDetails',
-                          as: 'sd',
-                          cond: { $eq: ['$$sd._id', '$$subject.subject'] }
-                        }
-                      },
-                      0
-                    ]
-                  },
-                  {
-                    lessonCount: '$$subject.lessonCount',
-                    assignments: {
-                      $filter: {
-                        input: '$assignments',
-                        as: 'assignment',
-                        cond: { $eq: ['$$assignment.subject', '$$subject.subject'] }
-                      }
-                    }
-                  }
-                ]
-              }
-            }
-          }
-        }
-      },
-      {
-        $project: {
-          className: 1,
-          grade: 1,
-          classId: 1,
-          subjects: {
-            $map: {
-              input: '$subjects',
-              as: 'subject',
-              in: {
-                name: '$$subject.name',
-                lessonCount: '$$subject.lessonCount',
-                assignments: '$$subject.assignments'
-              }
-            }
-          }
-        }
-      }
-    ]);
+    const teachersWithHomeroom = await Teacher.find({ homeroom: { $ne: null } })
+      .select('name homeroom')
+      .lean();
 
-    res.status(200).json(classes);
+    const teacherMap = teachersWithHomeroom.reduce((acc, teacher) => {
+      acc[teacher.homeroom.toString()] = teacher.name;
+      return acc;
+    }, {});
+
+    const classes = await Class.find()
+      .populate({
+        path: 'subjects.subject',
+        select: 'name',
+        populate: {
+          path: 'department',
+          select: 'name'
+        }
+      })
+      .lean();
+
+    const classesWithExtraInfo = classes.map(classItem => {
+      const homeroomTeacher = teacherMap[classItem._id.toString()];
+      return {
+        ...classItem,
+        homeroomTeacher: homeroomTeacher || null,
+        subjects: (classItem.subjects || []).concat(
+          homeroomTeacher ? [{
+            subject: {
+              name: "CCSHL"
+            },
+            lessonCount: 72
+          }] : []
+        )
+      };
+    });
+
+    res.status(200).json(classesWithExtraInfo);
   } catch (error) {
-    console.error('Error in getting all classes:', error);
-    res.status(500).json({ message: 'Lỗi server', error: error.message });
+    console.error('Error in GET /all-classes:', error);
+    res.status(500).json({ message: "Lỗi khi lấy danh sách lớp học", error: error.message });
   }
 });
 
@@ -631,125 +560,45 @@ statisticsRouter.get('/subject-statistics', isAuth, async (req, res) => {
 statisticsRouter.get('/class/:classId', isAuth, async (req, res) => {
   try {
     const { classId } = req.params;
-    
-    const classData = await Class.aggregate([
-      {
-        $match: { _id: new mongoose.Types.ObjectId(classId) }
-      },
-      {
-        $lookup: {
-          from: 'subjects',
-          localField: 'subjects.subject',
-          foreignField: '_id',
-          as: 'subjectDetails'
-        }
-      },
-      {
-        $lookup: {
-          from: 'teacherassignments',
-          let: { classId: '$_id', subjectIds: '$subjects.subject' },
-          pipeline: [
-            {
-              $match: {
-                $expr: {
-                  $and: [
-                    { $eq: ['$class', '$$classId'] },
-                    { $in: ['$subject', '$$subjectIds'] }
-                  ]
-                }
-              }
-            },
-            {
-              $lookup: {
-                from: 'teachers',
-                localField: 'teacher',
-                foreignField: '_id',
-                as: 'teacherInfo'
-              }
-            },
-            {
-              $unwind: '$teacherInfo'
-            },
-            {
-              $project: {
-                _id: 1,
-                teacherId: '$teacher',
-                teacherName: '$teacherInfo.name',
-                completedLessons: 1,
-                subject: 1
-              }
-            }
-          ],
-          as: 'assignments'
-        }
-      },
-      {
-        $project: {
-          className: '$name',
-          grade: 1,
-          classId: '$_id',
-          subjects: {
-            $map: {
-              input: '$subjects',
-              as: 'subject',
-              in: {
-                $mergeObjects: [
-                  {
-                    $arrayElemAt: [
-                      {
-                        $filter: {
-                          input: '$subjectDetails',
-                          as: 'sd',
-                          cond: { $eq: ['$$sd._id', '$$subject.subject'] }
-                        }
-                      },
-                      0
-                    ]
-                  },
-                  {
-                    lessonCount: '$$subject.lessonCount',
-                    assignments: {
-                      $filter: {
-                        input: '$assignments',
-                        as: 'assignment',
-                        cond: { $eq: ['$$assignment.subject', '$$subject.subject'] }
-                      }
-                    }
-                  }
-                ]
-              }
-            }
-          }
-        }
-      },
-      {
-        $project: {
-          className: 1,
-          grade: 1,
-          classId: 1,
-          subjects: {
-            $map: {
-              input: '$subjects',
-              as: 'subject',
-              in: {
-                name: '$$subject.name',
-                lessonCount: '$$subject.lessonCount',
-                assignments: '$$subject.assignments'
-              }
-            }
-          }
-        }
-      }
-    ]);
 
-    if (classData.length === 0) {
-      return res.status(404).json({ message: 'Không tìm thấy lớp' });
+    const teachersWithHomeroom = await Teacher.find({ homeroom: classId })
+      .select('name homeroom')
+      .lean();
+
+    const homeroomTeacher = teachersWithHomeroom.length > 0 ? teachersWithHomeroom[0].name : null;
+
+    const classData = await Class.findById(classId)
+      .populate({
+        path: 'subjects.subject',
+        select: 'name'
+      })
+      .lean();
+
+    if (!classData) {
+      return res.status(404).json({ message: "Không tìm thấy lớp học với ID đã cung cấp" });
     }
 
-    res.status(200).json(classData[0]);
+    // Thêm môn học CCSHL nếu lớp có giáo viên chủ nhiệm
+    const subjectsWithCCSHL = classData.subjects || [];
+    if (homeroomTeacher) {
+      subjectsWithCCSHL.push({
+        subject: {
+          name: "CCSHL"
+        },
+        lessonCount: 72
+      });
+    }
+
+    const result = {
+      ...classData,
+      homeroomTeacher,
+      subjects: subjectsWithCCSHL
+    };
+
+    res.status(200).json(result);
   } catch (error) {
-    console.error('Error in getting class data:', error);
-    res.status(500).json({ message: 'Lỗi server', error: error.message });
+    console.error('Error in GET /class/:classId:', error);
+    res.status(500).json({ message: "Lỗi khi lấy thông tin lớp học", error: error.message });
   }
 });
 

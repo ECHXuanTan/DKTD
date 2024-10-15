@@ -168,3 +168,38 @@ export const deleteClass = async (classId) => {
     throw error;
   }
 };
+
+export const addSubjectsToClasses = async (classSubjectsData) => {
+  try {
+    const userToken = localStorage.getItem('userToken');
+    const response = await api.post('api/class/add-subjects-to-classes', 
+      { classes: classSubjectsData.classes },  // Thay đổi ở đây
+      {
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${userToken}`,
+        },
+      }
+    );
+    return response.data;
+  } catch (error) {
+    console.error('Error adding subjects to classes:', error);
+    throw error;
+  }
+};
+
+export const getUnassignedHomerooms = async () => {
+  try {
+    const userToken = localStorage.getItem('userToken');
+    const response = await api.get('api/class/classes-without-homeroom', {
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${userToken}`,
+      },
+    });
+    return response.data;
+  } catch (error) {
+    console.error('Error fetching unassigned homerooms:', error);
+    throw error;
+  }
+};

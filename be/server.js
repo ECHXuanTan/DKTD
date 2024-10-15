@@ -12,6 +12,7 @@ import subjectRouter from "./routers/subjectRoutes.js";
 import classRouter from "./routers/classRouters.js";
 import assignmentRouter from "./routers/assignmentRouter.js";
 import statisticsRouter from "./routers/statisticsRouter.js";
+import homeroomRouters from "./routers/homeroomRoutes.js";
 
 dotenv.config();
 
@@ -68,6 +69,8 @@ app.use('/api/subjects', subjectRouter);
 app.use('/api/class', classRouter);
 app.use('/api/assignment', assignmentRouter);
 app.use('/api/statistics', statisticsRouter);
+app.use('/api/homerooms', homeroomRouters);
+
 
 
 app.get ('/', (req, res) => {

@@ -1,45 +1,95 @@
 import React, { useState, useEffect } from 'react';
 import Modal from 'react-modal';
+import { toast } from 'react-toastify';
+import { updateTeacher } from '../../../../services/teacherService';
+import { deleteHomeroom } from '../../../../services/homeroomService';
 import styles from '../../../../css/Ministry/components/EditTeacherModalStyles.module.css';
 
 const EditTeacherModal = ({ 
     isOpen, 
     onClose, 
     editingTeacher, 
-    handleEditInputChange, 
-    handleEditSubmit, 
     departments = [], 
-    nonSpecializedSubjects = []
+    nonSpecializedSubjects = [],
+    onTeacherUpdated
 }) => {
+    const [teacher, setTeacher] = useState(editingTeacher);
     const [basicTeachingLessons, setBasicTeachingLessons] = useState(0);
     const [totalReducedLessons, setTotalReducedLessons] = useState(0);
+    const [phoneError, setPhoneError] = useState('');
+    const [isHomeroom, setIsHomeroom] = useState(false);
 
     useEffect(() => {
-        if (isOpen) {
-            console.log('EditingTeacher when modal is opened:', editingTeacher);
+        if (isOpen && editingTeacher) {
+            setTeacher(editingTeacher);
+            const lessonsPerWeek = parseInt(editingTeacher.lessonsPerWeek) || 0;
+            const teachingWeeks = parseInt(editingTeacher.teachingWeeks) || 0;
+            const reducedLessonsPerWeek = parseInt(editingTeacher.reducedLessonsPerWeek) || 0;
+            const reducedWeeks = parseInt(editingTeacher.reducedWeeks) || 0;
+
+            setBasicTeachingLessons(lessonsPerWeek * teachingWeeks);
+            setTotalReducedLessons(reducedLessonsPerWeek * reducedWeeks);
+            setIsHomeroom(!!editingTeacher.homeroom);
         }
     }, [isOpen, editingTeacher]);
 
-    useEffect(() => {
-        setBasicTeachingLessons(editingTeacher.lessonsPerWeek * editingTeacher.teachingWeeks);
-        setTotalReducedLessons(editingTeacher.reducedLessonsPerWeek * editingTeacher.reducedWeeks);
-    }, [editingTeacher.lessonsPerWeek, editingTeacher.teachingWeeks, editingTeacher.reducedLessonsPerWeek, editingTeacher.reducedWeeks]);
+    const validatePhoneNumber = (phone) => {
+        if (!phone) return true;
+        const phoneRegex = /^(0|\+84)(\s|\.)?((3[2-9])|(5[689])|(7[06-9])|(8[1-689])|(9[0-46-9]))(\d)(\s|\.)?(\d{3})(\s|\.)?(\d{3})$/;
+        return phoneRegex.test(phone);
+    };
 
     const handleInputChange = (e) => {
         const { name, value } = e.target;
-        handleEditInputChange(e);
+        setTeacher(prev => ({ ...prev, [name]: value }));
         
+        if (name === 'phone') {
+            if (value && !validatePhoneNumber(value)) {
+                setPhoneError('Số điện thoại không hợp lệ');
+            } else {
+                setPhoneError('');
+            }
+        }
+
         if (name === 'lessonsPerWeek' || name === 'teachingWeeks') {
-            const newLessonsPerWeek = name === 'lessonsPerWeek' ? parseInt(value) : editingTeacher.lessonsPerWeek;
-            const newTeachingWeeks = name === 'teachingWeeks' ? parseInt(value) : editingTeacher.teachingWeeks;
+            const newLessonsPerWeek = name === 'lessonsPerWeek' ? parseInt(value) || 0 : parseInt(teacher.lessonsPerWeek) || 0;
+            const newTeachingWeeks = name === 'teachingWeeks' ? parseInt(value) || 0 : parseInt(teacher.teachingWeeks) || 0;
             setBasicTeachingLessons(newLessonsPerWeek * newTeachingWeeks);
         }
         if (name === 'reducedLessonsPerWeek' || name === 'reducedWeeks') {
-            const newReducedLessonsPerWeek = name === 'reducedLessonsPerWeek' ? parseInt(value) : editingTeacher.reducedLessonsPerWeek;
-            const newReducedWeeks = name === 'reducedWeeks' ? parseInt(value) : editingTeacher.reducedWeeks;
+            const newReducedLessonsPerWeek = name === 'reducedLessonsPerWeek' ? parseInt(value) || 0 : parseInt(teacher.reducedLessonsPerWeek) || 0;
+            const newReducedWeeks = name === 'reducedWeeks' ? parseInt(value) || 0 : parseInt(teacher.reducedWeeks) || 0;
             setTotalReducedLessons(newReducedLessonsPerWeek * newReducedWeeks);
         }
     };
+
+    const handleSubmit = async (e) => {
+        e.preventDefault();
+        if (teacher.phone && !validatePhoneNumber(teacher.phone)) {
+            setPhoneError('Số điện thoại không hợp lệ');
+            return;
+        }
+        try {
+            await updateTeacher(teacher._id, teacher);
+            
+            if (!isHomeroom && teacher.homeroom) {
+                await deleteHomeroom(teacher._id);
+            }
+            
+            onClose();
+            toast.success('Cập nhật giáo viên thành công!');
+            if (onTeacherUpdated) {
+                onTeacherUpdated();
+            }
+        } catch (error) {
+            console.error('Error updating teacher:', error);
+            toast.error('Có lỗi xảy ra khi cập nhật giáo viên.');
+        }
+    };
+
+    if (!teacher) {
+        return null;
+    }
 
     return (
         <Modal
@@ -50,7 +100,7 @@ const EditTeacherModal = ({
             overlayClassName={styles.overlay}
         >
             <h2 className={styles.modalTitle}>Cập Nhật Giáo Viên</h2>
-            <form onSubmit={handleEditSubmit} className={styles.form}>
+            <form onSubmit={handleSubmit} className={styles.form}>
                 <div className={styles.formRow}>
                     <div className={styles.formGroup}>
                         <label htmlFor="name">Tên giáo viên:</label>
@@ -58,7 +108,7 @@ const EditTeacherModal = ({
                             type="text"
                             id="name"
                             name="name"
-                            value={editingTeacher.name}
+                            value={teacher.name || ''}
                             onChange={handleInputChange}
                             required
                         />
@@ -71,7 +121,7 @@ const EditTeacherModal = ({
                             type="email"
                             id="email"
                             name="email"
-                            value={editingTeacher.email}
+                            value={teacher.email || ''}
                             onChange={handleInputChange}
                             required
                         />
@@ -82,29 +132,19 @@ const EditTeacherModal = ({
                             type="tel"
                             id="phone"
                             name="phone"
-                            value={editingTeacher.phone}
+                            value={teacher.phone || ''}
                             onChange={handleInputChange}
                         />
+                        {phoneError && <span className={styles.error}>{phoneError}</span>}
                     </div>
                 </div>
                 <div className={styles.formRow}>
-                    <div className={styles.formGroup}>
-                        <label htmlFor="position">Chức vụ:</label>
-                        <input
-                            type="text"
-                            id="position"
-                            name="position"
-                            value={editingTeacher.position}
-                            onChange={handleInputChange}
-                            required
-                        />
-                    </div>
                     <div className={styles.formGroup}>
                         <label htmlFor="department">Khoa:</label>
                         <select
                             id="department"
                             name="department"
-                            value={editingTeacher.department}
+                            value={teacher.department?._id || ''}
                             onChange={handleInputChange}
                             required
                         >
@@ -116,14 +156,12 @@ const EditTeacherModal = ({
                             ))}
                         </select>
                     </div>
-                </div>
-                <div className={styles.formRow}>
                     <div className={styles.formGroup}>
                         <label htmlFor="teachingSubjects">Môn giảng dạy:</label>
                         <select
                             id="teachingSubjects"
                             name="teachingSubjects"
-                            value={editingTeacher.teachingSubjects}
+                            value={teacher.teachingSubjects?._id || ''}
                             onChange={handleInputChange}
                             required
                         >
@@ -140,7 +178,7 @@ const EditTeacherModal = ({
                         <select
                             id="type"
                             name="type"
-                            value={editingTeacher.type}
+                            value={teacher.type || ''}
                             onChange={handleInputChange}
                             required
                         >
@@ -150,7 +188,7 @@ const EditTeacherModal = ({
                         </select>
                     </div>
                 </div>
-                {editingTeacher.type === 'Cơ hữu' && (
+                {teacher.type === 'Cơ hữu' && (
                     <>
                         <div className={styles.formRow}>
                             <div className={styles.formGroup}>
@@ -159,7 +197,7 @@ const EditTeacherModal = ({
                                     type="number"
                                     id="lessonsPerWeek"
                                     name="lessonsPerWeek"
-                                    value={editingTeacher.lessonsPerWeek}
+                                    value={teacher.lessonsPerWeek || ''}
                                     onChange={handleInputChange}
                                     required
                                 />
@@ -170,7 +208,7 @@ const EditTeacherModal = ({
                                     type="number"
                                     id="teachingWeeks"
                                     name="teachingWeeks"
-                                    value={editingTeacher.teachingWeeks}
+                                    value={teacher.teachingWeeks || ''}
                                     onChange={handleInputChange}
                                     required
                                 />
@@ -193,7 +231,7 @@ const EditTeacherModal = ({
                                     type="number"
                                     id="reducedLessonsPerWeek"
                                     name="reducedLessonsPerWeek"
-                                    value={editingTeacher.reducedLessonsPerWeek}
+                                    value={teacher.reducedLessonsPerWeek || ''}
                                     onChange={handleInputChange}
                                 />
                             </div>
@@ -203,7 +241,7 @@ const EditTeacherModal = ({
                                     type="number"
                                     id="reducedWeeks"
                                     name="reducedWeeks"
-                                    value={editingTeacher.reducedWeeks}
+                                    value={teacher.reducedWeeks || ''}
                                     onChange={handleInputChange}
                                 />
                             </div>
@@ -224,13 +262,30 @@ const EditTeacherModal = ({
                                 <textarea
                                     id="reductionReason"
                                     name="reductionReason"
-                                    value={editingTeacher.reductionReason}
+                                    value={teacher.reductionReason || ''}
                                     onChange={handleInputChange}
                                 />
                             </div>
                         </div>
                     </>
                 )}
+                <div className={styles.formRow}>
+                    <div className={styles.formGroup}>
+                        <label>
+                            <input
+                                type="checkbox"
+                                checked={isHomeroom}
+                                onChange={(e) => setIsHomeroom(e.target.checked)}
+                            />
+                            Giáo viên chủ nhiệm
+                        </label>
+                    </div>
+                    {isHomeroom && teacher.homeroom && (
+                        <div className={styles.formGroup}>
+                            <label>Lớp chủ nhiệm: {teacher.homeroom.class}</label>
+                        </div>
+                    )}
+                </div>
                 <div className={styles.formActions}>
                     <button type="submit" className={styles.submitButton}>Cập Nhật Giáo Viên</button>
                     <button type="button" onClick={onClose} className={styles.cancelButton}>Hủy</button>

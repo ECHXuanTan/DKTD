@@ -16,7 +16,6 @@ const teacherSchema = new mongoose.Schema({
     reducedWeeks: { type: Number, default: 0 },
     totalReducedLessons: { type: Number, default: 0 },
     reductionReason: { type: String, default: '' },
-    homeroom: { type: mongoose.Schema.Types.ObjectId, ref: 'Class' }
   },
   {
     timestamps: true,

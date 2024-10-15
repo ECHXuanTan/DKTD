@@ -23,6 +23,7 @@ import EditSubjectModal from './Component/EditSubjectModal.jsx';
 import DeleteSubjectModal from './Component/DeleteSubjectModal.jsx';
 import AddSubjectModal from './Component/AddSubjectModal.jsx';
 import DeleteClassModal from './Component/DeleteClassModal.jsx';
+import MultiSubjectUploadModal from './Component/MultiSubjectUploadModal.jsx';
 
 const ClassScreen = () => { 
     const [user, setUser] = useState(null);
@@ -37,6 +38,7 @@ const ClassScreen = () => {
     const [showDeleteSubjectModal, setShowDeleteSubjectModal] = useState(false);
     const [showAddSubjectModal, setShowAddSubjectModal] = useState(false);
     const [showDeleteClassModal, setShowDeleteClassModal] = useState(false);
+    const [showMultiSubjectUploadModal, setShowMultiSubjectUploadModal] = useState(false);
     const [currentClass, setCurrentClass] = useState(null);
     const [currentSubject, setCurrentSubject] = useState(null);
     const [page, setPage] = useState(0);
@@ -220,22 +222,36 @@ const ClassScreen = () => {
         } catch (err) {
             if (err.response && err.response.data && err.response.data.message === 'Không thể xóa lớp học đã có môn được phân công giảng dạy') {
                 toast.error('Không thể xóa lớp học đã có môn được phân công giảng dạy');
+            } else if (err.response && err.response.data && err.response.data.message === 'Không thể xóa lớp học đang được gán làm homeroom cho giáo viên') {
+                toast.error('Không thể xóa lớp học đang được gán làm homeroom cho giáo viên');
             } else {
                 toast.error('Xóa lớp học thất bại');
             }
         }
     };
 
+    const handleMultiSubjectsAdded = async () => {
+        try {
+            const updatedClassData = await getClasses();
+            setClasses(updatedClassData);
+            toast.success('Danh sách lớp và môn học đã được cập nhật');
+        } catch (error) {
+            console.error('Error refreshing classes:', error);
+            toast.error('Không thể cập nhật danh sách lớp và môn học');
+        }
+    };
+
     const columns = [
-        { field: 'index', label: 'STT', width: '5%' },
-        { field: 'name', label: 'Tên lớp', width: '15%' },
-        { field: 'grade', label: 'Khối', width: '5%' },
+        { field: 'index', label: 'STT', width: '5%', sticky: true },
+        { field: 'name', label: 'Tên lớp', width: '15%', sticky: true },
+        { field: 'size', label: 'Sĩ số', width: '6%', align: 'center' },
         { field: 'campus', label: 'Cơ sở', width: '8%' },
+        { field: 'homeroomTeacher', label: 'Giáo viên chủ nhiệm', width: '15%' },
         { field: 'updatedAt', label: 'Lần điều chỉnh gần nhất', width: '12%' },
         { field: 'subjects', label: 'Môn học', width: '15%' },
-        { field: 'lessonCount', label: 'Số tiết', width: '10%' },
-        { field: 'subjectActions', label: 'Thao tác môn học', width: '15%', align: 'center' },
-        { field: 'classActions', label: 'Thao tác lớp', width: '15%' },
+        { field: 'lessonCount', label: 'Số tiết', width: '8%' },
+        { field: 'subjectActions', label: 'Thao tác môn học', width: '10%', align: 'center' },
+        { field: 'classActions', label: 'Thao tác lớp', width: '10%' },
     ];
 
     const filteredClasses = classes
@@ -244,7 +260,9 @@ const ClassScreen = () => {
             (gradeFilter === '' || classItem.grade === parseInt(gradeFilter))
         );
 
-    const paginatedClasses = filteredClasses.slice(page * rowsPerPage, (page + 1) * rowsPerPage);
+        const paginatedClasses = rowsPerPage > 0
+        ? filteredClasses.slice(page * rowsPerPage, (page + 1) * rowsPerPage)
+        : filteredClasses; // Show all classes when rowsPerPage is -1 (All)
 
     const rows = paginatedClasses.flatMap((classItem, classIndex) => {
         const baseIndex = page * rowsPerPage + classIndex + 1;
@@ -252,30 +270,33 @@ const ClassScreen = () => {
             id: `${classItem._id}-${subject.subject._id}`,
             index: subjectIndex === 0 ? baseIndex : null,
             name: subjectIndex === 0 ? classItem.name : null,
-            grade: subjectIndex === 0 ? classItem.grade : null,
+            size: subjectIndex === 0 ? classItem.size : null,
             campus: subjectIndex === 0 ? classItem.campus : null,
+            homeroomTeacher: subjectIndex === 0 ? (classItem.homeroomTeacher || '-') : null,
             updatedAt: subjectIndex === 0 ? new Date(classItem.updatedAt).toLocaleString() : null,
             subjects: subject.subject.name,
             lessonCount: subject.lessonCount,
-            subjectActions: (
-                <>
+            subjectActions: subject.subject.name === "CCSHL" ? (
+                <span>-</span>
+            ) : (
+                <div className={styles.actionButtons}>
                     <Button onClick={() => handleEditSubject(classItem, subject)}>
-                        <EditIcon />
+                        <EditIcon /> Sửa
                     </Button>
                     <Button onClick={() => handleDeleteSubject(classItem, subject)}>
-                        <DeleteIcon style={{color: '#ef5a5a'}} />
+                        <DeleteIcon style={{color: '#ef5a5a'}} /> Xóa
                     </Button>
-                </>
+                </div>
             ),
             classActions: subjectIndex === 0 ? (
-                <>
+                <div className={styles.actionButtons}>
                     <Button onClick={() => handleAddSubject(classItem)}>
-                        <AddIcon />
+                        <AddIcon /> Thêm môn
                     </Button>
                     <Button onClick={() => handleDeleteClass(classItem)}>
-                        <DeleteForeverIcon style={{color: 'red'}} />
+                        <DeleteForeverIcon style={{color: 'red'}} /> Xóa lớp
                     </Button>
-                </>
+                </div>
             ) : null,
             isFirstRow: subjectIndex === 0,
             rowSpan: classItem.subjects.length,
@@ -298,7 +319,7 @@ const ClassScreen = () => {
                 <title>Trang khai báo lớp học</title>
             </Helmet>
             <Header />
-            <ToastContainer  style={{ zIndex: 9999999 }}/>
+            <ToastContainer style={{ zIndex: 9999999 }}/>
             <div className={styles.classDashboardMinistry}>
                 <Box m="20px">
                     <Link to="/ministry-declare" style={{ display: 'block', textDecoration: 'none', marginBottom: '5px', fontSize: '20px' }}>
@@ -347,42 +368,57 @@ const ClassScreen = () => {
                                 variant="contained" 
                                 onClick={() => setShowMultiClassModal(true)}
                                 style={{ backgroundColor: '#24527a', fontWeight: '600' }}
-                            >Tạo nhiều lớp
+                            >
+                                Tạo nhiều lớp
+                            </Button>
+                            <Button 
+                                variant="contained" 
+                                onClick={() => setShowMultiSubjectUploadModal(true)}
+                                style={{ backgroundColor: '#4CAF50', fontWeight: '600' }}
+                            >
+                                Thêm nhiều môn học
                             </Button>
                         </div>
                     </Box>
                     <div className={styles.tableWrapper}>
                         <TableContainer component={Paper} className={styles.tableContainer}>
-                            <Table stickyHeader className={styles.table}>
-                                <TableHead >
-                                    <TableRow>
-                                        {columns.map((column) => (
-                                            <TableCell key={column.field} style={{ width: column.width }}>
-                                                {column.label}
-                                            </TableCell>
-                                        ))}
-                                    </TableRow>
-                                </TableHead>
-                                <TableBody>
-                                    {rows.map((row) => (
-                                        <TableRow key={row.id}>
-                                            {columns.map((column) => {
-                                                if (row.isFirstRow || column.field === 'subjects' || column.field === 'lessonCount' || column.field === 'subjectActions') {
-                                                    return (
-                                                        <TableCell 
-                                                            key={`${row.id}-${column.field}`}
-                                                            rowSpan={column.field === 'subjects' || column.field === 'lessonCount' || column.field === 'subjectActions' ? 1 : row.rowSpan}
-                                                        >
-                                                            {row[column.field]}
-                                                        </TableCell>
-                                                    );
-                                                }
-                                                return null;
-                                            })}
+                            <div className={styles.horizontalScroll}>
+                                <Table stickyHeader className={styles.table}>
+                                    <TableHead>
+                                        <TableRow>
+                                            {columns.map((column) => (
+                                                <TableCell 
+                                                    key={column.field} 
+                                                    style={{ width: column.width, minWidth: column.width }}
+                                                    className={column.sticky ? styles.stickyColumn : ''}
+                                                >
+                                                    {column.label}
+                                                </TableCell>
+                                            ))}
                                         </TableRow>
-                                    ))}
-                                </TableBody>
-                            </Table>
+                                    </TableHead>
+                                    <TableBody>
+                                        {rows.map((row) => (
+                                            <TableRow key={row.id}>
+                                                {columns.map((column) => {
+                                                    if (row.isFirstRow || column.field === 'subjects' || column.field === 'lessonCount' || column.field === 'subjectActions') {
+                                                        return (
+                                                            <TableCell 
+                                                                key={`${row.id}-${column.field}`}
+                                                                rowSpan={column.field === 'subjects' || column.field === 'lessonCount' || column.field === 'subjectActions' ? 1 : row.rowSpan}
+                                                                className={column.sticky ? styles.stickyColumn : ''}
+                                                            >
+                                                                {row[column.field]}
+                                                            </TableCell>
+                                                        );
+                                                    }
+                                                    return null;
+                                                })}
+                                            </TableRow>
+                                        ))}
+                                    </TableBody>
+                                </Table>
+                            </div>
                         </TableContainer>
                         <TableFooter className={styles.tableFooter}>
                             <TableRow>
@@ -404,51 +440,57 @@ const ClassScreen = () => {
                     </div>
                 </Box>
             </div>
-            <Footer />
-        
-            <SingleClassModal
-                isOpen={showSingleClassModal}
-                onClose={() => setShowSingleClassModal(false)}
-                onClassAdded={handleClassAdded}
-                subjects={subjects}
-            />
+        <Footer />
     
-            <MultiClassModal
-                isOpen={showMultiClassModal}
-                onClose={() => setShowMultiClassModal(false)}
-                onClassesAdded={handleClassAdded}
-            />
-    
-            <EditSubjectModal
-                isOpen={showEditSubjectModal}
-                onClose={() => setShowEditSubjectModal(false)}
-                onUpdateSubject={handleUpdateSubject}
-                subject={currentSubject}
-            />
-    
-            <DeleteSubjectModal
-                isOpen={showDeleteSubjectModal}
-                onClose={() => setShowDeleteSubjectModal(false)}
-                onDeleteSubject={handleRemoveSubject}
-                subject={currentSubject}
-            />
-    
-            <AddSubjectModal
-                isOpen={showAddSubjectModal}
-                onClose={() => setShowAddSubjectModal(false)}
-                onAddSubject={handleAddNewSubject}
-                subjects={subjects}
-                currentClass={currentClass}
-            />
-    
-            <DeleteClassModal
-                isOpen={showDeleteClassModal}
-                onClose={() => setShowDeleteClassModal(false)}
-                onDeleteClass={handleDeleteClassConfirm}
-                classItem={currentClass}
-            />
-        </>
-    );
+        <SingleClassModal
+            isOpen={showSingleClassModal}
+            onClose={() => setShowSingleClassModal(false)}
+            onClassAdded={handleClassAdded}
+            subjects={subjects}
+        />
+
+        <MultiClassModal
+            isOpen={showMultiClassModal}
+            onClose={() => setShowMultiClassModal(false)}
+            onClassesAdded={handleClassAdded}
+        />
+
+        <EditSubjectModal
+            isOpen={showEditSubjectModal}
+            onClose={() => setShowEditSubjectModal(false)}
+            onUpdateSubject={handleUpdateSubject}
+            subject={currentSubject}
+        />
+
+        <DeleteSubjectModal
+            isOpen={showDeleteSubjectModal}
+            onClose={() => setShowDeleteSubjectModal(false)}
+            onDeleteSubject={handleRemoveSubject}
+            subject={currentSubject}
+        />
+
+        <AddSubjectModal
+            isOpen={showAddSubjectModal}
+            onClose={() => setShowAddSubjectModal(false)}
+            onAddSubject={handleAddNewSubject}
+            subjects={subjects}
+            currentClass={currentClass}
+        />
+
+        <DeleteClassModal
+            isOpen={showDeleteClassModal}
+            onClose={() => setShowDeleteClassModal(false)}
+            onDeleteClass={handleDeleteClassConfirm}
+            classItem={currentClass}
+        />
+
+        <MultiSubjectUploadModal
+            isOpen={showMultiSubjectUploadModal}
+            onClose={() => setShowMultiSubjectUploadModal(false)}
+            onSubjectsAdded={handleMultiSubjectsAdded}
+        />
+    </>
+);
 }
 
 export default ClassScreen;

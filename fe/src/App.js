@@ -51,7 +51,6 @@ const App = () => {
         <Route path="/declare-teacher/:id" element={<TeacherDeclareScreen />} />
         <Route path="/leader/class-statistics" element={<LeaderClassScreen />} />
         <Route path="/leader/warning" element={<LeaderWarning />} />
-
       </Routes>
     </Router>
   );

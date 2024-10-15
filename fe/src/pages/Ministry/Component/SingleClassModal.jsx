@@ -6,6 +6,7 @@ import { createClass } from '../../../services/classServices';
 import styles from '../../../css/Ministry/components/SingleClassModal.module.css';
 import EditIcon from '@mui/icons-material/Edit';
 import DeleteIcon from '@mui/icons-material/Delete';
+import AddIcon from '@mui/icons-material/Add';
 
 Modal.setAppElement('#root');
 
@@ -13,8 +14,27 @@ const initialClassState = {
     name: '',
     grade: '',
     campus: '',
-    isSpecial: false,
-    subjects: [{ subjectId: '', lessonCount: '', maxTeachers: 1, isEditing: true }]
+    size: '',
+    subjects: [{ subjectId: '', lessonCount: '', isEditing: true, isSpecialized: true }]
+};
+
+const FilterPanel = ({ isSpecialized, onChange }) => {
+    return (
+        <div className={styles.filterPanel}>
+            <button
+                className={`${styles.filterButton} ${isSpecialized ? styles.active : ''}`}
+                onClick={() => onChange(true)}
+            >
+                Môn chuyên
+            </button>
+            <button
+                className={`${styles.filterButton} ${!isSpecialized ? styles.active : ''}`}
+                onClick={() => onChange(false)}
+            >
+                Môn không chuyên
+            </button>
+        </div>
+    );
 };
 
 const SingleClassModal = ({ isOpen, onClose, onClassAdded, subjects }) => {
@@ -39,19 +59,13 @@ const SingleClassModal = ({ isOpen, onClose, onClassAdded, subjects }) => {
     };
 
     const handleInputChange = (event, index) => {
-        const { name, value, checked } = event.target;
-        if (name === 'subjectId' || name === 'lessonCount' || name === 'maxTeachers') {
+        const { name, value } = event.target;
+        if (name === 'subjectId' || name === 'lessonCount') {
             const updatedSubjects = [...newClass.subjects];
             updatedSubjects[index] = { ...updatedSubjects[index], [name]: value };
             setNewClass(prevState => ({
                 ...prevState,
                 subjects: updatedSubjects
-            }));
-        } else if (name === 'isSpecial') {
-            setNewClass(prevState => ({
-                ...prevState,
-                [name]: checked,
-                subjects: checked ? [{ subjectId: '', lessonCount: '', maxTeachers: 1, isEditing: true }] : prevState.subjects
             }));
         } else {
             setNewClass(prevState => ({
@@ -61,8 +75,22 @@ const SingleClassModal = ({ isOpen, onClose, onClassAdded, subjects }) => {
         }
     };
 
+    const handleSpecializedChange = (index, isSpecialized) => {
+        setNewClass(prevState => {
+            const updatedSubjects = [...prevState.subjects];
+            updatedSubjects[index] = { 
+                ...updatedSubjects[index], 
+                isSpecialized: isSpecialized,
+                subjectId: '' 
+            };
+            return {
+                ...prevState,
+                subjects: updatedSubjects
+            };
+        });
+    };
+
     const handleAddSubject = () => {
-        if (newClass.isSpecial) return;
         const lastSubject = newClass.subjects[newClass.subjects.length - 1];
         if (!lastSubject.subjectId || !lastSubject.lessonCount) {
             toast.error('Vui lòng chọn môn học và nhập số tiết trước khi thêm môn mới.');
@@ -70,18 +98,17 @@ const SingleClassModal = ({ isOpen, onClose, onClassAdded, subjects }) => {
         }
         setNewClass(prevState => ({
             ...prevState,
-            subjects: [...prevState.subjects, { subjectId: '', lessonCount: '', maxTeachers: 1, isEditing: true }]
+            subjects: [...prevState.subjects, { subjectId: '', lessonCount: '', isEditing: true, isSpecialized: true }]
         }));
     };
 
     const handleRemoveSubject = (index) => {
-        if (newClass.isSpecial) return;
         setNewClass(prevState => {
             const updatedSubjects = prevState.subjects.filter((_, i) => i !== index);
             if (updatedSubjects.length === 0) {
                 return {
                     ...prevState,
-                    subjects: [{ subjectId: '', lessonCount: '', maxTeachers: 1, isEditing: true }]
+                    subjects: [{ subjectId: '', lessonCount: '', isEditing: true, isSpecialized: true }]
                 };
             }
             return {
@@ -104,7 +131,7 @@ const SingleClassModal = ({ isOpen, onClose, onClassAdded, subjects }) => {
     
     const handleSaveSubject = (index) => {
         const subject = newClass.subjects[index];
-        if (!subject.subjectId || !subject.lessonCount || (newClass.isSpecial && !subject.maxTeachers)) {
+        if (!subject.subjectId || !subject.lessonCount) {
             toast.error('Vui lòng điền đầy đủ thông tin môn học trước khi lưu.');
             return;
         }
@@ -131,7 +158,7 @@ const SingleClassModal = ({ isOpen, onClose, onClassAdded, subjects }) => {
     const handleSubmit = async (event) => {
         event.preventDefault();
         const isAllSubjectsValid = newClass.subjects.every(subject => 
-            subject.subjectId && subject.lessonCount && (!newClass.isSpecial || subject.maxTeachers)
+            subject.subjectId && subject.lessonCount
         );
         if (!isAllSubjectsValid) {
             toast.error('Vui lòng điền đầy đủ thông tin cho tất cả các môn học.');
@@ -142,10 +169,11 @@ const SingleClassModal = ({ isOpen, onClose, onClassAdded, subjects }) => {
             const classData = {
                 ...newClass,
                 grade: parseInt(newClass.grade),
+                size: parseInt(newClass.size),
                 subjects: newClass.subjects.map(subject => ({
                     subjectId: subject.subjectId,
                     lessonCount: parseInt(subject.lessonCount),
-                    maxTeachers: newClass.isSpecial ? parseInt(subject.maxTeachers) : 1
+                    isSpecialized: subject.isSpecialized
                 }))
             };
             await createClass(classData);
@@ -179,57 +207,61 @@ const SingleClassModal = ({ isOpen, onClose, onClassAdded, subjects }) => {
         >
             <h2 className={styles.modalTitle}>Tạo Lớp Mới</h2>
             <form onSubmit={handleSubmit} className={styles.form}>
-                <div className={styles.formGroup}>
-                    <label htmlFor="name">Tên lớp:</label>
-                    <input
-                        type="text"
-                        id="name"
-                        name="name"
-                        value={newClass.name}
-                        onChange={(e) => handleInputChange(e)}
-                        required
-                    />
-                </div>
-                <div className={styles.formGroup}>
-                    <label htmlFor="grade">Khối:</label>
-                    <select
-                        id="grade"
-                        name="grade"
-                        value={newClass.grade}
-                        onChange={(e) => handleInputChange(e)}
-                        required
-                    >
-                        <option value="">Chọn khối</option>
-                        <option value="10">Khối 10</option>
-                        <option value="11">Khối 11</option>
-                        <option value="12">Khối 12</option>
-                    </select>
-                </div>
-                <div className={styles.formGroup}>
-                    <label htmlFor="campus">Cơ sở:</label>
-                    <select
-                        id="campus"
-                        name="campus"
-                        value={newClass.campus}
-                        onChange={(e) => handleInputChange(e)}
-                        required
-                    >
-                        <option value="">Chọn cơ sở</option>
-                        <option value="Quận 5">Quận 5</option>
-                        <option value="Thủ Đức">Thủ Đức</option>
-                    </select>
-                </div>
-                <div className={styles.specialClassCheckbox}>
-                    <label htmlFor="isSpecial">
+                <div className={styles.formRow}>
+                    <div className={styles.formGroup}>
+                        <label htmlFor="name">Tên lớp:</label>
                         <input
-                            type="checkbox"
-                            id="isSpecial"
-                            name="isSpecial"
-                            checked={newClass.isSpecial}
+                            type="text"
+                            id="name"
+                            name="name"
+                            value={newClass.name}
                             onChange={(e) => handleInputChange(e)}
+                            required
                         />
-                        <span>Lớp đặc biệt</span>
-                    </label>
+                    </div>
+                    <div className={styles.formGroup}>
+                        <label htmlFor="size">Sĩ số:</label>
+                        <input
+                            type="number"
+                            id="size"
+                            name="size"
+                            value={newClass.size}
+                            onChange={(e) => handleInputChange(e)}
+                            required
+                            min="1"
+                        />
+                    </div>
+                </div>
+                <div className={styles.formRow}>
+                    <div className={styles.formGroup}>
+                        <label htmlFor="grade">Khối:</label>
+                        <select
+                            id="grade"
+                            name="grade"
+                            value={newClass.grade}
+                            onChange={(e) => handleInputChange(e)}
+                            required
+                        >
+                            <option value="">Chọn khối</option>
+                            <option value="10">Khối 10</option>
+                            <option value="11">Khối 11</option>
+                            <option value="12">Khối 12</option>
+                        </select>
+                    </div>
+                    <div className={styles.formGroup}>
+                        <label htmlFor="campus">Cơ sở:</label>
+                        <select
+                            id="campus"
+                            name="campus"
+                            value={newClass.campus}
+                            onChange={(e) => handleInputChange(e)}
+                            required
+                        >
+                            <option value="">Chọn cơ sở</option>
+                            <option value="Quận 5">Quận 5</option>
+                            <option value="Thủ Đức">Thủ Đức</option>
+                        </select>
+                    </div>
                 </div>
                 <div className={styles.subjectsContainer}>
                     <h3>Danh sách môn học</h3>
@@ -239,21 +271,23 @@ const SingleClassModal = ({ isOpen, onClose, onClassAdded, subjects }) => {
                                 <div className={styles.subjectSummary}>
                                     <span>
                                         {subjects.find(s => s._id === subject.subjectId)?.name} - {subject.lessonCount} tiết
-                                        {newClass.isSpecial && ` - ${subject.maxTeachers} giáo viên`}
+                                        {subject.isSpecialized ? ' (Chuyên)' : ' (Không chuyên)'}
                                     </span>
                                     <div>
                                         <button type="button" onClick={() => handleEditSubject(index)} className={styles.editButton}>
                                             <EditIcon />
                                         </button>
-                                        {!newClass.isSpecial && (
-                                            <button type="button" onClick={() => handleRemoveSubject(index)} className={styles.removeButton}>
-                                                <DeleteIcon />
-                                            </button>
-                                        )}
+                                        <button type="button" onClick={() => handleRemoveSubject(index)} className={styles.removeButton}>
+                                            <DeleteIcon />
+                                        </button>
                                     </div>
                                 </div>
                             ) : (
                                 <>
+                                    <FilterPanel
+                                        isSpecialized={subject.isSpecialized}
+                                        onChange={(isSpecialized) => handleSpecializedChange(index, isSpecialized)}
+                                    />
                                     <div className={styles.subjectInputGroup}>
                                         <label htmlFor={`subjectId-${index}`}>Môn học:</label>
                                         <select
@@ -265,7 +299,7 @@ const SingleClassModal = ({ isOpen, onClose, onClassAdded, subjects }) => {
                                         >
                                             <option value="">Chọn môn học</option>
                                             {subjects
-                                                .filter(subj => !selectedSubjects.includes(subj._id) || subj._id === subject.subjectId)
+                                                .filter(subj => (!selectedSubjects.includes(subj._id) || subj._id === subject.subjectId) && subj.isSpecialized === subject.isSpecialized)
                                                 .map((subj) => (
                                                     <option key={subj._id} value={subj._id}>
                                                         {subj.name}
@@ -285,25 +319,11 @@ const SingleClassModal = ({ isOpen, onClose, onClassAdded, subjects }) => {
                                             required
                                         />
                                     </div>
-                                    {newClass.isSpecial && (
-                                        <div className={styles.subjectInputGroup}>
-                                            <label htmlFor={`maxTeachers-${index}`}>Số giáo viên tối đa:</label>
-                                            <input
-                                                type="number"
-                                                id={`maxTeachers-${index}`}
-                                                name="maxTeachers"
-                                                value={subject.maxTeachers}
-                                                onChange={(e) => handleInputChange(e, index)}
-                                                required
-                                                min="1"
-                                            />
-                                        </div>
-                                    )}
                                     <button type="button" onClick={() => handleSaveSubject(index)} className={styles.saveButton}>
                                         Lưu
                                     </button>
                                     {index > 0 && (
-                                        <button type="button" onClick={() => handleCancelSubject(index)} style={{backgroundColor: '#f44336'}} className={styles.saveButton}>
+                                        <button type="button" onClick={() => handleCancelSubject(index)} className={styles.cancelButton}>
                                             Hủy
                                         </button>
                                     )}
@@ -312,15 +332,13 @@ const SingleClassModal = ({ isOpen, onClose, onClassAdded, subjects }) => {
                         </div>
                     ))}
                 </div>
-                {!newClass.isSpecial && (
+                <div className={styles.buttonGroup}>
                     <button type="button" onClick={handleAddSubject} className={styles.addButton}>
-                        Thêm môn học
+                        <AddIcon /> Thêm môn học
                     </button>
-                )}
-                <div className={styles.formActions}>
                     <button type="submit" className={styles.submitButton} disabled={isCreatingClass}>
                         {isCreatingClass ? (
-                            <Circles type="TailSpin" color="#FFF" height={20} width={20} />
+                            <Circles color="#FFF" height={24} width={24} />
                         ) : (
                             'Tạo Lớp'
                         )}

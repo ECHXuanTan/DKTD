@@ -8,7 +8,7 @@ import { getUser } from '../../services/authServices.js';
 import { getAllClasses } from '../../services/statisticsServices';
 import { toast, ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
-import { Box, Typography, TextField, Select, MenuItem, InputAdornment, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Paper, Button, TablePagination } from '@mui/material';
+import { Box, Typography, TextField, Select, MenuItem, InputAdornment, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Paper, TablePagination } from '@mui/material';
 import SearchIcon from '@mui/icons-material/Search';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import styles from '../../css/Ministry/MinistryClassStatistics.module.css';
@@ -32,27 +32,18 @@ const MinistryClassStatistics = () => {
             setUser(userData);
             
             if (userData) {
-                if (!userData || userData.user.role !== 1) {
-                    // Redirect based on user role
-                    switch(userData.user.role) {
-                      case 2:
-                        navigate('/admin-dashboard');
-                        break;
-                      case 0:
-                        navigate('/user-dashboard');
-                        break;
-                      default:
-                        navigate('/login');
-                    }
-                }
-                const classesData = await getAllClasses();
-                if (Array.isArray(classesData) && classesData.length > 0) {
-                    const sortedClasses = classesData.sort((a, b) => a.className.localeCompare(b.className));
-                    setClasses(sortedClasses);
-                } else {
-                    console.error('Invalid classes data:', classesData);
-                    toast.error('Định dạng dữ liệu lớp học không hợp lệ. Vui lòng thử lại sau.');
-                }
+              if (userData.user.isAdmin) {
+                navigate('/admin-dashboard');
+                return;
+              }
+              const classesData = await getAllClasses();
+              if (Array.isArray(classesData) && classesData.length > 0) {
+                const sortedClasses = classesData.sort((a, b) => a.name.localeCompare(b.name));
+                setClasses(sortedClasses);
+              } else {
+                console.error('Invalid classes data:', classesData);
+                toast.error('Định dạng dữ liệu lớp học không hợp lệ. Vui lòng thử lại sau.');
+              }
             }
           } catch (error) {
             console.error('Error fetching data:', error);
@@ -85,9 +76,9 @@ const MinistryClassStatistics = () => {
     };
 
     const filteredClasses = classes.filter((classItem) =>
-        classItem.className.toLowerCase().includes(searchQuery.toLowerCase()) &&
+        classItem.name.toLowerCase().includes(searchQuery.toLowerCase()) &&
         (gradeFilter === '' || classItem.grade === parseInt(gradeFilter))
-    );
+    );    
 
     const paginatedClasses = filteredClasses.slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage);
 
@@ -164,27 +155,34 @@ const MinistryClassStatistics = () => {
                             </TableHead>
                             <TableBody>
                                 {paginatedClasses.flatMap((classItem, index) => {
-                                    const rowSpan = classItem.subjects.reduce((sum, subject) => sum + (subject.assignments.length || 1), 0);
-                                    return classItem.subjects.flatMap((subject, subjectIndex) => {
-                                        const subjectRowSpan = subject.assignments.length || 1;
-                                        return subject.assignments.length > 0 ? (
-                                            subject.assignments.map((assignment, assignmentIndex) => (
+                                    const rowSpan = classItem.subjects?.reduce((sum, subject) => 
+                                        sum + ((subject.assignments?.length || 0) || 1), 0) || 1;
+                                    return (classItem.subjects || []).flatMap((subject, subjectIndex) => {
+                                        const subjectRowSpan = subject.assignments?.length || 1;
+                                        return (subject.assignments?.length > 0 ? (
+                                            (subject.assignments || []).map((assignment, assignmentIndex) => (
                                                 <TableRow key={`${classItem._id}-${subject.name}-${assignmentIndex}`}>
                                                     {subjectIndex === 0 && assignmentIndex === 0 && (
                                                         <>
                                                             <TableCell rowSpan={rowSpan}>{page * rowsPerPage + index + 1}</TableCell>
-                                                            <TableCell rowSpan={rowSpan}>{classItem.className}</TableCell>
+                                                            <TableCell rowSpan={rowSpan}>{classItem.name}</TableCell>
                                                             <TableCell rowSpan={rowSpan}>{classItem.grade}</TableCell>
                                                         </>
                                                     )}
                                                     {assignmentIndex === 0 && (
                                                         <>
-                                                            <TableCell rowSpan={subjectRowSpan}>{subject.name}</TableCell>
+                                                            <TableCell rowSpan={subjectRowSpan}>{subject.subject.name}</TableCell>
                                                             <TableCell rowSpan={subjectRowSpan}>{subject.lessonCount}</TableCell>
                                                         </>
                                                     )}
-                                                    <TableCell>{assignment.teacherName}</TableCell>
-                                                    <TableCell>{assignment.completedLessons}</TableCell>
+                                                    <TableCell>
+                                                        {subject.subject.name === 'CCSHL'
+                                                            ? classItem.homeroomTeacher || 'Chưa phân công'
+                                                            : assignment.teacherName}
+                                                    </TableCell>
+                                                    <TableCell>
+                                                        {subject.subject.name === 'CCSHL' ? '-' : assignment.completedLessons}
+                                                    </TableCell>
                                                     {subjectIndex === 0 && assignmentIndex === 0 && (
                                                         <TableCell rowSpan={rowSpan}>
                                                             <SingleClassReport user={user?.user} classId={classItem._id} />
@@ -197,21 +195,27 @@ const MinistryClassStatistics = () => {
                                                 {subjectIndex === 0 && (
                                                     <>
                                                         <TableCell rowSpan={rowSpan}>{page * rowsPerPage + index + 1}</TableCell>
-                                                        <TableCell rowSpan={rowSpan}>{classItem.className}</TableCell>
+                                                        <TableCell rowSpan={rowSpan}>{classItem.name}</TableCell>
                                                         <TableCell rowSpan={rowSpan}>{classItem.grade}</TableCell>
                                                     </>
                                                 )}
-                                                <TableCell>{subject.name}</TableCell>
+                                                <TableCell>{subject.subject.name}</TableCell>
                                                 <TableCell>{subject.lessonCount}</TableCell>
-                                                <TableCell>Chưa phân công</TableCell>
-                                                <TableCell>0</TableCell>
+                                                <TableCell>
+                                                    {subject.subject.name === 'CCSHL'
+                                                        ? classItem.homeroomTeacher || 'Chưa phân công'
+                                                        : 'Chưa phân công'}
+                                                </TableCell>
+                                                <TableCell>
+                                                    {subject.subject.name === 'CCSHL' ? '-' : '0'}
+                                                </TableCell>
                                                 {subjectIndex === 0 && (
                                                     <TableCell rowSpan={rowSpan}>
                                                         <SingleClassReport user={user?.user} classId={classItem._id} />
                                                     </TableCell>
                                                 )}
                                             </TableRow>
-                                        );
+                                        ));
                                     });
                                 })}
                             </TableBody>
@@ -225,7 +229,6 @@ const MinistryClassStatistics = () => {
                         page={page}
                         onPageChange={handleChangePage}
                         onRowsPerPageChange={handleChangeRowsPerPage}
-                        style={{overflow: 'unset'}}
                     />
                 </div>
             </Box>

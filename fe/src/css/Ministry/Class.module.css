@@ -19,28 +19,6 @@
     border-bottom: 2px solid #3498db;
 }
 
-.searchCreate {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 20px;
-}
-
-.searchField {
-    flex-grow: 0.3;
-    margin-right: 20px;
-    background-color: white;
-}
-
-.createButton {
-    background-color: #1976d2;
-    color: white;
-}
-
-.createButton:hover {
-    background-color: #1565c0;
-}
-
 .tableWrapper {
     display: flex;
     flex-direction: column;
@@ -49,21 +27,57 @@
 
 .tableContainer {
     flex: 1;
-    overflow-y: auto;
-    margin-bottom: 0;
+    overflow: auto;
+    max-height: calc(900px - 56px); /* Subtracting approximate height of pagination */
+    scrollbar-width: thin; /* For Firefox */
+    scrollbar-color: #90A4AE #CFD8DC; /* For Firefox */
+    border: 1px solid #ddd;
 }
+
+.tableContainer::-webkit-scrollbar {
+    width: 8px; /* Chiều rộng của thanh cuộn dọc */
+    height: 8px; /* Chiều cao của thanh cuộn ngang */
+}
+
+.tableContainer::-webkit-scrollbar-track {
+    background: #CFD8DC; /* Màu nền của track */
+    border-radius: 4px;
+}
+
+.tableContainer::-webkit-scrollbar-thumb {
+    background-color: #90A4AE; /* Màu của thumb */
+    border-radius: 4px;
+    border: 2px solid #CFD8DC; /* Tạo viền cho thumb */
+}
+
+.tableContainer::-webkit-scrollbar-thumb:hover {
+    background-color: #78909C; /* Màu của thumb khi hover */
+}
+
+/* Tùy chỉnh góc giao nhau của thanh cuộn */
+.tableContainer::-webkit-scrollbar-corner {
+    background-color: #CFD8DC;
+}
+
+/* Đảm bảo rằng nội dung không bị che khuất bởi thanh cuộn */
+.horizontalScroll {
+    padding-bottom: 8px; /* Tương đương với chiều cao của thanh cuộn ngang */
+}
+
 
 .table {
     width: 100%;
-    border-collapse: collapse;
+    border-collapse: separate;
+    border-spacing: 0 !important;
 }
 
 .table th,
 .table td {
     border: 1px solid #312e2e;
-    padding: 12px;
-    text-align: center;
-    vertical-align: top;
+    padding: 12px 20px;
+    text-align: left;
+    vertical-align: middle;
+    white-space: nowrap;
 }
 
 .table th {
@@ -76,9 +90,74 @@
     color: white;
 }
 
+.stickyColumn {
+    position: sticky;
+    background-color: #fff;
+    z-index: 1;
+}
+
+.stickyColumn:nth-child(1) {
+    left: 0;
+    z-index: 3;
+}
+
+.stickyColumn:nth-child(2) {
+    left: 5%;
+    z-index: 3;
+}
+
+.table th.stickyColumn:nth-child(1) {
+    z-index: 4;
+    background-color: #5585b5;
+    left: 0;
+}
+
+.table th.stickyColumn:nth-child(2) {
+    z-index: 4;
+    background-color: #5585b5;
+    left: 5%;
+}
+
+.table td.stickyColumn:nth-child(1) {
+    left: 0;
+    z-index: 1;
+    background-color: #fff;
+}
+
+.table td.stickyColumn:nth-child(2) {
+    left: 5%;
+    z-index: 1;
+    background-color: #fff;
+}
+
 .tableFooter {
     background-color: #f5f5f5;
-    border-top: 2px solid #ddd;
+    border: 1px solid #ddd;
+    border-top: none;
+}
+
+.actionButtons {
+    display: flex;
+    justify-content: center;
+    gap: 10px;
+}
+
+.actionButtons button {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 5px;
+    padding: 6px 12px;
+    font-size: 0.875rem;
+    min-width: 64px;
+    box-sizing: border-box;
+    transition: background-color 250ms cubic-bezier(0.4, 0, 0.2, 1) 0ms,box-shadow 250ms cubic-bezier(0.4, 0, 0.2, 1) 0ms,border 250ms cubic-bezier(0.4, 0, 0.2, 1) 0ms;
+    font-family: "Roboto", "Helvetica", "Arial", sans-serif;
+    font-weight: 500;
+    line-height: 1.75;
+    border-radius: 4px;
+    letter-spacing: 0.02857em;
+    text-transform: uppercase;
 }
 
 .addClassContainer {
@@ -159,7 +238,7 @@
 
 .form input,
 .form select {
-    width: 60%;
+    width: 100%;
     padding: 10px;
     border: 1px solid #ddd;
     border-radius: 4px;
@@ -248,8 +327,6 @@
 .submitButton {
     background-color: #1976d2;
     color: white;
-    display: flex;
-    align-items: center;
 }
 
 .submitButton:hover {
@@ -310,7 +387,7 @@
 .previewTable td {
     border: 1px solid #ddd;
     padding: 8px;
-    text-align: left;
+    text-align: center;
 }
 
 .previewTable th {
@@ -320,6 +397,75 @@
 
 .previewTable tr:nth-child(even) {
     background-color: #f9f9f9;
+}
+
+.editButtons {
+    display: flex;
+    gap: 10px;
+}
+
+.editButton,
+.saveButton,
+.cancelButton {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 5px 10px;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 14px;
+    transition: background-color 0.3s;
+}
+
+.editButton {
+    background-color: #4CAF50;
+    color: white;
+}
+
+.editButton:hover {
+    background-color: #45a049;
+}
+
+.saveButton {
+    background-color: #2196F3;
+    color: white;
+}
+
+.saveButton:hover {
+    background-color: #1e88e5;
+}
+
+.cancelButton {
+    background-color: #f44336;
+    color: white;
+}
+
+.cancelButton:hover {
+    background-color: #d32f2f;
+}
+
+.previewTable input[type="text"],
+.previewTable input[type="number"] {
+    width: 100%;
+    padding: 5px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    font-size: 14px;
+}
+
+.invalidInput {
+    background-color: #ffebee;
+}
+
+.previewTable th input[type="text"] {
+    font-weight: bold;
+    background-color: #f2f2f2;
+}
+
+.submitButton:disabled {
+    background-color: #cccccc;
+    cursor: not-allowed;
 }
 
 @media (max-width: 768px) {

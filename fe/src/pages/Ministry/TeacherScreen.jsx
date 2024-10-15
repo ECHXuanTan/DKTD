@@ -5,8 +5,6 @@ import Modal from 'react-modal';
 import { Circles } from 'react-loader-spinner';
 import { ToastContainer, toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
-import * as XLSX from 'xlsx';
-import FileSaver from 'file-saver';
 import styles from '../../css/Ministry/Teacher.module.css';
 import Header from '../../components/Header.js';
 import Footer from '../../components/Footer.js';
@@ -14,8 +12,7 @@ import { getUser } from '../../services/authServices.js';
 import { getAllTeachers, createTeacher, updateTeacher, deleteTeacher, createManyTeachers } from '../../services/teacherService.js';
 import { getDepartmentNames } from '../../services/departmentService.js';
 import { getNonSpecializedSubjects } from '../../services/subjectServices.js';
-import { Box, Typography, TextField, Button, InputAdornment, Menu, MenuItem } from '@mui/material';
-import { DataGrid } from '@mui/x-data-grid';
+import { Box, Typography, TextField, Button, InputAdornment, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Paper, Select, Menu, MenuItem, TableFooter, TablePagination } from '@mui/material';
 import SearchIcon from '@mui/icons-material/Search';
 import EditIcon from '@mui/icons-material/Edit';
 import DeleteIcon from '@mui/icons-material/Delete';
@@ -26,6 +23,7 @@ import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import SingleTeacherModal from './Component/Teacher/SingleTeacherModal.jsx';
 import MultiTeacherModal from './Component/Teacher/MultiTeacherModal';
 import EditTeacherModal from './Component/Teacher/EditTeacherModal';
+import HomeroomAssignmentModal from './Component/Teacher/HomeroomModal.jsx';
 
 Modal.setAppElement('#root');
 
@@ -38,46 +36,17 @@ const TeacherScreen = () => {
     const [showModal, setShowModal] = useState(false);
     const [loading, setLoading] = useState(true);
     const [searchQuery, setSearchQuery] = useState('');
-    const [showAddOptions, setShowAddOptions] = useState(false);
     const [showSingleTeacherModal, setShowSingleTeacherModal] = useState(false);
     const [showMultiTeacherModal, setShowMultiTeacherModal] = useState(false);
     const [showEditTeacherModal, setShowEditTeacherModal] = useState(false);
-    const [newTeacher, setNewTeacher] = useState({
-        name: '',
-        email: '',
-        phone: '',
-        position: 'Giáo viên',
-        department: '',
-        teachingSubjects: '',
-        type: '',
-        lessonsPerWeek: '',
-        teachingWeeks: '',
-        reducedLessonsPerWeek: '',
-        reducedWeeks: '',
-        reductionReason: '',
-    });
-    const [editingTeacher, setEditingTeacher] = useState({
-        id: '',
-        name: '',
-        email: '',
-        phone: '',
-        position: '',
-        department: '',
-        teachingSubjects: '',
-        type: '',
-        lessonsPerWeek: '',
-        teachingWeeks: '',
-        reducedLessonsPerWeek: '',
-        reducedWeeks: '',
-        totalReducedLessons: '',
-        reductionReason: '',
-    });
-    const [excelFile, setExcelFile] = useState(null);
-    const [excelData, setExcelData] = useState(null);
+    const [editingTeacher, setEditingTeacher] = useState(null);
     const [showDeleteConfirmModal, setShowDeleteConfirmModal] = useState(false);
+    const [showHomeroomAssignmentModal, setShowHomeroomAssignmentModal] = useState(false);
     const [teacherToDelete, setTeacherToDelete] = useState(null);
     const [selectedDepartment, setSelectedDepartment] = useState('');
     const [anchorEl, setAnchorEl] = useState(null);
+    const [page, setPage] = useState(0);
+    const [rowsPerPage, setRowsPerPage] = useState(25);
     const navigate = useNavigate();
 
     useEffect(() => {
@@ -119,201 +88,16 @@ const TeacherScreen = () => {
 
     const handleSearchChange = (event) => {
         setSearchQuery(event.target.value);
+        setPage(0);
     };
 
-    const handleInputChange = (event) => {
-        const { name, value } = event.target;
-        setNewTeacher(prevState => ({
-            ...prevState,
-            [name]: value
-        }));
+    const handleChangePage = (event, newPage) => {
+        setPage(newPage);
     };
 
-    const handleSubmit = async (event) => {
-        event.preventDefault();
-        try {
-            const teacherData = {
-                ...newTeacher,
-                position: 'Giáo viên',
-            };
-    
-            if (newTeacher.type === 'Thỉnh giảng') {
-                delete teacherData.lessonsPerWeek;
-                delete teacherData.teachingWeeks;
-                delete teacherData.reducedLessonsPerWeek;
-                delete teacherData.reducedWeeks;
-                delete teacherData.reductionReason;
-            }
-    
-            await createTeacher(teacherData);
-            setShowSingleTeacherModal(false);
-            toast.success('Tạo giáo viên mới thành công!');
-            const updatedTeacherData = await getAllTeachers();
-            setTeachers(updatedTeacherData);
-        } catch (error) {
-            console.error('Error creating teacher:', error);
-            
-            if (error.response && error.response.data && error.response.data.message) {
-                toast.error(error.response.data.message);
-            } else {
-                toast.error('Có lỗi xảy ra khi tạo giáo viên mới.');
-            }
-        }
-    };
-
-    const handleFileChange = (e) => {
-        const file = e.target.files[0];
-        setExcelFile(file);
-
-        const reader = new FileReader();
-        reader.onload = (e) => {
-            const data = new Uint8Array(e.target.result);
-            const workbook = XLSX.read(data, { type: 'array' });
-            const sheetName = workbook.SheetNames[0];
-            const worksheet = workbook.Sheets[sheetName];
-            const jsonData = XLSX.utils.sheet_to_json(worksheet);
-            setExcelData(jsonData);
-        };
-        reader.readAsArrayBuffer(file);
-    };
-
-    const handleUpload = async () => {
-        if (!excelData) {
-            toast.error('Vui lòng chọn file Excel');
-            return;
-        }
-    
-        try {
-            const response = await createManyTeachers(excelData);
-            
-            let successCount = 0;
-            let errorMessages = [];
-    
-            if (response.invalidTeachers && response.invalidTeachers.length > 0) {
-                errorMessages = response.invalidTeachers.map(item => 
-                    `${item.name}: ${item.errors.join(', ')}`
-                );
-            }
-    
-            if (response.createdTeachers) {
-                successCount = response.createdTeachers.length;
-            }
-    
-            if (response.errors) {
-                errorMessages = errorMessages.concat(response.errors.map(err => 
-                    `${err.email || 'Unknown'}: ${err.message}`
-                ));
-            }
-    
-            if (successCount > 0) {
-                toast.success(`Đã tạo thành công ${successCount} giáo viên`);
-            }
-    
-            if (errorMessages.length > 0) {
-                const errorMessage = `Có ${errorMessages.length} giáo viên không hợp lệ:\n${errorMessages.join('\n')}`;
-                toast.error(errorMessage);
-            }
-    
-            const updatedTeacherData = await getAllTeachers();
-            setTeachers(updatedTeacherData);
-            setShowMultiTeacherModal(false);
-            setExcelData(null);
-            setExcelFile(null);
-        } catch (error) {
-            console.error('Error creating teachers:', error);
-            toast.error(error.message || 'Đã xảy ra lỗi khi tạo giáo viên');
-        }
-    };
-
-    const handleDownloadTemplate = () => {
-        const data = [
-            ['Tên', 'Email', 'Số điện thoại', 'Tổ chuyên môn', 'Hình thức giáo viên', 'Số tiết dạy một tuần', 'Số tuần dạy', 'Số tiết giảm 1 tuần', 'Số tuần giảm', 'Nội dung giảm', 'Môn học giảng dạy'],
-            ['Nguyễn Văn A', 'nguyenvana@example.com', '0923456789', 'Tổ Tiếng Anh', 'Cơ hữu', '20', '15', '2', '18', 'GVCN', 'Tiếng Anh'],
-            ['Trần Thị B', 'tranthibb@example.com', '0987654321', 'Tổ Vật lý', 'Thỉnh giảng', '', '', '', '', '', 'Vật lý'],
-        ];
-    
-        const ws = XLSX.utils.aoa_to_sheet(data);
-        const wb = XLSX.utils.book_new();
-        XLSX.utils.book_append_sheet(wb, ws, "Template");
-    
-        const excelBuffer = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
-        const dataBlob = new Blob([excelBuffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet;charset=UTF-8' });
-        FileSaver.saveAs(dataBlob, 'teacher_template.xlsx');
-    };
-
-    const handleAddSingleTeacher = () => {
-        setShowSingleTeacherModal(true);
-    };
-
-    const handleAddMultiTeacher = () => {
-        setShowMultiTeacherModal(true);
-    };
-
-    const handleEditTeacher = (teacher) => {
-        setEditingTeacher({
-            id: teacher.id,
-            name: teacher.name,
-            email: teacher.email,
-            phone: teacher.phone,
-            position: teacher.position,
-            department: teacher.departmentId,
-            teachingSubjects: teacher.teachingSubjects ? teacher.teachingSubjects._id : '',
-            type: teacher.type,
-            lessonsPerWeek: teacher.lessonsPerWeek || 0,
-            teachingWeeks: teacher.teachingWeeks || 0,
-            reducedLessonsPerWeek: teacher.reducedLessonsPerWeek || 0,
-            reducedWeeks: teacher.reducedWeeks || 0,
-            totalReducedLessons: teacher.totalReducedLessons || 0,
-            reductionReason: teacher.reductionReason || '',
-        });
-        setShowEditTeacherModal(true);
-    };
-
-    const handleEditInputChange = (event) => {
-        const { name, value } = event.target;
-        setEditingTeacher(prevState => ({
-            ...prevState,
-            [name]: value
-        }));
-    };
-
-    const handleEditSubmit = async (event) => {
-        event.preventDefault();
-        try {
-            await updateTeacher(editingTeacher.id, editingTeacher);
-            setShowEditTeacherModal(false);
-            toast.success('Cập nhật giáo viên thành công!');
-            const updatedTeacherData = await getAllTeachers();
-            setTeachers(updatedTeacherData);
-        } catch (error) {
-            console.error('Error updating teacher:', error);
-            toast.error(error.message || 'Có lỗi xảy ra khi cập nhật giáo viên.');
-        }
-    };
-
-    const handleDeleteConfirm = (teacher) => {
-        setTeacherToDelete(teacher);
-        setShowDeleteConfirmModal(true);
-    };
-
-    const handleDelete = async () => {
-        if (teacherToDelete) {
-            try {
-                await deleteTeacher(teacherToDelete.id);
-                toast.success('Xóa giáo viên thành công!');
-                const updatedTeacherData = await getAllTeachers();
-                setTeachers(updatedTeacherData);
-            } catch (error) {
-                console.error('Error deleting teacher:', error);
-                if (error.response && error.response.status === 400 && error.response.data.message === "Không thể xóa giáo viên đã có khai báo giảng dạy") {
-                    toast.error(error.response.data.message);
-                } else {
-                    toast.error('Lỗi khi xóa giáo viên');
-                }
-            }
-        }
-        setShowDeleteConfirmModal(false);
-        setTeacherToDelete(null);
+    const handleChangeRowsPerPage = (event) => {
+        setRowsPerPage(parseInt(event.target.value, 10));
+        setPage(0);
     };
 
     const handleDepartmentFilterClick = (event) => {
@@ -329,181 +113,318 @@ const TeacherScreen = () => {
         handleDepartmentFilterClose();
     };
 
+    const handleEditTeacher = (teacher) => {
+        setEditingTeacher(teacher);
+        setShowEditTeacherModal(true);
+    };
+
+    const handleEditInputChange = (e) => {
+        const { name, value } = e.target;
+        setEditingTeacher(prevState => ({
+            ...prevState,
+            [name]: value
+        }));
+    };
+
+    const handleEditSubmit = async (e) => {
+        e.preventDefault();
+        try {
+            await updateTeacher(editingTeacher._id, editingTeacher);
+            setShowEditTeacherModal(false);
+            toast.success('Cập nhật giáo viên thành công!');
+            const updatedTeacherData = await getAllTeachers();
+            setTeachers(updatedTeacherData);
+        } catch (error) {
+            console.error('Error updating teacher:', error);
+            toast.error('Có lỗi xảy ra khi cập nhật giáo viên.');
+        }
+    };
+
+    const handleDeleteConfirm = (teacher) => {
+        setTeacherToDelete(teacher);
+        console.log(teacher);
+        setShowDeleteConfirmModal(true);
+    };
+
+    const handleDelete = async () => {
+        if (teacherToDelete) {
+            try {
+                await deleteTeacher(teacherToDelete._id);
+                setShowDeleteConfirmModal(false);
+                setTeacherToDelete(null);
+                toast.success('Xóa giáo viên thành công!');
+                const updatedTeacherData = await getAllTeachers();
+                setTeachers(updatedTeacherData);
+            } catch (error) {
+                console.error('Error deleting teacher:', error);
+                if (error.response && error.response.data && error.response.data.message) {
+                    // Display the specific error message from the server
+                    toast.error(error.response.data.message);
+                    setShowDeleteConfirmModal(false);
+                    setTeacherToDelete(null);
+                } else {
+                    // Fallback to a generic error message
+                    toast.error('Có lỗi xảy ra khi xóa giáo viên');
+                    setShowDeleteConfirmModal(false);
+                    setTeacherToDelete(null);
+                }
+            }
+        }
+    };
+
+    const handleHomeroomAssignmentComplete = async () => {
+        try {
+            const updatedTeacherData = await getAllTeachers();
+            setTeachers(updatedTeacherData);
+            toast.success('Phân công chủ nhiệm thành công');
+        } catch (error) {
+            console.error('Error fetching updated teacher data:', error);
+            toast.error('Có lỗi xảy ra khi cập nhật danh sách giáo viên');
+        }
+    };
+
+    const updateTeacherList = async () => {
+        try {
+            const updatedTeacherData = await getAllTeachers();
+            setTeachers(updatedTeacherData);
+        } catch (error) {
+            console.error('Error fetching updated teacher data:', error);
+            toast.error('Có lỗi xảy ra khi cập nhật danh sách giáo viên');
+        }
+    };
+
     const columns = [
-        { field: 'index', headerName: 'STT', width: 50, align: 'center' },
-        { field: 'name', headerName: 'Tên giáo viên', width: 200 },
-        { field: 'email', headerName: 'Email', width: 200 },
-        { field: 'phone', headerName: 'Số điện thoại', width: 130 },
-        { field: 'department', headerName: 'Tổ bộ môn', width: 180 },
-        {
-            field: 'teachingSubjects',
-            headerName: 'Môn học giảng dạy',
-            width: 150,
-        },  
-        { field: 'type', headerName: 'Hình thức Giáo viên', width: 150, align: 'center' },
-        { field: 'lessonsPerWeek', headerName: 'Số tiết/tuần', width: 100, type: 'number', align: 'center' },
-        { field: 'teachingWeeks', headerName: 'Số tuần dạy', width: 100, type: 'number', align: 'center' },
-        { field: 'basicTeachingLessons', headerName: 'Số tiết dạy cơ bản', width: 100, type: 'number', align: 'center' },
-        { field: 'reducedLessonsPerWeek', headerName: 'Số tiết giảm/tuần', width: 100, type: 'number', align: 'center' },
-        { field: 'reducedWeeks', headerName: 'Số tuần giảm', width: 100, type: 'number', align: 'center' },
-        { field: 'totalReducedLessons', headerName: 'Tổng số tiết giảm', width: 100, type: 'number', align: 'center' },
-        { field: 'reductionReason', headerName: 'Lý do giảm', width: 100 },
-        {
-            field: 'actions',
-            headerName: 'Thao tác',
-            width: 120,
-            renderCell: ({ row }) => {
-                return (
-                    <>
-                        <EditIcon
-                            onClick={() => handleEditTeacher(row)}
-                            sx={{ cursor: 'pointer', marginRight: 1 }}
-                        />
-                        <DeleteIcon
-                            onClick={() => handleDeleteConfirm(row)}
-                            sx={{ cursor: 'pointer' }}
-                        />
-                    </>
-                );
-            },
-        },
+        { field: 'index', label: 'STT', width: '5%', sticky: true },
+        { field: 'name', label: 'Tên giáo viên', width: '15%', sticky: true },
+        { field: 'email', label: 'Email', width: '15%' },
+        { field: 'phone', label: 'Số điện thoại', width: '10%' },
+        { field: 'department', label: 'Tổ chuyên môn', width: '15%' },
+        { field: 'teachingSubjects', label: 'Môn giảng dạy', width: '15%' },
+        { field: 'type', label: 'Hình thức GV', width: '10%' },
+        { field: 'lessonsPerWeek', label: 'Số tiết/tuần', width: '8%' },
+        { field: 'teachingWeeks', label: 'Số tuần dạy', width: '8%' },
+        { field: 'reducedLessonsPerWeek', label: 'Số tiết giảm một tuần', width: '10%' },
+        { field: 'reducedWeeks', label: 'Số tuần giảm', width: '8%' },
+        { field: 'totalReducedLessons', label: 'Tổng số tiết giảm', width: '10%' },
+        { field: 'reductionReason', label: 'Nội dung giảm', width: '15%' },
+        { field: 'actions', label: 'Thao tác', width: '10%' },
     ];
 
-    const filteredRows = teachers
-        .filter(teacher => teacher.department && teacher.department.name !== "Tổ Giáo vụ")
-        .filter((teacher) => 
+    const filteredTeachers = teachers
+        .filter(teacher => 
             (teacher.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
             teacher.email.toLowerCase().includes(searchQuery.toLowerCase())) &&
             (selectedDepartment ? teacher.department && teacher.department._id === selectedDepartment : true)
         );
 
-    const rows = filteredRows.map((teacher, index) => ({
-        id: teacher._id,
-        index: index + 1,
-        name: teacher.name,
-        email: teacher.email,
-        phone: teacher.phone,
-        department: teacher.department ? teacher.department.name : 'N/A',
-        departmentId: teacher.department ? teacher.department._id : '',
-        type: teacher.type,
-        lessonsPerWeek: teacher.lessonsPerWeek || 0,
-        teachingWeeks: teacher.teachingWeeks || 0,
-        basicTeachingLessons: teacher.basicTeachingLessons || 0,
-        reducedLessonsPerWeek: teacher.reducedLessonsPerWeek || 0,
-        reducedWeeks: teacher.reducedWeeks || 0,
-        totalReducedLessons: teacher.totalReducedLessons || 0,
-        reductionReason: teacher.reductionReason || '',
-        teachingSubjects: teacher.teachingSubjects ? teacher.teachingSubjects.name : 'N/A', // Flattened here
-        position: teacher.position,
-    }));
-        
+    const paginatedTeachers = rowsPerPage > 0
+        ? filteredTeachers.slice(page * rowsPerPage, (page + 1) * rowsPerPage)
+        : filteredTeachers;
+
+    const rows = paginatedTeachers.flatMap((teacher, index) => {
+        const baseIndex = page * rowsPerPage + index + 1;
+        const generalRow = {
+            id: `${teacher._id}-general`,
+            index: baseIndex,
+            name: teacher.name,
+            email: teacher.email,
+            phone: teacher.phone,
+            department: teacher.department ? teacher.department.name : '-',
+            teachingSubjects: teacher.teachingSubjects ? teacher.teachingSubjects.name : '-',
+            type: teacher.type,
+            lessonsPerWeek: teacher.lessonsPerWeek || '-',
+            teachingWeeks: teacher.teachingWeeks || '-',
+            reducedLessonsPerWeek: teacher.reducedLessonsPerWeek || '-',
+            reducedWeeks: teacher.reducedWeeks || '-',
+            totalReducedLessons: teacher.totalReducedLessons || '-',
+            reductionReason: teacher.reductionReason || '-',
+            actions: (
+                <div className={styles.actionButtons}>
+                    <Button onClick={() => handleEditTeacher(teacher)}>
+                        <EditIcon /> Sửa
+                    </Button>
+                    <Button onClick={() => handleDeleteConfirm(teacher)}>
+                        <DeleteIcon style={{color: '#ef5a5a'}} /> Xóa
+                    </Button>
+                </div>
+            ),
+            isFirstRow: true,
+            rowSpan: teacher.homeroom ? 2 : 1,
+        };
+
+        if (teacher.homeroom) {
+            const homeroomRow = {
+                id: `${teacher._id}-homeroom`,
+                index: null,
+                name: null,
+                email: null,
+                phone: null,
+                department: null,
+                teachingSubjects: null,
+                type: null,
+                lessonsPerWeek: null,
+                teachingWeeks: null,
+                reducedLessonsPerWeek: teacher.homeroom.reducedLessonsPerWeek || '-',
+                reducedWeeks: teacher.homeroom.reducedWeeks || '-',
+                totalReducedLessons: teacher.homeroom.totalReducedLessons || '-',
+                reductionReason: 'GVCN',
+                actions: null,
+                isFirstRow: false,
+                rowSpan: 1,
+            };
+            return [generalRow, homeroomRow];
+        }
+        return [generalRow];
+    });
 
     if (loading) {
         return (
-            <div className="loading-container">
+            <div className={styles.loadingContainer}>
                 <Circles type="TailSpin" color="#00BFFF" height={80} width={80} />
             </div>
         );
     }
 
-    return(
+    return (
         <>
             <Helmet>
                 <title>Trang quản lý giáo viên</title>
             </Helmet>
             <Header/>
             <ToastContainer />
-            <div className={styles.pageWrapper}>
-                <section className={styles.teacherSection}>
-                    <Box m="20px">
-                        <Link to="/ministry-declare" style={{ display: 'block',textDecoration: 'none', marginBottom: '10px', fontSize: '20px' }}>
-                            <ArrowBackIcon />
-                        </Link>
-                        <Typography variant="h4" mb={2} className={styles.sectionTitle}>
-                            Danh sách giáo viên
-                        </Typography>
-                        <Box display="flex" justifyContent="space-between" mb={2} className={styles.searchCreate}>
-                            <Box display="flex" gap="16px">
-                                <TextField
-                                    value={searchQuery}
-                                    onChange={handleSearchChange}
-                                    placeholder="Tìm kiếm giáo viên"
-                                    InputProps={{
-                                        startAdornment: (
-                                            <InputAdornment position="start">
-                                                <SearchIcon />
-                                            </InputAdornment>
-                                        ),
-                                    }}
-                                    className={styles.searchField}
-                                />
-                                <Button 
-                                    variant="outlined" 
-                                    onClick={handleDepartmentFilterClick}
-                                    startIcon={<FilterListIcon />}
-                                    className={styles.filterButton}
-                                >
-                                    Lọc theo khoa
-                                </Button>
-                                <Menu
-                                    anchorEl={anchorEl}
-                                    open={Boolean(anchorEl)}
-                                    onClose={handleDepartmentFilterClose}
-                                >
-                                    <MenuItem onClick={() => handleDepartmentSelect('')}>Tất cả</MenuItem>
-                                    {departments
-                                        .filter(dept => dept.name !== "Tổ Giáo vụ")
-                                        .map((dept) => (
-                                            <MenuItem key={dept._id} onClick={() => handleDepartmentSelect(dept._id)}>
-                                                {dept.name}
-                                            </MenuItem>
-                                        ))
-                                    }
-                                </Menu>
-                            </Box>
-                            <Box display="flex" gap="16px">
-                                <Button 
-                                    variant="contained" 
-                                    onClick={handleAddSingleTeacher}
-                                    className={styles.createButton}
-                                >
-                                    Thêm 1 giáo viên
-                                </Button>
-                                <Button 
-                                    variant="contained" 
-                                    onClick={handleAddMultiTeacher}
-                                    className={styles.createButton}
-                                >
-                                    Thêm nhiều giáo viên
-                                </Button>
-                            </Box>
-                        </Box>
-                        <Box height="70vh" className={styles.dataGridContainer}>
-                            <DataGrid
-                                rows={rows}
-                                columns={columns}
-                                pageSize={10}
-                                rowsPerPageOptions={[10]}
-                                className={styles.dataGrid}
-                                disableSelectionOnClick
-                                getRowId={(row) => row.id}
-                                getRowClassName={(params) =>
-                                    params.indexRelativeToCurrentPage % 2 === 0 ? styles.rowEven : styles.rowOdd
-                                }
-                                scrollbarSize={20}
-                            />
-                        </Box>
+            <div className={styles.teacherDashboard}>
+                <Box m="20px">
+                    <Link to="/ministry-declare" style={{ display: 'block', textDecoration: 'none', marginBottom: '5px', fontSize: '20px' }}>
+                        <ArrowBackIcon />
+                    </Link>
+                    <Typography variant="h4" mb={2} className={styles.sectionTitle}>
+                        Danh sách giáo viên
+                    </Typography>
+                    <Box mb={2}>
+                        <Typography>Tổng số giáo viên: {teachers.length}</Typography>
                     </Box>
-                </section>
+                    <Box display="flex" justifyContent="space-between" mb={3}>
+                        <TextField
+                            value={searchQuery}
+                            onChange={handleSearchChange}
+                            placeholder="Tìm kiếm theo tên hoặc email"
+                            style={{ width: '30%' }}
+                            InputProps={{
+                                startAdornment: (
+                                    <InputAdornment position="start">
+                                        <SearchIcon />
+                                    </InputAdornment>
+                                ),
+                            }}
+                        />
+                        <div style={{display: 'flex', gap: '20px'}}>
+                            <Button 
+                                variant="outlined" 
+                                onClick={handleDepartmentFilterClick}
+                                startIcon={<FilterListIcon />}
+                            >
+                                Lọc theo tổ chuyên môn
+                            </Button>
+                            <Menu
+                                anchorEl={anchorEl}
+                                open={Boolean(anchorEl)}
+                                onClose={handleDepartmentFilterClose}
+                            >
+                                <MenuItem onClick={() => handleDepartmentSelect('')}>Tất cả</MenuItem>
+                                {departments.map((dept) => (
+                                    <MenuItem key={dept._id} onClick={() => handleDepartmentSelect(dept._id)}>
+                                        {dept.name}
+                                    </MenuItem>
+                                ))}
+                            </Menu>
+                            <Button 
+                                variant="contained" 
+                                onClick={() => setShowSingleTeacherModal(true)}
+                                style={{ marginRight: '10px', backgroundColor: '#53a8b6', fontWeight: '600' }}
+                            >
+                                Thêm 1 giáo viên
+                            </Button>
+                            <Button 
+                                variant="contained" 
+                                onClick={() => setShowMultiTeacherModal(true)}
+                                style={{ backgroundColor: '#24527a', fontWeight: '600' }}
+                            >
+                                Thêm nhiều giáo viên
+                                </Button>
+                            <Button 
+                                onClick={() => setShowHomeroomAssignmentModal(true)}
+                                variant="contained"
+                                style={{ marginRight: '10px', backgroundColor: '#4caf50', fontWeight: '600' }}
+                                >
+                                Phân công chủ nhiệm
+                            </Button>
+                        </div>
+                    </Box>
+                    <div className={styles.tableWrapper}>
+                        <TableContainer component={Paper} className={styles.tableContainer}>
+                            <div className={styles.horizontalScroll}>
+                                <Table stickyHeader className={styles.table}>
+                                    <TableHead>
+                                        <TableRow>
+                                            {columns.map((column) => (
+                                                <TableCell 
+                                                    key={column.field} 
+                                                    style={{ width: column.width, minWidth: column.width }}
+                                                    className={column.sticky ? styles.stickyColumn : ''}
+                                                >
+                                                    {column.label}
+                                                </TableCell>
+                                            ))}
+                                        </TableRow>
+                                    </TableHead>
+                                    <TableBody>
+                                        {rows.map((row) => (
+                                            <TableRow key={row.id}>
+                                                {columns.map((column) => {
+                                                    if (row.isFirstRow || !['index', 'name', 'email', 'phone', 'department', 'teachingSubjects', 'type', 'lessonsPerWeek', 'teachingWeeks', 'actions'].includes(column.field)) {
+                                                        return (
+                                                            <TableCell 
+                                                                key={`${row.id}-${column.field}`}
+                                                                rowSpan={column.field === 'reducedLessonsPerWeek' || column.field === 'reducedWeeks' || column.field === 'totalReducedLessons' || column.field === 'reductionReason' ? 1 : row.rowSpan}
+                                                                className={column.sticky ? styles.stickyColumn : ''}
+                                                            >
+                                                                {row[column.field]}
+                                                            </TableCell>
+                                                        );
+                                                    }
+                                                    return null;
+                                                })}
+                                            </TableRow>
+                                        ))}
+                                    </TableBody>
+                                </Table>
+                            </div>
+                        </TableContainer>
+                        <TableFooter className={styles.tableFooter}>
+                            <TableRow>
+                                <TablePagination
+                                    rowsPerPageOptions={[25, 50, 100, { label: 'All', value: -1 }]}
+                                    colSpan={columns.length}
+                                    count={filteredTeachers.length}
+                                    rowsPerPage={rowsPerPage}
+                                    page={page}
+                                    SelectProps={{
+                                        inputProps: { 'aria-label': 'rows per page' },
+                                        native: true,
+                                    }}
+                                    onPageChange={handleChangePage}
+                                    onRowsPerPageChange={handleChangeRowsPerPage}
+                                />
+                            </TableRow>
+                        </TableFooter>
+                    </div>
+                </Box>
             </div>
             <Footer/>
 
             <SingleTeacherModal
                 isOpen={showSingleTeacherModal}
                 onClose={() => setShowSingleTeacherModal(false)}
-                newTeacher={newTeacher}
-                handleInputChange={handleInputChange}
-                handleSubmit={handleSubmit}
                 departments={departments}
                 nonSpecializedSubjects={nonSpecializedSubjects}
             />
@@ -511,22 +432,22 @@ const TeacherScreen = () => {
             <MultiTeacherModal
                 isOpen={showMultiTeacherModal}
                 onClose={() => setShowMultiTeacherModal(false)}
-                excelData={excelData}
-                setExcelData={setExcelData}
-                setExcelFile={setExcelFile}
-                handleFileChange={handleFileChange}
-                handleUpload={handleUpload}
-                handleDownloadTemplate={handleDownloadTemplate}
+                onTeachersAdded={updateTeacherList}
             />
 
             <EditTeacherModal
                 isOpen={showEditTeacherModal}
                 onClose={() => setShowEditTeacherModal(false)}
                 editingTeacher={editingTeacher}
-                handleEditInputChange={handleEditInputChange}
-                handleEditSubmit={handleEditSubmit}
                 departments={departments}
                 nonSpecializedSubjects={nonSpecializedSubjects}
+                onTeacherUpdated={updateTeacherList}
+            />
+
+            <HomeroomAssignmentModal
+                isOpen={showHomeroomAssignmentModal}
+                onClose={() => setShowHomeroomAssignmentModal(false)}
+                onAssignmentComplete={handleHomeroomAssignmentComplete}
             />
 
             <Modal

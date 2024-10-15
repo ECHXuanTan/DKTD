@@ -15,7 +15,7 @@
     background-color: white;
     padding: 30px;
     border-radius: 8px;
-    width: 400px;
+    width: 600px;
     max-height: 80vh;
     overflow-y: auto;
     box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
@@ -33,8 +33,14 @@
     flex-direction: column;
 }
 
-.formGroup {
+.formRow {
+    display: flex;
+    justify-content: space-between;
     margin-bottom: 20px;
+}
+
+.formGroup {
+    width: 48%;
 }
 
 .form label {
@@ -46,11 +52,18 @@
 
 .form input,
 .form select {
-    width: 70%;
     padding: 10px;
     border: 1px solid #ddd;
     border-radius: 4px;
     font-size: 14px;
+}
+
+.form input {
+    width: 250px;
+}
+
+.form select {
+    width: 270px;
 }
 
 .subjectsContainer {
@@ -81,14 +94,13 @@
 }
 
 .editButton,
-.removeButton,
-.saveButton {
+.removeButton {
     background: none;
     border: none;
     cursor: pointer;
     font-size: 16px;
     margin-left: 10px;
-    padding: 5px 10px;
+    padding: 5px;
     border-radius: 4px;
 }
 
@@ -100,82 +112,108 @@
     color: #f44336;
 }
 
-.saveButton {
+.saveButton,
+.cancelButton {
     background-color: #2196F3;
     color: white;
-}
-
-.addButton {
-    background-color: #4CAF50;
-    color: white;
     border: none;
-    padding: 10px;
+    padding: 5px 10px;
     border-radius: 4px;
     cursor: pointer;
-    margin-top: 10px;
     font-size: 14px;
-    width: 100%;
-    margin: 0 auto;
+    margin-right: 10px;
 }
 
-.formActions {
+.cancelButton {
+    flex: 1;
+    background-color: #f44336;
+}
+
+.buttonGroup {
     display: flex;
     justify-content: space-between;
     margin-top: 20px;
 }
 
-.submitButton,
-.cancelButton {
+.addButton,
+.submitButton {
     padding: 10px 20px;
     border: none;
     border-radius: 4px;
     cursor: pointer;
-    font-size: 14px;
-    transition: background-color 0.3s;
-    width: 48%;
-    margin: 0;
+    font-size: 16px;
+    transition: background-color 0.3s, transform 0.1s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.addButton {
+    background-color: #4CAF50;
+    color: white;
+    flex: 1;
+    margin-right: 10px;
+}
+
+.addButton:hover {
+    background-color: #45a049;
 }
 
 .submitButton {
     background-color: #1976d2;
     color: white;
-    display: flex;
-    justify-content: center;
-    align-items: center;
+    flex: 1;
+    margin-right: 10px;
 }
 
-.submitButton:hover {
+.submitButton:hover:not(:disabled) {
     background-color: #1565c0;
 }
 
-.cancelButton {
-    background-color: #f44336;
-    color: white;
+.submitButton:disabled {
+    background-color: #cccccc;
+    color: #666666;
+    cursor: not-allowed;
 }
 
-.cancelButton:hover {
-    background-color: #d32f2f;
+.addButton:active,
+.submitButton:active:not(:disabled) {
+    transform: translateY(2px);
 }
 
-/* ... (các styles khác giữ nguyên) */
-
-.specialClassCheckbox {
-    margin-bottom: 15px;
-}
-
-.specialClassCheckbox label {
+.filterPanel {
     display: flex;
-    align-items: center;
+    background-color: #f0f0f0;
+    border-radius: 30px;
+    overflow: hidden;
+    margin-bottom: 15px;
+    gap: 5px; /* Creates space between buttons */
+}
+
+.filterButton {
+    flex: 1; /* Ensures buttons take equal space */
+    padding: 10px 20px;
+    border: 1px solid transparent; /* Prevent overlap by starting with a transparent border */
+    background-color: transparent;
     cursor: pointer;
+    transition: background-color 0.3s;
+    border-radius: 30px;
+    font-size: 14px;
+    font-weight: bold;
+    box-sizing: border-box; /* Ensures padding and border don't extend beyond button's box */
 }
 
-.specialClassCheckbox input[type="checkbox"] {
-    margin-right: 10px;
-    width: auto;
+.filterButton.active {
+    background-color: #4CAF50;
+    color: white;
+    border-radius: 30px; /* Adjust radius to fit smoothly within panel */
+    border: 1px solid #4CAF50; /* Add border color to active state */
 }
 
-.specialClassCheckbox span {
-    font-weight: normal;
+.filterButton:not(.active):hover {
+    background-color: #e0e0e0;
+    border: 1px solid #ddd; /* Set hover border for inactive buttons */
+    border-radius: 30px; 
 }
 
 @media (max-width: 768px) {
@@ -184,13 +222,24 @@
         padding: 20px;
     }
 
-    .formActions {
+    .formRow {
         flex-direction: column;
     }
 
+    .formGroup {
+        width: 100%;
+        margin-bottom: 15px;
+    }
+
+    .buttonGroup {
+        flex-direction: column;
+    }
+
+    .addButton,
     .submitButton,
     .cancelButton {
         width: 100%;
+        margin-right: 0;
         margin-bottom: 10px;
     }
 }
