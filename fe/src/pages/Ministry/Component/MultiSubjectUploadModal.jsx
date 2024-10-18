@@ -153,7 +153,9 @@ const MultiSubjectUploadModal = ({ isOpen, onClose, onSubjectsAdded }) => {
         if (type === 'text') {
             return value && value.trim() !== '';
         } else if (type === 'number') {
-            return !isNaN(value) && parseInt(value) >= 0;
+            if (value === '' || value === null || value === undefined) return true;
+            const numValue = parseInt(value);
+            return !isNaN(numValue) && numValue > 0;
         }
         return true;
     };
@@ -161,6 +163,24 @@ const MultiSubjectUploadModal = ({ isOpen, onClose, onSubjectsAdded }) => {
     const handleEdit = (index, field, value) => {
         const newData = [...editingData];
         newData[index][field] = value;
+        setEditingData(newData);
+    };
+
+    const handleHeaderEdit = (index, newValue) => {
+        if (index === 0) return; // Prevent editing "Tên lớp" header
+        const newHeaders = [...headers];
+        const oldHeader = newHeaders[index];
+        newHeaders[index] = newValue;
+        setHeaders(newHeaders);
+
+        const newData = editingData.map(row => {
+            const newRow = {...row};
+            if (oldHeader in newRow) {
+                newRow[newValue] = newRow[oldHeader];
+                delete newRow[oldHeader];
+            }
+            return newRow;
+        });
         setEditingData(newData);
     };
 
@@ -184,10 +204,23 @@ const MultiSubjectUploadModal = ({ isOpen, onClose, onSubjectsAdded }) => {
         toast.info('Các thay đổi đã được hủy');
     };
 
+    const clearData = () => {
+        setExcelFile(null);
+        setExcelData(null);
+        setEditingData(null);
+        setHeaders([]);
+        setIsEditing(false);
+    };
+
+    const handleClose = () => {
+        clearData();
+        onClose();
+    };
+
     return (
         <Modal
             isOpen={isOpen}
-            onRequestClose={onClose}
+            onRequestClose={handleClose}
             contentLabel="Tải lên file Excel môn học"
             className={styles.modal}
             overlayClassName={styles.overlay}
@@ -195,7 +228,12 @@ const MultiSubjectUploadModal = ({ isOpen, onClose, onSubjectsAdded }) => {
             <h2 className={styles.modalTitle}>Tải lên file Excel môn học</h2>
             <form onSubmit={(e) => { e.preventDefault(); }} className={styles.form}>
                 <div className={styles.formGroup}>
-                    <label htmlFor="excel-upload">Chọn file Excel:</label>
+                    <label htmlFor="excel-upload">
+                        Chọn file Excel: 
+                        <span style={{color: "red", marginLeft: "3px"}}>
+                             (File tải lên phải có cột Tên lớp và các cột tên môn học chính xác giống như file mẫu)
+                        </span>
+                    </label>
                     <input
                         type="file"
                         id="excel-upload"
@@ -228,7 +266,15 @@ const MultiSubjectUploadModal = ({ isOpen, onClose, onSubjectsAdded }) => {
                             <thead>
                                 <tr>
                                     {headers.map((header, index) => (
-                                        <th key={index}>{header}</th>
+                                        <th key={index}>
+                                            {isEditing && index !== 0 ? (
+                                                <input 
+                                                    type="text" 
+                                                    value={header} 
+                                                    onChange={(e) => handleHeaderEdit(index, e.target.value)}
+                                                />
+                                            ) : header}
+                                        </th>
                                     ))}
                                 </tr>
                             </thead>
@@ -246,6 +292,7 @@ const MultiSubjectUploadModal = ({ isOpen, onClose, onSubjectsAdded }) => {
                                                             type={type}
                                                             value={row[key] || ''}
                                                             onChange={(e) => handleEdit(rowIndex, key, e.target.value)}
+                                                            min={type === 'number' ? "1" : undefined}
                                                         />
                                                     ) : row[key] || '-'}
                                                 </td>
@@ -275,8 +322,8 @@ const MultiSubjectUploadModal = ({ isOpen, onClose, onSubjectsAdded }) => {
                             </>
                         )}
                     </button>
-                    <button type="button" onClick={onClose} className={styles.closeButton}>
-                        Đóng
+                    <button type="button" onClick={handleClose} className={styles.closeButton}>
+                        Hủy
                     </button>
                 </div>
             </form>

@@ -30,7 +30,7 @@ const Login = () => {
                         navigate('/ministry-declare');
                         break;
                     case 0:
-                        navigate('/user-dashboard');
+                        navigate('/leader-declare');
                         break;
                     default:
                         setErrorMessage('Invalid user role');
@@ -64,7 +64,7 @@ const Login = () => {
                 navigate('/ministry-declare');
                 break;
             case 0:
-                navigate('/user-dashboard');
+                navigate('/leader-declare');
                 break;
             default:
                 setErrorMessage('Invalid user role');

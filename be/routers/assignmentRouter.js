@@ -322,9 +322,10 @@ assignmentRouter.delete('/delete', isAuth, isToTruong, async (req, res) => {
   }
 });
 
-assignmentRouter.get('/teacher/:teacherId', isAuth, isToTruong, async (req, res) => {
+assignmentRouter.get('/teacher/:teacherId', isAuth, async (req, res) => {
   try {
     const { teacherId } = req.params;
+    console.log(req.user);
 
     const teacher = await Teacher.findById(teacherId);
     if (!teacher) {

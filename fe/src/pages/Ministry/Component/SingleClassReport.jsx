@@ -63,6 +63,7 @@ const SingleClassReport = ({ user, classId }) => {
             setLoading(true);
             try {
                 const data = await getClassData(classId);
+                // console.log(data);
                 setClassData(data);
             } catch (error) {
                 console.error('Error fetching class data:', error);
@@ -75,18 +76,24 @@ const SingleClassReport = ({ user, classId }) => {
         fetchClassData();
     }, [classId]);
 
-    const formatSubjectsDetails = (subjects) => {
-        return subjects.map(subject => {
-            const assignmentsDetails = subject.assignments.map(assignment => 
+    const formatSubjectsDetails = (subject) => {
+        if (subject.subject.name === 'CCSHL') {
+            return '';
+        }
+        const assignmentsDetails = subject.assignments && subject.assignments.length > 0
+            ? subject.assignments.map(assignment => 
                 `${assignment.teacherName}: ${assignment.completedLessons} tiết`
-            ).join('\n');
-            return assignmentsDetails || 'Chưa có khai báo';
-        }).join('\n\n');
+            ).join('\n')
+            : 'Chưa có khai báo';
+        return `${subject.subject.name}: ${assignmentsDetails}`;
     };
 
     const calculateCompletionRate = (subject) => {
-        const totalCompleted = subject.assignments.reduce((sum, assignment) => sum + assignment.completedLessons, 0);
-        return subject.lessonCount > 0 ? ((totalCompleted / subject.lessonCount) * 100).toFixed(2) : '0.00';
+        if (subject.subject.name === 'CCSHL') return '';
+        const totalCompleted = subject.assignments
+            ? subject.assignments.reduce((sum, assignment) => sum + assignment.completedLessons, 0)
+            : 0;
+        return subject.lessonCount > 0 ? ((totalCompleted / subject.lessonCount) * 100).toFixed(2) + '%' : '0.00%';
     };
 
     const exportToPDF = async () => {
@@ -101,11 +108,15 @@ const SingleClassReport = ({ user, classId }) => {
             
             const tableBody = classData.subjects.map((subject, index) => [
                 (index + 1).toString(),
-                subject.name,
+                subject.subject.name,
                 subject.lessonCount,
-                subject.assignments.reduce((sum, assignment) => sum + assignment.completedLessons, 0),
-                `${calculateCompletionRate(subject)}%`,
-                { text: formatSubjectsDetails([subject]), style: 'small' }
+                subject.subject.name === 'CCSHL' ? '' : (
+                    subject.assignments
+                        ? subject.assignments.reduce((sum, assignment) => sum + assignment.completedLessons, 0)
+                        : 0
+                ),
+                calculateCompletionRate(subject),
+                { text: formatSubjectsDetails(subject), style: 'small' }
             ]);
 
             const docDefinition = {
@@ -126,15 +137,16 @@ const SingleClassReport = ({ user, classId }) => {
                     },
                     { text: '\n' },
                     { text: 'BẢNG THỐNG KÊ KHAI BÁO SỐ TIẾT GIẢNG DẠY', style: 'title' },
-                    { text: `TẤT CẢ CÁC MÔN THEO LỚP ${classData.className}`, style: 'title' },
+                    { text: `TẤT CẢ CÁC MÔN THEO LỚP ${classData.name}`, style: 'title' },
                     { text: '(Chức năng dành cho Tổ Giáo vụ - Đào tạo)', style: 'subtitle' },
                     { text: '---------------------------', style: 'subtitle' },
                     { text: '\n' },
                     { text: `Họ và tên người xuất báo cáo: ${user?.name || ''}`, style: 'normal' },
                     { text: `Học kì khai báo: Học kì 1 - Năm học: ${currentDate.getFullYear()} - ${currentDate.getFullYear() + 1}`, style: 'normal' },
                     { text: `Tháng: ${currentDate.getMonth() + 1}/${currentDate.getFullYear()}`, style: 'normal' },
+                    { text: `Giáo viên chủ nhiệm: ${classData.homeroomTeacher || 'Chưa phân công'}`, style: 'normal' },
                     { text: '\n' },
-                    { text: `Bảng thống kê số tiết giảng dạy của lớp ${classData.className}:`, style: 'normal' },
+                    { text: `Bảng thống kê số tiết giảng dạy của lớp ${classData.name}:`, style: 'normal' },
                     {
                         table: {
                             headerRows: 1,
@@ -175,6 +187,7 @@ const SingleClassReport = ({ user, classId }) => {
                 ],
                 defaultStyle: {
                     font: 'TimesNewRoman',
+                    fontSize: 11,
                     lineHeight: 1.25
                 },
                 styles: {
@@ -183,16 +196,16 @@ const SingleClassReport = ({ user, classId }) => {
                     title: { fontSize: 12, alignment: 'center', bold: true },
                     subtitle: { fontSize: 12, alignment: 'center', italics: true , bold: true },
                     normal: { fontSize: 12, alignment: 'left' },
-                    normalItalic: { fontSize: 12, alignment: 'left', italics: true },
+                    normalItalic: { fontSize: 11.5, alignment: 'left', italics: true },
                     normalItalic2: { fontSize: 12, alignment: 'center', italics: true },
                     signature: { fontSize: 12, alignment: 'center' },
                     signatureBold: { fontSize: 12, alignment: 'center', bold: true },
-                    tableHeader: { fontSize: 12, bold: true },
-                    small: { fontSize: 12 }
+                    tableHeader: { fontSize: 11, bold: true },
+                    small: { fontSize: 11 }
                 }
             };
 
-            pdfMake.createPdf(docDefinition).download(`BaoCaoThongKe_${classData.className}.pdf`);
+            pdfMake.createPdf(docDefinition).download(`BaoCaoThongKe_${classData.name}.pdf`);
         } catch (error) {
             console.error('Error exporting to PDF:', error);
             toast.error('Có lỗi xảy ra khi xuất báo cáo');

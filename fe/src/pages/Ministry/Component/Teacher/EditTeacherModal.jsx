@@ -39,6 +39,18 @@ const EditTeacherModal = ({
         return phoneRegex.test(phone);
     };
 
+    const validateReducedLessons = () => {
+        const { reducedLessonsPerWeek, reducedWeeks, reductionReason } = teacher;
+        const isAnyFilled = reducedLessonsPerWeek || reducedWeeks || reductionReason;
+        const isAllFilled = reducedLessonsPerWeek && reducedWeeks && reductionReason;
+        
+        if (isAnyFilled && !isAllFilled) {
+            toast.error('Vui lòng điền đầy đủ thông tin giảm tiết (Số tiết giảm một tuần, Số tuần giảm, và Nội dung giảm tiết)');
+            return false;
+        }
+        return true;
+    };
+
     const handleInputChange = (e) => {
         const { name, value } = e.target;
         setTeacher(prev => ({ ...prev, [name]: value }));
@@ -67,6 +79,9 @@ const EditTeacherModal = ({
         e.preventDefault();
         if (teacher.phone && !validatePhoneNumber(teacher.phone)) {
             setPhoneError('Số điện thoại không hợp lệ');
+            return;
+        }
+        if (!validateReducedLessons()) {
             return;
         }
         try {
@@ -174,7 +189,7 @@ const EditTeacherModal = ({
                         </select>
                     </div>
                     <div className={styles.formGroup}>
-                        <label htmlFor="type">Loại giáo viên:</label>
+                        <label htmlFor="type">Hình thức giáo viên:</label>
                         <select
                             id="type"
                             name="type"
@@ -269,23 +284,25 @@ const EditTeacherModal = ({
                         </div>
                     </>
                 )}
-                <div className={styles.formRow}>
-                    <div className={styles.formGroup}>
-                        <label>
-                            <input
-                                type="checkbox"
-                                checked={isHomeroom}
-                                onChange={(e) => setIsHomeroom(e.target.checked)}
-                            />
-                            Giáo viên chủ nhiệm
-                        </label>
-                    </div>
-                    {isHomeroom && teacher.homeroom && (
+                {teacher.homeroom && (
+                    <div className={styles.formRow}>
                         <div className={styles.formGroup}>
-                            <label>Lớp chủ nhiệm: {teacher.homeroom.class}</label>
+                            <label>
+                                <input
+                                    type="checkbox"
+                                    checked={isHomeroom}
+                                    onChange={(e) => setIsHomeroom(e.target.checked)}
+                                />
+                                Giáo viên chủ nhiệm
+                            </label>
                         </div>
-                    )}
-                </div>
+                        {isHomeroom && (
+                            <div className={styles.formGroup}>
+                                <label>Lớp chủ nhiệm: {teacher.homeroom.class}</label>
+                            </div>
+                        )}
+                    </div>
+                )}
                 <div className={styles.formActions}>
                     <button type="submit" className={styles.submitButton}>Cập Nhật Giáo Viên</button>
                     <button type="button" onClick={onClose} className={styles.cancelButton}>Hủy</button>

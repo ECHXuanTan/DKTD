@@ -120,28 +120,33 @@ const ExportAllTeachersButton = ({ user }) => {
                     {
                         table: {
                             headerRows: 1,
-                            widths: ['auto', '*', 'auto', 'auto', 'auto', 'auto', 'auto', '*'],
+                            widths: ['auto', '*', 'auto', 'auto', 'auto', 'auto', 'auto', 'auto', '*'],
                             body: [
                                 [
                                     { text: 'STT', style: 'tableHeader' },
                                     { text: 'Tên giáo viên', style: 'tableHeader' },
                                     { text: 'Tổ bộ môn', style: 'tableHeader' },
                                     { text: 'Số tiết cơ bản', style: 'tableHeader' },
+                                    { text: 'Số tiết giảm trừ', style: 'tableHeader' },
                                     { text: 'Tổng số tiết', style: 'tableHeader' },
                                     { text: 'Số tiết dư', style: 'tableHeader' },
                                     { text: 'Tỉ lệ hoàn thành', style: 'tableHeader' },
                                     { text: 'Chi tiết khai báo', style: 'tableHeader' }
                                 ],
-                                ...teachersData.map((teacher, index) => [
-                                    index + 1,
-                                    teacher.name,
-                                    teacher.departmentName,
-                                    teacher.basicTeachingLessons || 'Chưa khai báo',
-                                    teacher.totalAssignment || 'Chưa khai báo',
-                                    calculateExcessLessons(teacher.totalAssignment, teacher.basicTeachingLessons),
-                                    `${calculateCompletionPercentage(teacher.totalAssignment, teacher.basicTeachingLessons)}%`,
-                                    { text: formatTeachingDetails(teacher.teachingDetails || []), style: 'small' }
-                                ])
+                                ...teachersData.map((teacher, index) => {
+                                    const totalReductionLessons = teacher.teacherReduction.totalReducedLessons + (teacher.homeroomReduction ? teacher.homeroomReduction.totalReducedLessons : 0);
+                                    return [
+                                        { text: index + 1, style: 'tableCell' },
+                                        { text: teacher.name, style: 'tableCell' },
+                                        { text: teacher.departmentName, style: 'tableCell' },
+                                        { text: teacher.basicTeachingLessons || 'Chưa khai báo', style: 'tableCell' },
+                                        { text: totalReductionLessons, style: 'tableCell' },
+                                        { text: teacher.totalAssignment || 'Chưa khai báo', style: 'tableCell' },
+                                        { text: calculateExcessLessons(teacher.totalAssignment, teacher.finalBasicTeachingLessons), style: 'tableCell' },
+                                        { text: `${calculateCompletionPercentage(teacher.totalAssignment, teacher.finalBasicTeachingLessons)}%`, style: 'tableCell' },
+                                        { text: formatTeachingDetails(teacher.teachingDetails || []), style: 'tableCell' }
+                                    ];
+                                })
                             ]
                         }
                     },
@@ -180,8 +185,9 @@ const ExportAllTeachersButton = ({ user }) => {
                     normalItalic2: { fontSize: 12, alignment: 'center', italics: true },
                     signature: { fontSize: 12, alignment: 'center' },
                     signatureBold: { fontSize: 12, alignment: 'center', bold: true },
-                    tableHeader: { fontSize: 12, bold: true },
-                    small: { fontSize: 12 }
+                    tableHeader: { fontSize: 11, bold: true },
+                    tableCell: { fontSize: 11 },
+                    small: { fontSize: 11 }
                 }
             };
 

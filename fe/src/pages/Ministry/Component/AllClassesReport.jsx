@@ -57,16 +57,24 @@ const loadTimesNewRomanFonts = async () => {
 const ExportAllClassesButton = ({ user }) => {
     const formatSubjectsDetails = (subjects) => {
         return subjects.map(subject => {
-            const assignmentsDetails = subject.assignments.map(assignment => 
-                `${assignment.teacherName}: ${assignment.completedLessons} tiết`
-            ).join('\n');
-            return assignmentsDetails || 'Chưa có khai báo';
+            if (subject.subject.name === 'CCSHL') {
+                return '';
+            }
+            const assignmentsDetails = subject.assignments && subject.assignments.length > 0
+                ? subject.assignments.map(assignment => 
+                    `${assignment.teacherName}: ${assignment.completedLessons} tiết`
+                ).join('\n')
+                : 'Chưa có khai báo';
+            return `${subject.subject.name}: ${assignmentsDetails}`;
         }).join('\n\n');
     };
 
     const calculateCompletionRate = (subject) => {
-        const totalCompleted = subject.assignments.reduce((sum, assignment) => sum + assignment.completedLessons, 0);
-        return subject.lessonCount > 0 ? ((totalCompleted / subject.lessonCount) * 100).toFixed(2) : '0.00';
+        if (subject.subject.name === 'CCSHL') return '';
+        const totalCompleted = subject.assignments
+            ? subject.assignments.reduce((sum, assignment) => sum + assignment.completedLessons, 0)
+            : 0;
+        return subject.lessonCount > 0 ? ((totalCompleted / subject.lessonCount) * 100).toFixed(2) + '%' : '0.00%';
     };
 
     const exportToPDF = async () => {
@@ -75,7 +83,6 @@ const ExportAllClassesButton = ({ user }) => {
             const classesData = await getAllClasses();
             const currentDate = new Date();
             
-            // Prepare the table data with merged rows
             const tableBody = [];
             let currentSTT = 1;
 
@@ -84,10 +91,11 @@ const ExportAllClassesButton = ({ user }) => {
                 classItem.subjects.forEach((subject, subjectIndex) => {
                     const row = [
                         subjectIndex === 0 ? { text: currentSTT.toString(), rowSpan: rowSpan } : {},
-                        subjectIndex === 0 ? { text: classItem.className, rowSpan: rowSpan } : {},
-                        subject.name,
+                        subjectIndex === 0 ? { text: classItem.name, rowSpan: rowSpan } : {},
+                        subjectIndex === 0 ? { text: classItem.homeroomTeacher || 'Chưa phân công', rowSpan: rowSpan } : {},
+                        subject.subject.name,
                         subject.lessonCount,
-                        `${calculateCompletionRate(subject)}%`,
+                        calculateCompletionRate(subject),
                         { text: formatSubjectsDetails([subject]), style: 'small' }
                     ];
                     tableBody.push(row);
@@ -124,11 +132,12 @@ const ExportAllClassesButton = ({ user }) => {
                     {
                         table: {
                             headerRows: 1,
-                            widths: ['auto', 'auto', '*', 'auto', 'auto', '*'],
+                            widths: ['auto', 'auto', 'auto', '*', 'auto', 'auto', '*'],
                             body: [
                                 [
                                     { text: 'STT', style: 'tableHeader' },
                                     { text: 'Lớp', style: 'tableHeader' },
+                                    { text: 'GVCN', style: 'tableHeader' },
                                     { text: 'Môn học', style: 'tableHeader' },
                                     { text: 'Số tiết được phân công', style: 'tableHeader' },
                                     { text: 'Tỉ lệ hoàn thành', style: 'tableHeader' },
@@ -161,6 +170,7 @@ const ExportAllClassesButton = ({ user }) => {
                 ],
                 defaultStyle: {
                     font: 'TimesNewRoman',
+                    fontSize: 11,
                     lineHeight: 1.25
                 },
                 styles: {
@@ -169,12 +179,12 @@ const ExportAllClassesButton = ({ user }) => {
                     title: { fontSize: 12, alignment: 'center', bold: true },
                     subtitle: { fontSize: 12, alignment: 'center', italics: true , bold: true },
                     normal: { fontSize: 12, alignment: 'left' },
-                    normalItalic: { fontSize: 12, alignment: 'left', italics: true },
+                    normalItalic: { fontSize: 11.5, alignment: 'left', italics: true },
                     normalItalic2: { fontSize: 12, alignment: 'center', italics: true },
                     signature: { fontSize: 12, alignment: 'center' },
                     signatureBold: { fontSize: 12, alignment: 'center', bold: true },
-                    tableHeader: { fontSize: 12, bold: true },
-                    small: { fontSize: 12 }
+                    tableHeader: { fontSize: 11, bold: true },
+                    small: { fontSize: 11 }
                 }
             };
 

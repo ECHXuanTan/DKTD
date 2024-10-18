@@ -86,6 +86,7 @@
   font-size: 14px;
   transition: background-color 0.3s;
   padding: 8px 16px;
+  border-radius: 26px !important;
 }
 
 .editButton {
@@ -109,10 +110,12 @@
 .cancelButton {
   background-color: #f44336;
   color: white;
+  border-radius: 26px !important;
 }
 
 .cancelButton:hover {
   background-color: #d32f2f;
+  border-radius: 26px !important;
 }
 
 .tableWrapper {
@@ -157,8 +160,8 @@
   font-size: 14px;
 }
 
-.invalidInput {
-  background-color: #ffebee;
+.invalidInput, .invalidSelect {
+  background-color: #ffcccc;
 }
 
 .formActions {
@@ -176,15 +179,21 @@
   cursor: pointer;
   font-size: 14px;
   transition: background-color 0.3s;
+  border-radius: 26px !important;
+
 }
 
 .downloadButton {
   background-color: #4CAF50;
   color: white;
+  border-radius: 26px !important;
+
 }
 
 .downloadButton:hover {
   background-color: #45a049;
+  border-radius: 26px !important;
+
 }
 
 .submitButton {
@@ -193,15 +202,21 @@
   display: flex;
   align-items: center;
   gap: 5px;
+  border-radius: 26px !important;
+
 }
 
 .submitButton:hover {
   background-color: #1565c0;
+  border-radius: 26px !important;
+
 }
 
 .submitButton:disabled {
   background-color: #cccccc;
   cursor: not-allowed;
+  border-radius: 26px !important;
+
 }
 
 @media (max-width: 768px) {

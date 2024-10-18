@@ -32,7 +32,6 @@ const MinistryTeacherStatic = () => {
             
             if (userData) {
                 if (!userData || userData.user.role !== 1) {
-                    // Redirect based on user role
                     switch(userData.user.role) {
                       case 2:
                         navigate('/admin-dashboard');
@@ -47,8 +46,7 @@ const MinistryTeacherStatic = () => {
                 const teachersData = await getAllTeachers();
                 if (Array.isArray(teachersData) && teachersData.length > 0) {
                     const filteredTeachers = teachersData.filter(teacher => teacher.departmentName !== "Tổ Giáo vụ – Đào tạo");
-                    const sortedTeachers = filteredTeachers.sort((a, b) => a.name.localeCompare(b.name));
-                    setTeachers(sortedTeachers);
+                    setTeachers(filteredTeachers);
                 } else {
                     console.error('Invalid teachers data:', teachersData);
                     toast.error('Định dạng dữ liệu giáo viên không hợp lệ. Vui lòng thử lại sau.');
@@ -89,7 +87,7 @@ const MinistryTeacherStatic = () => {
             if (!acc[detail.grade]) {
                 acc[detail.grade] = [];
             }
-            acc[detail.grade].push(`${detail.className}: ${detail.subjectName} - ${detail.completedLessons} tiết`);
+            acc[detail.grade].push(`${detail.className}: ${detail.subject} - ${detail.completedLessons} tiết`);
             return acc;
         }, {});
 
@@ -98,14 +96,14 @@ const MinistryTeacherStatic = () => {
         )).join('\n\n');
     };
 
-    const calculateCompletionPercentage = (totalAssignment, basicTeachingLessons) => {
-        if (basicTeachingLessons === 0) return 0;
-        const percentage = (totalAssignment / basicTeachingLessons) * 100;
+    const calculateCompletionPercentage = (totalAssignment, finalBasicTeachingLessons) => {
+        if (finalBasicTeachingLessons === 0) return 0;
+        const percentage = (totalAssignment / finalBasicTeachingLessons) * 100;
         return Math.min(percentage, 100).toFixed(2);
     };
 
-    const calculateExcessLessons = (totalAssignment, basicTeachingLessons) => {
-        return Math.max(0, totalAssignment - basicTeachingLessons);
+    const calculateExcessLessons = (totalAssignment, finalBasicTeachingLessons) => {
+        return Math.max(0, totalAssignment - finalBasicTeachingLessons);
     };
 
     const filteredTeachers = teachers.filter((teacher) =>
@@ -125,6 +123,80 @@ const MinistryTeacherStatic = () => {
             </div>
         );
     }
+
+    const columns = [
+        { field: 'index', label: 'STT', width: '3%', sticky: true },
+        { field: 'name', label: 'Tên giáo viên', width: '10%', sticky: true },
+        { field: 'departmentName', label: 'Tổ bộ môn', width: '10%' },
+        { field: 'teachingSubjects', label: 'Môn giảng dạy', width: '10%' },
+        { field: 'homeroomClass', label: 'Lớp chủ nhiệm', width: '8%' },
+        { field: 'type', label: 'Hình thức giáo viên', width: '8%' },
+        { field: 'lessonsPerWeek', label: 'Tiết/Tuần', width: '5%' },
+        { field: 'teachingWeeks', label: 'Số tuần dạy', width: '5%' },
+        { field: 'basicTeachingLessons', label: 'Số tiết cơ bản', width: '8%' },
+        { field: 'reducedLessonsPerWeek', label: 'Số tiết giảm/tuần', width: '8%' },
+        { field: 'reducedWeeks', label: 'Số tuần giảm', width: '6%' },
+        { field: 'totalReducedLessons', label: 'Số tiết giảm', width: '8%' },
+        { field: 'reductionReason', label: 'Nội dung giảm', width: '10%' },
+        { field: 'totalReductionLessons', label: 'Tổng số tiết giảm', width: '8%' },
+        { field: 'finalBasicTeachingLessons', label: 'Số tiết chuẩn cuối', width: '8%' },
+        { field: 'totalLessonsQ5NS', label: 'Không chuyên Cơ sở Quận 5', width: '8%' },
+        { field: 'totalLessonsQ5S', label: 'Chuyên cơ sở Quận 5', width: '8%' },
+        { field: 'totalLessonsTDNS', label: 'Không chuyên Cơ sở Thủ Đức', width: '8%' },
+        { field: 'totalLessonsTDS', label: 'Chuyên cơ sở Thủ Đức', width: '8%' },
+        { field: 'totalAssignment', label: 'Tổng số tiết', width: '8%' },
+        { field: 'completionPercentage', label: 'Tỉ lệ hoàn thành', width: '8%' },
+        { field: 'excessLessons', label: 'Số tiết dư', width: '6%' },
+        { field: 'grade', label: 'Khối', width: '5%' },
+        { field: 'className', label: 'Tên lớp', width: '8%' },
+        { field: 'subject', label: 'Môn học', width: '8%' },
+        { field: 'completedLessons', label: 'Số tiết', width: '5%' },
+    ];
+
+    const rows = paginatedTeachers.flatMap((teacher, index) => {
+        const baseIndex = page * rowsPerPage + index + 1;
+        const totalReductionLessons = teacher.teacherReduction.totalReducedLessons + (teacher.homeroom ? teacher.homeroom.totalReducedLessons : 0);
+        
+        const teachingDetailsRows = teacher.teachingDetails && teacher.teachingDetails.length > 0
+            ? teacher.teachingDetails
+            : [{ grade: '', className: '', subject: '', completedLessons: '' }];
+
+        const reductionRows = teacher.reductions && teacher.reductions.length > 0
+            ? teacher.reductions
+            : [{ reducedLessonsPerWeek: '', reducedWeeks: '', totalReducedLessons: '', reductionReason: '' }];
+
+        const maxRows = Math.max(teachingDetailsRows.length, reductionRows.length);
+
+        return Array.from({ length: maxRows }, (_, detailIndex) => ({
+            id: `${teacher.id}-${detailIndex}`,
+            index: detailIndex === 0 ? baseIndex : '',
+            name: detailIndex === 0 ? teacher.name : '',
+            departmentName: detailIndex === 0 ? teacher.departmentName : '',
+            teachingSubjects: detailIndex === 0 ? teacher.teachingSubjects : '',
+            homeroomClass: detailIndex === 0 ? (teacher.homeroom ? teacher.homeroom.className : '-') : '',
+            type: detailIndex === 0 ? teacher.type : '',
+            lessonsPerWeek: detailIndex === 0 ? teacher.lessonsPerWeek : '',
+            teachingWeeks: detailIndex === 0 ? teacher.teachingWeeks : '',
+            basicTeachingLessons: detailIndex === 0 ? teacher.basicTeachingLessons : '',
+            totalReductionLessons: detailIndex === 0 ? totalReductionLessons : '',
+            finalBasicTeachingLessons: detailIndex === 0 ? (teacher.type === "Cơ hữu" ? teacher.basicTeachingLessons - totalReductionLessons : '-') : '',
+            totalLessonsQ5NS: detailIndex === 0 ? (teacher.totalLessonsQ5NS || 0) : '',
+            totalLessonsQ5S: detailIndex === 0 ? (teacher.totalLessonsQ5S || 0) : '',
+            totalLessonsTDNS: detailIndex === 0 ? (teacher.totalLessonsTDNS || 0) : '',
+            totalLessonsTDS: detailIndex === 0 ? (teacher.totalLessonsTDS || 0) : '',
+            totalAssignment: detailIndex === 0 ? (teacher.totalAssignment > 0 ? teacher.totalAssignment : "Chưa khai báo") : '',
+            completionPercentage: detailIndex === 0 ? (teacher.type === "Cơ hữu" ? `${calculateCompletionPercentage(teacher.totalAssignment, teacher.basicTeachingLessons - totalReductionLessons)}%` : '-') : '',
+            excessLessons: detailIndex === 0 ? (teacher.type === "Cơ hữu" ? calculateExcessLessons(teacher.totalAssignment, teacher.basicTeachingLessons - totalReductionLessons) : '-') : '',
+            grade: teachingDetailsRows[detailIndex] ? teachingDetailsRows[detailIndex].grade : '',
+            className: teachingDetailsRows[detailIndex] ? teachingDetailsRows[detailIndex].className : '',
+            subject: teachingDetailsRows[detailIndex] ? teachingDetailsRows[detailIndex].subject : '',
+            completedLessons: teachingDetailsRows[detailIndex] ? teachingDetailsRows[detailIndex].completedLessons : '',
+            reducedLessonsPerWeek: reductionRows[detailIndex] ? reductionRows[detailIndex].reducedLessonsPerWeek : '',
+            reducedWeeks: reductionRows[detailIndex] ? reductionRows[detailIndex].reducedWeeks : '',
+            totalReducedLessons: reductionRows[detailIndex] ? reductionRows[detailIndex].totalReducedLessons : '',
+            reductionReason: reductionRows[detailIndex] ? reductionRows[detailIndex].reductionReason : '',
+        }));
+    });
 
     return(
         <>
@@ -175,40 +247,58 @@ const MinistryTeacherStatic = () => {
                 </Box>
                 <div className={styles.tableWrapper}>
                     <TableContainer component={Paper} className={styles.tableContainer}>
-                        <Table stickyHeader className={styles.table}>
-                            <TableHead>
-                                <TableRow>
-                                    <TableCell>STT</TableCell>
-                                    <TableCell>Tên giáo viên</TableCell>
-                                    <TableCell>Tổ bộ môn</TableCell>
-                                    <TableCell>Tiết/Tuần</TableCell>
-                                    <TableCell>Số tuần dạy</TableCell>
-                                    <TableCell>Số tiết cơ bản</TableCell>
-                                    <TableCell>Tổng số tiết</TableCell>
-                                    <TableCell>Tỉ lệ hoàn thành</TableCell>
-                                    <TableCell>Số tiết dư</TableCell>
-                                    <TableCell>Chi tiết khai báo</TableCell>
-                                </TableRow>
-                            </TableHead>
-                            <TableBody>
-                                {paginatedTeachers.map((teacher, index) => (
-                                    <TableRow key={teacher.id}>
-                                        <TableCell>{page * rowsPerPage + index + 1}</TableCell>
-                                        <TableCell>{teacher.name}</TableCell>
-                                        <TableCell>{teacher.departmentName}</TableCell>
-                                        <TableCell>{teacher.lessonsPerWeek}</TableCell>
-                                        <TableCell>{teacher.teachingWeeks}</TableCell>
-                                        <TableCell>{teacher.basicTeachingLessons}</TableCell>
-                                        <TableCell>{teacher.totalAssignment > 0 ? teacher.totalAssignment : "Chưa khai báo"}</TableCell>
-                                        <TableCell>{`${calculateCompletionPercentage(teacher.totalAssignment, teacher.basicTeachingLessons)}%`}</TableCell>
-                                        <TableCell>{calculateExcessLessons(teacher.totalAssignment, teacher.basicTeachingLessons)}</TableCell>
-                                        <TableCell style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
-                                            {formatTeachingDetails(teacher.teachingDetails || [])}
-                                        </TableCell>
+                        <div className={styles.horizontalScroll}>
+                            <Table stickyHeader className={styles.table}>
+                                <TableHead>
+                                    <TableRow>
+                                        {columns.map((column) => (
+                                            <TableCell 
+                                                key={column.field} 
+                                                style={{ 
+                                                    width: column.width, 
+                                                    minWidth: column.width,
+                                                    whiteSpace: 'normal',
+                                                    wordWrap: 'break-word'
+                                                }}
+                                                className={column.sticky ? styles.stickyColumn : ''}
+                                            >
+                                                {column.label}
+                                            </TableCell>
+                                        ))}
                                     </TableRow>
-                                ))}
-                            </TableBody>
-                        </Table>
+                                </TableHead>
+                                <TableBody>
+                                    {rows.map((row) => (
+                                        <TableRow key={row.id}>
+                                            {columns.map((column) => {
+                                                if (column.field === 'reducedLessonsPerWeek' || column.field === 'reducedWeeks' || column.field === 'totalReducedLessons' || column.field === 'reductionReason') {
+                                                    return (
+                                                        <TableCell key={`${row.id}-${column.field}`}>
+                                                            {row.reductions && row.reductions.length > 0 ? (
+                                                                row.reductions.map((reduction, index) => (
+                                                                    <div key={index}>{reduction[column.field]}</div>
+                                                                ))
+                                                            ) : (
+                                                                <div>-</div>
+                                                            )}
+                                                        </TableCell>
+                                                    );
+                                                } else {
+                                                    return (
+                                                        <TableCell 
+                                                            key={`${row.id}-${column.field}`}
+                                                            className={column.sticky ? styles.stickyColumn : ''}
+                                                        >
+                                                            {row[column.field]}
+                                                        </TableCell>
+                                                    );
+                                                }
+                                            })}
+                                        </TableRow>
+                                    ))}
+                                </TableBody>
+                            </Table>
+                        </div>
                     </TableContainer>
                     <TablePagination
                         rowsPerPageOptions={[25, 50, 100]}

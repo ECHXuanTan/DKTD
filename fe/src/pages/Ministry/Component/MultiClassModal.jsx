@@ -21,6 +21,8 @@ const MultiClassModal = ({ isOpen, onClose, onClassesAdded }) => {
     const [isUploadingExcel, setIsUploadingExcel] = useState(false);
     const [isEditing, setIsEditing] = useState(false);
 
+    const fixedHeaders = ['Tên lớp', 'Khối', 'Sĩ số', 'Cơ sở'];
+
     useEffect(() => {
         if (excelData) {
             setEditingData(JSON.parse(JSON.stringify(excelData)));
@@ -61,9 +63,9 @@ const MultiClassModal = ({ isOpen, onClose, onClassesAdded }) => {
             const processedData = jsonData.slice(1).map(row => {
                 const rowData = {};
                 headers.forEach((header, index) => {
-                    if (index < 4) { // For the first 4 columns
+                    if (index < 4) {
                         rowData[header] = row[index];
-                    } else { // For subject columns
+                    } else {
                         if (row[index]) {
                             rowData[header] = parseInt(row[index], 10);
                         }
@@ -138,6 +140,14 @@ const MultiClassModal = ({ isOpen, onClose, onClassesAdded }) => {
         } else if (type === 'number') {
             const numValue = Number(value);
             return !isNaN(numValue) && numValue > 0;
+        } else if (type === 'grade') {
+            return ['10', '11', '12'].includes(value);
+        } else if (type === 'campus') {
+            return ['Quận 5', 'Thủ Đức'].includes(value);
+        } else if (type === 'lessonCount') {
+            if (value === '' || value === null || value === undefined) return true;
+            const numValue = Number(value);
+            return !isNaN(numValue) && numValue > 0;
         }
         return true;
     };
@@ -145,7 +155,18 @@ const MultiClassModal = ({ isOpen, onClose, onClassesAdded }) => {
     const validateAllData = () => {
         for (let row of editingData) {
             for (let [header, value] of Object.entries(row)) {
-                const type = ['Tên lớp', 'Cơ sở'].includes(header) ? 'text' : 'number';
+                let type;
+                if (header === 'Tên lớp') {
+                    type = 'text';
+                } else if (header === 'Khối') {
+                    type = 'grade';
+                } else if (header === 'Sĩ số') {
+                    type = 'number';
+                } else if (header === 'Cơ sở') {
+                    type = 'campus';
+                } else {
+                    type = 'lessonCount';
+                }
                 if (!validateInput(value, type)) {
                     return false;
                 }
@@ -161,6 +182,7 @@ const MultiClassModal = ({ isOpen, onClose, onClassesAdded }) => {
     };
 
     const handleHeaderEdit = (index, newValue) => {
+        if (fixedHeaders.includes(headers[index])) return;
         const newHeaders = [...headers];
         newHeaders[index] = newValue;
         setHeaders(newHeaders);
@@ -200,7 +222,7 @@ const MultiClassModal = ({ isOpen, onClose, onClassesAdded }) => {
             <h2 className={styles.modalTitle}>Tải lên file Excel</h2>
             <form onSubmit={(e) => { e.preventDefault(); }} className={styles.form}>
                 <div className={styles.formGroup}>
-                    <label htmlFor="excel-upload">Chọn file Excel: <span style={{color: "red"}}>(File tải lên phải có các cột giống như file mẫu)</span></label>
+                    <label htmlFor="excel-upload">Chọn file Excel: <span style={{color: "red"}}>(File tải lên phải có các cột (Tên lớp, Khối, Sĩ số, Cơ sở) và các cột tên lớp chính xác giống như file mẫu)</span></label>
                     <input
                         type="file"
                         id="excel-upload"
@@ -235,7 +257,7 @@ const MultiClassModal = ({ isOpen, onClose, onClassesAdded }) => {
                                     <tr>
                                         {headers.map((header, index) => (
                                             <th key={index}>
-                                                {isEditing ? (
+                                                {isEditing && !fixedHeaders.includes(header) ? (
                                                     <input 
                                                         type="text" 
                                                         value={header} 
@@ -250,15 +272,27 @@ const MultiClassModal = ({ isOpen, onClose, onClassesAdded }) => {
                                     {editingData.map((row, rowIndex) => (
                                         <tr key={rowIndex}>
                                             {headers.map((header, cellIndex) => {
-                                                const type = ['Tên lớp', 'Cơ sở'].includes(header) ? 'text' : 'number';
+                                                let type;
+                                                if (header === 'Tên lớp') {
+                                                    type = 'text';
+                                                } else if (header === 'Khối') {
+                                                    type = 'grade';
+                                                } else if (header === 'Sĩ số') {
+                                                    type = 'number';
+                                                } else if (header === 'Cơ sở') {
+                                                    type = 'campus';
+                                                } else {
+                                                    type = 'lessonCount';
+                                                }
                                                 const isValid = validateInput(row[header], type);
                                                 return (
                                                     <td key={cellIndex} className={!isValid ? styles.invalidInput : ''}>
                                                         {isEditing ? (
                                                             <input 
-                                                                type={type}
+                                                                type={type === 'number' || type === 'lessonCount' ? 'number' : 'text'}
                                                                 value={row[header] || ''}
                                                                 onChange={(e) => handleEdit(rowIndex, header, e.target.value)}
+                                                                min={type === 'number' || type === 'lessonCount' ? "1" : undefined}
                                                             />
                                                         ) : row[header] || '-'}
                                                     </td>

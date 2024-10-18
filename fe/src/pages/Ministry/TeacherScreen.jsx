@@ -12,12 +12,10 @@ import { getUser } from '../../services/authServices.js';
 import { getAllTeachers, createTeacher, updateTeacher, deleteTeacher, createManyTeachers } from '../../services/teacherService.js';
 import { getDepartmentNames } from '../../services/departmentService.js';
 import { getNonSpecializedSubjects } from '../../services/subjectServices.js';
-import { Box, Typography, TextField, Button, InputAdornment, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Paper, Select, Menu, MenuItem, TableFooter, TablePagination } from '@mui/material';
+import { Box, Typography, TextField, Button, InputAdornment, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Paper, Select, MenuItem, TableFooter, TablePagination } from '@mui/material';
 import SearchIcon from '@mui/icons-material/Search';
 import EditIcon from '@mui/icons-material/Edit';
 import DeleteIcon from '@mui/icons-material/Delete';
-import CloudUploadIcon from '@mui/icons-material/CloudUpload';
-import FilterListIcon from '@mui/icons-material/FilterList';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 
 import SingleTeacherModal from './Component/Teacher/SingleTeacherModal.jsx';
@@ -44,7 +42,6 @@ const TeacherScreen = () => {
     const [showHomeroomAssignmentModal, setShowHomeroomAssignmentModal] = useState(false);
     const [teacherToDelete, setTeacherToDelete] = useState(null);
     const [selectedDepartment, setSelectedDepartment] = useState('');
-    const [anchorEl, setAnchorEl] = useState(null);
     const [page, setPage] = useState(0);
     const [rowsPerPage, setRowsPerPage] = useState(25);
     const navigate = useNavigate();
@@ -91,6 +88,11 @@ const TeacherScreen = () => {
         setPage(0);
     };
 
+    const handleDepartmentChange = (event) => {
+        setSelectedDepartment(event.target.value);
+        setPage(0);
+    };
+
     const handleChangePage = (event, newPage) => {
         setPage(newPage);
     };
@@ -98,19 +100,6 @@ const TeacherScreen = () => {
     const handleChangeRowsPerPage = (event) => {
         setRowsPerPage(parseInt(event.target.value, 10));
         setPage(0);
-    };
-
-    const handleDepartmentFilterClick = (event) => {
-        setAnchorEl(event.currentTarget);
-    };
-
-    const handleDepartmentFilterClose = () => {
-        setAnchorEl(null);
-    };
-
-    const handleDepartmentSelect = (departmentId) => {
-        setSelectedDepartment(departmentId);
-        handleDepartmentFilterClose();
     };
 
     const handleEditTeacher = (teacher) => {
@@ -142,7 +131,6 @@ const TeacherScreen = () => {
 
     const handleDeleteConfirm = (teacher) => {
         setTeacherToDelete(teacher);
-        console.log(teacher);
         setShowDeleteConfirmModal(true);
     };
 
@@ -158,16 +146,12 @@ const TeacherScreen = () => {
             } catch (error) {
                 console.error('Error deleting teacher:', error);
                 if (error.response && error.response.data && error.response.data.message) {
-                    // Display the specific error message from the server
                     toast.error(error.response.data.message);
-                    setShowDeleteConfirmModal(false);
-                    setTeacherToDelete(null);
                 } else {
-                    // Fallback to a generic error message
                     toast.error('Có lỗi xảy ra khi xóa giáo viên');
-                    setShowDeleteConfirmModal(false);
-                    setTeacherToDelete(null);
                 }
+                setShowDeleteConfirmModal(false);
+                setTeacherToDelete(null);
             }
         }
     };
@@ -205,8 +189,9 @@ const TeacherScreen = () => {
         { field: 'teachingWeeks', label: 'Số tuần dạy', width: '8%' },
         { field: 'reducedLessonsPerWeek', label: 'Số tiết giảm một tuần', width: '10%' },
         { field: 'reducedWeeks', label: 'Số tuần giảm', width: '8%' },
-        { field: 'totalReducedLessons', label: 'Tổng số tiết giảm', width: '10%' },
+        { field: 'totalReducedLessons', label: 'Số tiết giảm', width: '10%' },
         { field: 'reductionReason', label: 'Nội dung giảm', width: '15%' },
+        { field: 'totalReductionLessons', label: 'Tổng số tiết giảm', width: '10%' },
         { field: 'actions', label: 'Thao tác', width: '10%' },
     ];
 
@@ -237,6 +222,7 @@ const TeacherScreen = () => {
             reducedLessonsPerWeek: teacher.reducedLessonsPerWeek || '-',
             reducedWeeks: teacher.reducedWeeks || '-',
             totalReducedLessons: teacher.totalReducedLessons || '-',
+            totalReductionLessons: (teacher.totalReducedLessons || 0) + (teacher.homeroom ? teacher.homeroom.totalReducedLessons || 0 : 0),
             reductionReason: teacher.reductionReason || '-',
             actions: (
                 <div className={styles.actionButtons}>
@@ -267,6 +253,7 @@ const TeacherScreen = () => {
                 reducedLessonsPerWeek: teacher.homeroom.reducedLessonsPerWeek || '-',
                 reducedWeeks: teacher.homeroom.reducedWeeks || '-',
                 totalReducedLessons: teacher.homeroom.totalReducedLessons || '-',
+                totalReductionLessons: null,
                 reductionReason: 'GVCN',
                 actions: null,
                 isFirstRow: false,
@@ -304,61 +291,56 @@ const TeacherScreen = () => {
                         <Typography>Tổng số giáo viên: {teachers.length}</Typography>
                     </Box>
                     <Box display="flex" justifyContent="space-between" mb={3}>
-                        <TextField
-                            value={searchQuery}
-                            onChange={handleSearchChange}
-                            placeholder="Tìm kiếm theo tên hoặc email"
-                            style={{ width: '30%' }}
-                            InputProps={{
-                                startAdornment: (
-                                    <InputAdornment position="start">
-                                        <SearchIcon />
-                                    </InputAdornment>
-                                ),
-                            }}
-                        />
-                        <div style={{display: 'flex', gap: '20px'}}>
-                            <Button 
-                                variant="outlined" 
-                                onClick={handleDepartmentFilterClick}
-                                startIcon={<FilterListIcon />}
+                        <Box display="flex" gap="20px" alignItems="center">
+                            <TextField
+                                value={searchQuery}
+                                onChange={handleSearchChange}
+                                placeholder="Tìm kiếm theo tên hoặc email"
+                                InputProps={{
+                                    startAdornment: (
+                                        <InputAdornment position="start">
+                                            <SearchIcon />
+                                        </InputAdornment>
+                                    ),
+                                }}
+                            />
+                            <Select
+                                value={selectedDepartment}
+                                onChange={handleDepartmentChange}
+                                displayEmpty
+                                style={{ minWidth: 200 }}
                             >
-                                Lọc theo tổ chuyên môn
-                            </Button>
-                            <Menu
-                                anchorEl={anchorEl}
-                                open={Boolean(anchorEl)}
-                                onClose={handleDepartmentFilterClose}
-                            >
-                                <MenuItem onClick={() => handleDepartmentSelect('')}>Tất cả</MenuItem>
+                                <MenuItem value="">Tất cả tổ chuyên môn</MenuItem>
                                 {departments.map((dept) => (
-                                    <MenuItem key={dept._id} onClick={() => handleDepartmentSelect(dept._id)}>
+                                    <MenuItem key={dept._id} value={dept._id}>
                                         {dept.name}
                                     </MenuItem>
                                 ))}
-                            </Menu>
+                            </Select>
+                        </Box>
+                        <Box display="flex" gap="20px">
                             <Button 
                                 variant="contained" 
                                 onClick={() => setShowSingleTeacherModal(true)}
-                                style={{ marginRight: '10px', backgroundColor: '#53a8b6', fontWeight: '600' }}
+                                style={{ backgroundColor: '#53a8b6', fontWeight: '600', borderRadius: '26px' }}
                             >
-                                Thêm 1 giáo viên
+                                Tạo 1 giáo viên
                             </Button>
                             <Button 
                                 variant="contained" 
                                 onClick={() => setShowMultiTeacherModal(true)}
-                                style={{ backgroundColor: '#24527a', fontWeight: '600' }}
+                                style={{ backgroundColor: '#24527a', fontWeight: '600', borderRadius: '26px' }}
                             >
-                                Thêm nhiều giáo viên
-                                </Button>
+                                Tạo nhiều giáo viên
+                            </Button>
                             <Button 
                                 onClick={() => setShowHomeroomAssignmentModal(true)}
                                 variant="contained"
-                                style={{ marginRight: '10px', backgroundColor: '#4caf50', fontWeight: '600' }}
-                                >
+                                style={{ backgroundColor: '#4caf50', fontWeight: '600', borderRadius: '26px' }}
+                            >
                                 Phân công chủ nhiệm
                             </Button>
-                        </div>
+                        </Box>
                     </Box>
                     <div className={styles.tableWrapper}>
                         <TableContainer component={Paper} className={styles.tableContainer}>
@@ -458,7 +440,9 @@ const TeacherScreen = () => {
                 overlayClassName={styles.overlay}
             >
                 <h2 className={styles.modalTitle}>Xác nhận xóa giáo viên</h2>
-                <p style={{textAlign: "center"}}>Bạn có chắc chắn muốn xóa giáo viên này?</p>
+                <p style={{textAlign: "justify", maxWidth: '350px', margin: '0 auto'}}>
+                    Bạn có chắc chắn muốn xóa giáo viên <strong>{teacherToDelete ? teacherToDelete.name : ''}</strong>?
+                </p>
                 <div className={styles.formActions}>
                     <button onClick={handleDelete} className={styles.deleteButton}>Xóa</button>
                     <button onClick={() => setShowDeleteConfirmModal(false)} className={styles.cancelButton}>Hủy</button>

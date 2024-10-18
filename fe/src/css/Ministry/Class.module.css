@@ -19,6 +19,31 @@
     border-bottom: 2px solid #3498db;
 }
 
+/* Styles cho inputField và selectField */
+.inputField, .selectField, .button {
+    border-radius: 26px !important;
+}
+
+/* Chỉnh layout cho các nhóm tìm kiếm, filter và button */
+.searchFilterGroup, .buttonGroup {
+    display: grid;
+    gap: 20px;
+}
+
+/* Các button sử dụng cùng border-radius */
+.button {
+    border-radius: 26px !important;
+    font-weight: 600 !important;
+    transition: background-color 0.3s ease;
+}
+
+/* Đảm bảo button và select có layout đẹp */
+.selectField, .inputField {
+    width: 100%;
+    min-width: 150px;
+}
+
+
 .tableWrapper {
     display: flex;
     flex-direction: column;

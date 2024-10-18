@@ -37,16 +37,15 @@ const TeacherWorkloadStatistics = () => {
 
                 if (userData) {
                     if (!userData || userData.user.role !== 1) {
-                        // Redirect based on user role
-                        switch(userData.user.role) {
-                          case 2:
-                            navigate('/admin-dashboard');
-                            break;
-                          case 0:
-                            navigate('/user-dashboard');
-                            break;
-                          default:
-                            navigate('/login');
+                        switch (userData.user.role) {
+                            case 2:
+                                navigate('/admin-dashboard');
+                                break;
+                            case 0:
+                                navigate('/user-dashboard');
+                                break;
+                            default:
+                                navigate('/login');
                         }
                     }
                     const belowTeachersData = await getBelowTeachers();
@@ -128,15 +127,21 @@ const TeacherWorkloadStatistics = () => {
                         <Table stickyHeader className={styles.table}>
                             <TableHead>
                                 <TableRow>
-                                    <TableCell>STT</TableCell>
-                                    <TableCell>Tên giáo viên</TableCell>
+                                    <TableCell className={styles.stickyColumn}>STT</TableCell>
+                                    <TableCell className={styles.stickyColumn}>Tên giáo viên</TableCell>
                                     <TableCell>Tổ bộ môn</TableCell>
+                                    <TableCell>Môn học giảng dạy</TableCell>
                                     <TableCell>Tiết/Tuần</TableCell>
                                     <TableCell>Số tuần dạy</TableCell>
                                     <TableCell>Số tiết cơ bản</TableCell>
                                     <TableCell>Tổng số tiết</TableCell>
                                     <TableCell>Tỉ lệ hoàn thành</TableCell>
                                     <TableCell>Số tiết dư</TableCell>
+                                    <TableCell>Tiết giảm của giáo viên</TableCell>
+                                    <TableCell>Tiết giảm của chủ nhiệm</TableCell>
+                                    <TableCell>Tổng số tiết giảm</TableCell>
+                                    <TableCell>Nội dung giảm của giáo viên</TableCell>
+                                    <TableCell>Nội dung giảm của chủ nhiệm</TableCell>
                                     <TableCell>Lớp</TableCell>
                                     <TableCell>Môn học</TableCell>
                                     <TableCell>Số tiết khai báo</TableCell>
@@ -145,18 +150,30 @@ const TeacherWorkloadStatistics = () => {
                             <TableBody>
                                 {paginatedTeachers.map((teacher, index) => {
                                     const rowSpan = Math.max(teacher.teachingDetails?.length || 1, 1);
+                                    const teacherReduction = teacher.teacherReduction || {};
+                                    const homeroomReduction = teacher.homeroomReduction || {};
+
+                                    // Tính tổng số tiết giảm của giáo viên và chủ nhiệm
+                                    const totalReducedLessons = (teacherReduction.totalReducedLessons || 0) + (homeroomReduction.totalReducedLessons || 0);
+
                                     return (
                                         <React.Fragment key={teacher.id}>
                                             <TableRow>
-                                                <TableCell rowSpan={rowSpan}>{page * rowsPerPage + index + 1}</TableCell>
-                                                <TableCell rowSpan={rowSpan}>{teacher.name}</TableCell>
+                                                <TableCell rowSpan={rowSpan} className={styles.stickyColumn}>{page * rowsPerPage + index + 1}</TableCell>
+                                                <TableCell rowSpan={rowSpan} className={styles.stickyColumn}>{teacher.name}</TableCell>
                                                 <TableCell rowSpan={rowSpan}>{teacher.departmentName}</TableCell>
+                                                <TableCell rowSpan={rowSpan}>{teacher.teachingSubject}</TableCell>
                                                 <TableCell rowSpan={rowSpan}>{teacher.lessonsPerWeek}</TableCell>
                                                 <TableCell rowSpan={rowSpan}>{teacher.teachingWeeks}</TableCell>
                                                 <TableCell rowSpan={rowSpan}>{teacher.basicTeachingLessons}</TableCell>
                                                 <TableCell rowSpan={rowSpan}>{teacher.totalAssignment > 0 ? teacher.totalAssignment : "Chưa khai báo"}</TableCell>
                                                 <TableCell rowSpan={rowSpan}>{`${((teacher.totalAssignment / teacher.basicTeachingLessons) * 100).toFixed(2)}%`}</TableCell>
                                                 <TableCell rowSpan={rowSpan}>{Math.max(0, teacher.totalAssignment - teacher.basicTeachingLessons)}</TableCell>
+                                                <TableCell rowSpan={rowSpan}>{teacherReduction.totalReducedLessons || '-'}</TableCell>
+                                                <TableCell rowSpan={rowSpan}>{homeroomReduction.totalReducedLessons || '-'}</TableCell>
+                                                <TableCell rowSpan={rowSpan}>{totalReducedLessons}</TableCell>
+                                                <TableCell rowSpan={rowSpan}>{teacherReduction.reductionReason || '-'}</TableCell>
+                                                <TableCell rowSpan={rowSpan}>{homeroomReduction.reductionReason || '-'}</TableCell>
                                                 {teacher.teachingDetails && teacher.teachingDetails.length > 0 ? (
                                                     <>
                                                         <TableCell>{teacher.teachingDetails[0].className}</TableCell>
@@ -192,7 +209,7 @@ const TeacherWorkloadStatistics = () => {
                         page={page}
                         onPageChange={handleChangePage(setPage)}
                         onRowsPerPageChange={handleChangeRowsPerPage}
-                        style={{overflow: 'unset'}}
+                        style={{ overflow: 'unset' }}
                     />
                 </div>
             </Box>

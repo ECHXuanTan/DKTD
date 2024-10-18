@@ -103,7 +103,7 @@
 
 .formActions {
     display: flex;
-    justify-content: space-between;
+    justify-content: flex-end;
     margin-top: 20px;
 }
 
@@ -168,12 +168,12 @@
 }
 
 .closeButton {
-    background-color: #777;
+    background-color: #f44336;
     color: white;
 }
 
 .closeButton:hover {
-    background-color: #555;
+    background-color: #d1372c;
 }
 
 .invalidInput {
@@ -185,6 +185,25 @@
     padding: 5px;
     border: 1px solid #ddd;
     border-radius: 4px;
+}
+
+.editButton,
+.saveButton,
+.cancelButton,
+.downloadButton,
+.submitButton,
+.closeButton {
+    border-radius: 26px !important;
+}
+
+/* MultiSubjectUpload.module.css */
+.submitButton,
+.cancelButton,
+.downloadButton,
+.editButton,
+.saveButton,
+.closeButton {
+    border-radius: 26px !important;
 }
 
 @media (max-width: 768px) {

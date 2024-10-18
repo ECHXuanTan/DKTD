@@ -57,6 +57,8 @@
 .optionSelect {
     min-width: 150px;
     margin-left: 1rem;
+    border-radius: 26px !important;
+    overflow: hidden; 
 }
 
 .tableContainer {

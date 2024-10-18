@@ -217,6 +217,7 @@
 .cancelButton {
     background-color: #f44336;
     color: white;
+    border-radius: 26px !important;
 }
 
 .cancelButton:hover {
@@ -226,6 +227,7 @@
 .deleteButton {
     background-color: #ff9800;
     color: white;
+    border-radius: 26px !important;
 }
 
 .deleteButton:hover {

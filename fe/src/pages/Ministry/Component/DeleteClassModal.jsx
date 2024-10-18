@@ -12,8 +12,8 @@ const DeleteClassModal = ({ isOpen, onClose, onDeleteClass, classItem }) => {
             overlayClassName={styles.overlay}
         >
             <h2>Xóa lớp học</h2>
-            <p>Bạn có chắc muốn xóa lớp {classItem?.name}?</p>
-            <p>Lưu ý: Lớp học không thể được xóa nếu đã có môn học được phân công giảng dạy.</p>
+            <p>Bạn có chắc muốn xóa lớp <span style={{fontWeight: '600'}}>{classItem?.name}</span>?</p>
+            <p>Lưu ý: Lớp học không thể được xóa nếu <span style={{fontWeight: '600'}}>đã có môn học được phân công giảng dạy</span> hoặc <span style={{fontWeight: '600'}}>lớp có giáo viên chủ nhiệm.</span></p>
             <div className={styles.buttonGroup}>
                 <button onClick={onDeleteClass}>Xóa</button>
                 <button onClick={onClose}>Hủy</button>

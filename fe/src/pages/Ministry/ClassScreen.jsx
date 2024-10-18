@@ -151,7 +151,8 @@ const ClassScreen = () => {
             setShowEditSubjectModal(false);
             toast.success('Cập nhật môn học thành công');
         } catch (err) {
-            toast.error('Cập nhật môn học thất bại');
+            const errorMessage = err.response?.data?.message || 'Cập nhật môn học thất bại';
+            toast.error(errorMessage);
         }
     };
 
@@ -202,12 +203,12 @@ const ClassScreen = () => {
             );
             setClasses(updatedClasses);
             setShowAddSubjectModal(false);
-            toast.success('Thêm môn học thành công');
+            toast.success('Cập nhật môn học thành công');
         } catch (err) {
             if (err.response && err.response.status === 400) {
-                toast.error(err.response.data.message || 'Thêm môn học thất bại');
+                toast.error(err.response.data.message || 'Cập nhật môn học thất bại');
             } else {
-                toast.error('Thêm môn học thất bại. Vui lòng thử lại sau.');
+                toast.error('Cập nhật môn học thất bại. Vui lòng thử lại sau.');
             }
         }
     };
@@ -222,8 +223,8 @@ const ClassScreen = () => {
         } catch (err) {
             if (err.response && err.response.data && err.response.data.message === 'Không thể xóa lớp học đã có môn được phân công giảng dạy') {
                 toast.error('Không thể xóa lớp học đã có môn được phân công giảng dạy');
-            } else if (err.response && err.response.data && err.response.data.message === 'Không thể xóa lớp học đang được gán làm homeroom cho giáo viên') {
-                toast.error('Không thể xóa lớp học đang được gán làm homeroom cho giáo viên');
+            } else if (err.response && err.response.data && err.response.data.message === 'Không thể xóa lớp học đang có giáo viên chủ nhiệm') {
+                toast.error('Không thể xóa lớp học đang có giáo viên chủ nhiệm');
             } else {
                 toast.error('Xóa lớp học thất bại');
             }
@@ -332,54 +333,64 @@ const ClassScreen = () => {
                         <Typography>Tổng số lớp: {classes.length}</Typography>
                     </Box>
                     <Box display="flex" justifyContent="space-between" mb={3}>
-                        <TextField
-                            value={searchQuery}
-                            onChange={handleSearchChange}
-                            placeholder="Tìm kiếm theo tên lớp"
-                            style={{ width: '30%' }}
-                            InputProps={{
-                                startAdornment: (
-                                    <InputAdornment position="start">
-                                        <SearchIcon />
-                                    </InputAdornment>
-                                ),
-                            }}
-                        />
-                        <div style={{display: 'flex', gap: '20px'}}>
+                        {/* Search and filter group */}
+                        <Box display="grid" gridTemplateColumns="1fr 1fr" gap="20px" style={{ width: '50%' }}>
+                            <TextField
+                                value={searchQuery}
+                                onChange={handleSearchChange}
+                                placeholder="Tìm kiếm theo tên lớp"
+                                InputProps={{
+                                    startAdornment: (
+                                        <InputAdornment position="start">
+                                            <SearchIcon />
+                                        </InputAdornment>
+                                    ),
+                                }}
+                                className={styles.inputField}
+                            />
                             <Select
                                 value={gradeFilter}
                                 onChange={handleGradeFilterChange}
                                 displayEmpty
-                                style={{ width: '200px' }}
+                                className={styles.selectField}
+                                style={{maxWidth: '40px'}}
                             >
                                 <MenuItem value="">Tất cả khối</MenuItem>
                                 {uniqueGrades.map((grade) => (
                                     <MenuItem key={grade} value={grade}>Khối {grade}</MenuItem>
                                 ))}
                             </Select>
+                        </Box>
+                        
+                        {/* Buttons group */}
+                        <Box display="grid" gridTemplateColumns="repeat(3, auto)" gap="20px">
                             <Button 
                                 variant="contained" 
                                 onClick={() => setShowSingleClassModal(true)}
-                                style={{ marginRight: '10px', backgroundColor: '#53a8b6', fontWeight: '600' }}
+                                className={styles.button}
+                                style={{background: 'rgb(83 168 183)'}}
                             >
                                 Tạo 1 lớp
                             </Button>
                             <Button 
                                 variant="contained" 
                                 onClick={() => setShowMultiClassModal(true)}
-                                style={{ backgroundColor: '#24527a', fontWeight: '600' }}
+                                className={styles.button}
+                                style={{background: 'rgb(36, 82, 122)'}}
                             >
                                 Tạo nhiều lớp
                             </Button>
                             <Button 
                                 variant="contained" 
                                 onClick={() => setShowMultiSubjectUploadModal(true)}
-                                style={{ backgroundColor: '#4CAF50', fontWeight: '600' }}
+                                className={styles.button}
+                                style={{background: 'rgb(76, 175, 80)'}}
                             >
-                                Thêm nhiều môn học
+                                Cập nhật môn học
                             </Button>
-                        </div>
+                        </Box>
                     </Box>
+
                     <div className={styles.tableWrapper}>
                         <TableContainer component={Paper} className={styles.tableContainer}>
                             <div className={styles.horizontalScroll}>
@@ -434,6 +445,8 @@ const ClassScreen = () => {
                                     }}
                                     onPageChange={handleChangePage}
                                     onRowsPerPageChange={handleChangeRowsPerPage}
+                                    sx={{ marginLeft: 'auto' }}  
+                                    
                                 />
                             </TableRow>
                         </TableFooter>

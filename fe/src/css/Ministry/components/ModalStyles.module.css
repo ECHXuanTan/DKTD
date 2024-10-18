@@ -6,9 +6,8 @@
     background: white;
     padding: 20px;
     border-radius: 8px;
-    max-width: 500px;
+    max-width: 450px;
     width: 100%;
-
 }
 
 .overlay {
@@ -26,6 +25,7 @@
 
 .modal h2 {
     margin-bottom: 20px;
+    text-align: center;
 }
 
 .modal form {
@@ -39,9 +39,11 @@
 
 .modal input,
 .modal select {
-    padding: 5px;
+    width: 90%;
+    padding: 8px;
     margin-top: 5px;
-    margin-left: 5px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
 }
 
 .buttonGroup {
@@ -55,14 +57,71 @@
     border: none;
     border-radius: 4px;
     cursor: pointer;
+    transition: background-color 0.3s;
+    border-radius: 26px !important;
+
 }
 
 .buttonGroup button:first-child {
     background-color: #4CAF50;
     color: white;
+    border-radius: 26px !important;
+
+}
+
+.buttonGroup button:first-child:hover {
+    background-color: #45a049;
+    border-radius: 26px !important;
+
 }
 
 .buttonGroup button:last-child {
     background-color: #f44336;
     color: white;
+    border-radius: 26px !important;
+
+}
+
+.buttonGroup button:last-child:hover {
+    background-color: #d32f2f;
+    border-radius: 26px !important;
+
+}
+
+.errorMessage {
+    color: #f44336;
+    margin-top: 10px;
+}
+
+.filterPanel {
+    display: flex;
+    background-color: #f0f0f0;
+    border-radius: 4px;
+    overflow: hidden;
+    margin-bottom: 15px;
+    border-radius: 26px !important;
+
+}
+
+.filterButton {
+    flex: 1;
+    padding: 10px;
+    border: none;
+    background-color: transparent;
+    cursor: pointer;
+    transition: background-color 0.3s;
+    font-size: 14px;
+    font-weight: bold;
+    border-radius: 26px !important;
+}
+
+.filterButton.active {
+    background-color: #4CAF50;
+    color: white;
+    border-radius: 26px !important;
+}
+
+.filterButton:not(.active):hover {
+    background-color: #e0e0e0;
+    border-radius: 26px !important;
 }

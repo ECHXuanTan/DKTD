@@ -1,11 +1,35 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Modal from 'react-modal';
 import styles from '../../../css/Ministry/components/ModalStyles.module.css';
+
+const FilterPanel = ({ isSpecialized, onChange }) => {
+    return (
+        <div className={styles.filterPanel}>
+            <button
+                className={`${styles.filterButton} ${isSpecialized ? styles.active : ''}`}
+                onClick={() => onChange(true)}
+            >
+                Môn chuyên
+            </button>
+            <button
+                className={`${styles.filterButton} ${!isSpecialized ? styles.active : ''}`}
+                onClick={() => onChange(false)}
+            >
+                Môn không chuyên
+            </button>
+        </div>
+    );
+};
 
 const AddSubjectModal = ({ isOpen, onClose, onAddSubject, subjects, currentClass }) => {
     const [selectedSubject, setSelectedSubject] = useState('');
     const [lessonCount, setLessonCount] = useState('');
     const [error, setError] = useState('');
+    const [isSpecialized, setIsSpecialized] = useState(true);
+
+    useEffect(() => {
+        setSelectedSubject('');
+    }, [isSpecialized]);
 
     const handleLessonCountChange = (e) => {
         const value = e.target.value;
@@ -20,11 +44,22 @@ const AddSubjectModal = ({ isOpen, onClose, onAddSubject, subjects, currentClass
     const handleSubmit = (e) => {
         e.preventDefault();
         if (selectedSubject && lessonCount && parseInt(lessonCount) > 0) {
-            onAddSubject(selectedSubject, lessonCount);
+            onAddSubject(selectedSubject, lessonCount, isSpecialized);
         } else {
-            setError('Vui lòng chọn môn học và nhập số tiết lơn hơn 0');
+            setError('Vui lòng chọn môn học và nhập số tiết lớn hơn 0');
         }
     };
+
+    const filteredSubjects = subjects.filter(subject => 
+        subject.isSpecialized === isSpecialized && 
+        (currentClass?.subjects 
+            ? !currentClass.subjects.some(classSubject => classSubject.subject._id === subject._id)
+            : true)
+    );
+
+    if (!currentClass) {
+        return null; // or return a loading state, or an error message
+    }
 
     return (
         <Modal
@@ -34,8 +69,12 @@ const AddSubjectModal = ({ isOpen, onClose, onAddSubject, subjects, currentClass
             className={styles.modal}
             overlayClassName={styles.overlay}
         >
-            <h2>Thêm môn học mới cho lớp {currentClass?.name}</h2>
+            <h2>Thêm môn học mới cho lớp {currentClass.name}</h2>
             <form onSubmit={handleSubmit}>
+                <FilterPanel
+                    isSpecialized={isSpecialized}
+                    onChange={setIsSpecialized}
+                />
                 <label>
                     Chọn môn học:
                     <select 
@@ -44,7 +83,7 @@ const AddSubjectModal = ({ isOpen, onClose, onAddSubject, subjects, currentClass
                         required
                     >
                         <option value="">Chọn môn học</option>
-                        {subjects.map((subject) => (
+                        {filteredSubjects.map((subject) => (
                             <option key={subject._id} value={subject._id}>
                                 {subject.name}
                             </option>

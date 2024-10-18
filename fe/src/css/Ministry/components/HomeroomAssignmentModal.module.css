@@ -71,6 +71,7 @@
     border-radius: 4px;
     cursor: pointer;
     transition: background-color 0.3s ease;
+    border-radius: 26px !important;
 }
 
 .assignButton:hover {
@@ -91,6 +92,7 @@
     border-radius: 4px;
     cursor: pointer;
     transition: background-color 0.3s ease;
+    border-radius: 26px !important;
 }
 
 .cancelButton:hover {
@@ -136,7 +138,7 @@
 
 .formGroup select,
 .formGroup input[type="number"] {
-    width: 100%;
+    width: 80%;
     padding: 0.5rem;
     border: 1px solid #ccc;
     border-radius: 4px;
@@ -157,6 +159,7 @@
     border-radius: 4px;
     cursor: pointer;
     transition: background-color 0.3s ease;
+    border-radius: 26px !important;
 }
 
 .submitButton:hover {

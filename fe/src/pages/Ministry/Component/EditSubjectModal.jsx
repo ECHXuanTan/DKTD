@@ -41,7 +41,7 @@ const EditSubjectModal = ({ isOpen, onClose, onUpdateSubject, subject }) => {
             overlayClassName={styles.overlay}
         >
             <h2>Điều chỉnh khai báo môn học</h2>
-            <p>Môn học: {subject?.subject.name}</p>
+            <p>Môn học: <span style={{fontWeight: '600'}}>{subject?.subject.name}</span></p>
             <form onSubmit={handleSubmit}>
                 <label>
                     Khai báo tiết học:

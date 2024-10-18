@@ -22,6 +22,7 @@ const SingleTeacherModal = ({ isOpen, onClose, departments, nonSpecializedSubjec
     const [basicTeachingLessons, setBasicTeachingLessons] = useState(0);
     const [totalReducedLessons, setTotalReducedLessons] = useState(0);
     const [phoneError, setPhoneError] = useState('');
+    const [reductionReasonError, setReductionReasonError] = useState('');
 
     useEffect(() => {
         if (newTeacher.type === 'Cơ hữu') {
@@ -52,6 +53,10 @@ const SingleTeacherModal = ({ isOpen, onClose, departments, nonSpecializedSubjec
                 setPhoneError('');
             }
         }
+
+        if (name === 'reductionReason') {
+            setReductionReasonError('');
+        }
     };
 
     const handleSubmit = async (e) => {
@@ -60,6 +65,14 @@ const SingleTeacherModal = ({ isOpen, onClose, departments, nonSpecializedSubjec
             setPhoneError('Số điện thoại không hợp lệ');
             return;
         }
+
+        if (newTeacher.type === 'Cơ hữu' && 
+            (newTeacher.reducedLessonsPerWeek || newTeacher.reducedWeeks) && 
+            !newTeacher.reductionReason.trim()) {
+            setReductionReasonError('Vui lòng nhập nội dung giảm khi có số tiết giảm hoặc số tuần giảm');
+            return;
+        }
+
         try {
             const teacherData = {
                 ...newTeacher,
@@ -270,6 +283,7 @@ const SingleTeacherModal = ({ isOpen, onClose, departments, nonSpecializedSubjec
                                     value={newTeacher.reductionReason}
                                     onChange={handleInputChange}
                                 />
+                                {reductionReasonError && <span className={styles.error}>{reductionReasonError}</span>}
                             </div>
                         </div>
                     </>

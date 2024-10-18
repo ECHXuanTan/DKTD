@@ -17,6 +17,7 @@ const HomeroomAssignmentModal = ({ isOpen, onClose, onAssignmentComplete }) => {
     const [showAssignPopup, setShowAssignPopup] = useState(false);
     const [searchQuery, setSearchQuery] = useState('');
     const [selectedDepartment, setSelectedDepartment] = useState('');
+    const [selectedGrade, setSelectedGrade] = useState('');
 
     useEffect(() => {
         if (isOpen) {
@@ -49,6 +50,8 @@ const HomeroomAssignmentModal = ({ isOpen, onClose, onAssignmentComplete }) => {
 
     const handleAssign = (teacher) => {
         setSelectedTeacher(teacher);
+        setSelectedGrade('');
+        setSelectedClass('');
         setShowAssignPopup(true);
     };
 
@@ -81,9 +84,20 @@ const HomeroomAssignmentModal = ({ isOpen, onClose, onAssignmentComplete }) => {
         setSelectedDepartment(event.target.value);
     };
 
+    const handleGradeChange = (event) => {
+        setSelectedGrade(event.target.value);
+        setSelectedClass('');
+    };
+
     const filteredTeachers = teachers.filter(teacher => 
         teacher.name.toLowerCase().includes(searchQuery.toLowerCase()) &&
         (selectedDepartment ? teacher.department._id === selectedDepartment : true)
+    );
+
+    const grades = [...new Set(classes.map(cls => cls.grade))].sort((a, b) => a - b);
+
+    const filteredClasses = classes.filter(cls => 
+        selectedGrade ? cls.grade === parseInt(selectedGrade) : true
     );
 
     return (
@@ -152,21 +166,36 @@ const HomeroomAssignmentModal = ({ isOpen, onClose, onAssignmentComplete }) => {
                         <h3>Phân Công Chủ Nhiệm cho {selectedTeacher?.name}</h3>
                         <form onSubmit={handleAssignSubmit}>
                             <div className={styles.formGroup}>
+                                <label htmlFor="grade">Khối:</label>
+                                <select
+                                    id="grade"
+                                    value={selectedGrade}
+                                    onChange={handleGradeChange}
+                                    required
+                                >
+                                    <option value="">Chọn khối</option>
+                                    {grades.map((grade) => (
+                                        <option key={grade} value={grade}>{grade}</option>
+                                    ))}
+                                </select>
+                            </div>
+                            <div className={styles.formGroup}>
                                 <label htmlFor="class">Lớp học:</label>
                                 <select
                                     id="class"
                                     value={selectedClass}
                                     onChange={(e) => setSelectedClass(e.target.value)}
                                     required
+                                    disabled={!selectedGrade}
                                 >
                                     <option value="">Chọn lớp học</option>
-                                    {classes.map((cls) => (
+                                    {filteredClasses.map((cls) => (
                                         <option key={cls._id} value={cls._id}>{cls.name}</option>
                                     ))}
                                 </select>
                             </div>
                             <div className={styles.formGroup}>
-                                <label htmlFor="reducedLessonsPerWeek">Số tiết giảm một tuần:</label>
+                                <label htmlFor="reducedLessonsPerWeek">Số tiết chủ nhiệm một tuần:</label>
                                 <input
                                     type="number"
                                     id="reducedLessonsPerWeek"
@@ -177,7 +206,7 @@ const HomeroomAssignmentModal = ({ isOpen, onClose, onAssignmentComplete }) => {
                                 />
                             </div>
                             <div className={styles.formGroup}>
-                                <label htmlFor="reducedWeeks">Số tuần giảm:</label>
+                                <label htmlFor="reducedWeeks">Số tuần chủ nhiệm:</label>
                                 <input
                                     type="number"
                                     id="reducedWeeks"
@@ -188,7 +217,7 @@ const HomeroomAssignmentModal = ({ isOpen, onClose, onAssignmentComplete }) => {
                                 />
                             </div>
                             <div className={styles.formGroup}>
-                                <label>Tổng số tiết giảm:</label>
+                                <label>Tổng số tiết chủ nhiệm:</label>
                                 <span>{reducedLessonsPerWeek * reducedWeeks}</span>
                             </div>
                             <div className={styles.popupActions}>

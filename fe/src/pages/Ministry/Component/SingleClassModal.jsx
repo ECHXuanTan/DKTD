@@ -67,6 +67,13 @@ const SingleClassModal = ({ isOpen, onClose, onClassAdded, subjects }) => {
                 ...prevState,
                 subjects: updatedSubjects
             }));
+        } else if (name === 'size' || name === 'lessonCount') {
+            const numValue = parseInt(value);
+            if (numValue < 1) return;
+            setNewClass(prevState => ({
+                ...prevState,
+                [name]: numValue.toString()
+            }));
         } else {
             setNewClass(prevState => ({
                 ...prevState,
@@ -135,6 +142,10 @@ const SingleClassModal = ({ isOpen, onClose, onClassAdded, subjects }) => {
             toast.error('Vui lòng điền đầy đủ thông tin môn học trước khi lưu.');
             return;
         }
+        if (parseInt(subject.lessonCount) < 1) {
+            toast.error('Số tiết phải lớn hơn hoặc bằng 1.');
+            return;
+        }
         setNewClass(prevState => {
             const updatedSubjects = [...prevState.subjects];
             updatedSubjects[index] = { ...updatedSubjects[index], isEditing: false };
@@ -158,10 +169,14 @@ const SingleClassModal = ({ isOpen, onClose, onClassAdded, subjects }) => {
     const handleSubmit = async (event) => {
         event.preventDefault();
         const isAllSubjectsValid = newClass.subjects.every(subject => 
-            subject.subjectId && subject.lessonCount
+            subject.subjectId && subject.lessonCount && parseInt(subject.lessonCount) >= 1
         );
         if (!isAllSubjectsValid) {
-            toast.error('Vui lòng điền đầy đủ thông tin cho tất cả các môn học.');
+            toast.error('Vui lòng điền đầy đủ thông tin cho tất cả các môn học và đảm bảo số tiết lớn hơn hoặc bằng 1.');
+            return;
+        }
+        if (parseInt(newClass.size) < 1) {
+            toast.error('Sĩ số phải lớn hơn hoặc bằng 1.');
             return;
         }
         setIsCreatingClass(true);
@@ -317,6 +332,7 @@ const SingleClassModal = ({ isOpen, onClose, onClassAdded, subjects }) => {
                                             value={subject.lessonCount}
                                             onChange={(e) => handleInputChange(e, index)}
                                             required
+                                            min="1"
                                         />
                                     </div>
                                     <button type="button" onClick={() => handleSaveSubject(index)} className={styles.saveButton}>

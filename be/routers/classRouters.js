@@ -253,7 +253,10 @@ classRouter.get('/by-subject/:subjectId', isAuth, async (req, res) => {
         }
       },
       {
-        $unwind: '$subject'
+        $unwind: {
+          path: '$subject',
+          preserveNullAndEmptyArrays: true
+        }
       },
       {
         $project: {
@@ -269,18 +272,20 @@ classRouter.get('/by-subject/:subjectId', isAuth, async (req, res) => {
 
     const homeroomAssignments = await Homeroom.find().populate('teacher', 'name').lean();
     const homeroomMap = homeroomAssignments.reduce((acc, homeroom) => {
-      acc[homeroom.class.toString()] = {
-        teacherName: homeroom.teacher.name,
-        totalReducedLessons: homeroom.totalReducedLessons || 72
-      };
+      if (homeroom.teacher && homeroom.class) {
+        acc[homeroom.class.toString()] = {
+          teacherName: homeroom.teacher.name,
+          totalReducedLessons: homeroom.totalReducedLessons || 72
+        };
+      }
       return acc;
     }, {});
 
     const classesWithHomeroom = classes.map(classItem => {
-      const homeroomInfo = homeroomMap[classItem._id.toString()];
+      const homeroomInfo = homeroomMap[classItem._id?.toString()];
       if (homeroomInfo) {
         classItem.homeroomTeacher = homeroomInfo.teacherName;
-        if (subject.name === "CCSHL") {
+        if (subject && subject.name === "CCSHL") {
           classItem.lessonCount = homeroomInfo.totalReducedLessons;
         }
       }
@@ -466,86 +471,110 @@ classRouter.post('/add-subjects-to-classes', isAuth, async (req, res) => {
       throw new Error('Dữ liệu không hợp lệ');
     }
 
-    const overallResults = [];
-    let hasErrors = false;
-    let notFoundError = false;
+    // Find all classes and subjects referenced in the request
+    const classNames = classesData.map(c => c.name);
+    const allClasses = await Class.find({ name: { $in: classNames } }).session(session);
+    if (allClasses.length !== classesData.length) {
+      const notFoundClasses = classNames.filter(name => !allClasses.some(c => c.name === name));
+      throw new Error(`Không tìm thấy các lớp học sau: ${notFoundClasses.join(', ')}`);
+    }
 
+    const allSubjectNames = Array.from(new Set(classesData.flatMap(c => Object.keys(c).filter(k => k !== 'name'))));
+    const allSubjects = await Subject.find({ name: { $in: allSubjectNames } }).populate('department').session(session);
+    if (allSubjects.length !== allSubjectNames.length) {
+      const notFoundSubjects = allSubjectNames.filter(name => !allSubjects.some(subject => subject.name === name));
+      throw new Error(`Không tìm thấy các môn học sau: ${notFoundSubjects.join(', ')}`);
+    }
+
+    // Map subjects for easy access
+    const subjectMap = allSubjects.reduce((acc, subject) => {
+      acc[subject.name] = subject;
+      return acc;
+    }, {});
+
+    const errors = [];
+
+    // Validate all data before making any changes
     for (const classData of classesData) {
       const { name, ...subjects } = classData;
-      
-      if (!name) {
-        overallResults.push({ className: name, status: 'Lỗi', message: 'Thiếu tên lớp' });
-        hasErrors = true;
-        continue;
-      }
 
-      const classToUpdate = await Class.findOne({ name }).populate('subjects.subject').session(session);
+      const classToUpdate = allClasses.find(c => c.name === name);
       if (!classToUpdate) {
-        overallResults.push({ className: name, status: 'Lỗi', message: 'Không tìm thấy lớp học' });
-        hasErrors = true;
-        notFoundError = true;
+        errors.push(`Lớp ${name}: Không tìm thấy lớp học`);
         continue;
       }
-
-      const classBefore = {
-        ...classToUpdate.toObject(),
-        subjects: classToUpdate.subjects.map(s => ({
-          subject: s.subject._id,
-          subjectName: s.subject.name,
-          lessonCount: s.lessonCount
-        }))
-      };
-
-      const classResults = [];
-      const addedSubjects = [];
 
       for (const [subjectName, lessonCount] of Object.entries(subjects)) {
-        if (!lessonCount || parseInt(lessonCount, 10) <= 0) continue;
-
-        const subject = await Subject.findOne({ name: subjectName }).populate('department').session(session);
-        if (!subject) {
-          classResults.push({ subjectName, status: 'Lỗi', message: 'Không tìm thấy môn học' });
-          hasErrors = true;
+        if (!lessonCount || parseInt(lessonCount, 10) <= 0) {
+          errors.push(`Lớp ${name}, Môn ${subjectName}: Số tiết không hợp lệ`);
           continue;
         }
 
-        const existingSubject = classToUpdate.subjects.find(s => s.subject._id.toString() === subject._id.toString());
-        if (existingSubject) {
-          existingSubject.lessonCount = parseInt(lessonCount, 10);
+        const subject = subjectMap[subjectName];
+        if (!subject) {
+          errors.push(`Lớp ${name}, Môn ${subjectName}: Không tìm thấy môn học`);
+          continue;
+        }
+
+        const existingSubject = classToUpdate.subjects.find(s => s.subject.toString() === subject._id.toString());
+        if (existingSubject && parseInt(lessonCount, 10) < existingSubject.lessonCount) {
+          const existingAssignment = await TeacherAssignment.findOne({
+            class: classToUpdate._id,
+            subject: subject._id
+          }).session(session);
+
+          if (existingAssignment) {
+            errors.push(`Lớp ${name}, Môn ${subjectName}: Không thể giảm số tiết cho môn học đã được phân công giảng dạy`);
+          }
+        }
+      }
+    }
+
+    // If there are any errors, abort the transaction and return the errors
+    if (errors.length > 0) {
+      throw new Error(errors.join('; '));
+    }
+
+    // If no errors, proceed with updates
+    const updatedClasses = [];
+    for (const classData of classesData) {
+      const { name, ...subjects } = classData;
+      const classToUpdate = allClasses.find(c => c.name === name);
+      
+      const classBefore = classToUpdate.toObject();
+
+      for (const [subjectName, lessonCount] of Object.entries(subjects)) {
+        const subject = subjectMap[subjectName];
+        const existingSubjectIndex = classToUpdate.subjects.findIndex(s => s.subject.toString() === subject._id.toString());
+        
+        if (existingSubjectIndex !== -1) {
+          const oldLessonCount = classToUpdate.subjects[existingSubjectIndex].lessonCount;
+          classToUpdate.subjects[existingSubjectIndex].lessonCount = parseInt(lessonCount, 10);
+          
+          if (subject.department) {
+            await Department.findByIdAndUpdate(
+              subject.department._id,
+              { $inc: { totalAssignmentTime: parseInt(lessonCount, 10) - oldLessonCount } },
+              { session }
+            );
+          }
         } else {
           classToUpdate.subjects.push({
             subject: subject._id,
             lessonCount: parseInt(lessonCount, 10)
           });
+          
+          if (subject.department) {
+            await Department.findByIdAndUpdate(
+              subject.department._id,
+              { $inc: { totalAssignmentTime: parseInt(lessonCount, 10) } },
+              { session }
+            );
+          }
         }
-
-        if (subject.department) {
-          await Department.findByIdAndUpdate(
-            subject.department._id,
-            { $inc: { totalAssignmentTime: parseInt(lessonCount, 10) } },
-            { session }
-          );
-        }
-
-        addedSubjects.push({
-          subject: subject._id,
-          subjectName: subject.name,
-          lessonCount: parseInt(lessonCount, 10)
-        });
-
-        classResults.push({ subjectName, status: 'Thành công', message: 'Thêm/cập nhật môn học thành công' });
       }
 
       await classToUpdate.save({ session });
-
-      const dataAfter = {
-        ...classToUpdate.toObject(),
-        subjects: classToUpdate.subjects.map(s => ({
-          subject: s.subject._id,
-          subjectName: s.subject.name,
-          lessonCount: s.lessonCount
-        }))
-      };
 
       const result = new Result({
         action: 'UPDATE',
@@ -553,25 +582,16 @@ classRouter.post('/add-subjects-to-classes', isAuth, async (req, res) => {
         entityType: 'Class',
         entityId: classToUpdate._id,
         dataBefore: classBefore,
-        dataAfter: dataAfter
+        dataAfter: classToUpdate.toObject()
       });
 
       await result.save({ session });
 
-      overallResults.push({ className: name, status: hasErrors ? 'Lỗi một phần' : 'Thành công', results: classResults });
+      updatedClasses.push(classToUpdate.name);
     }
 
     await session.commitTransaction();
-
-    if (hasErrors) {
-      if (notFoundError) {
-        res.status(404).json({ message: "Có lỗi khi thêm môn học vào các lớp", results: overallResults });
-      } else {
-        res.status(400).json({ message: "Có lỗi khi thêm môn học vào các lớp", results: overallResults });
-      }
-    } else {
-      res.status(200).json({ message: "Hoàn tất thêm/cập nhật môn học cho các lớp", results: overallResults });
-    }
+    res.status(200).json({ message: "Hoàn tất thêm/cập nhật môn học cho các lớp", updatedClasses });
   } catch (error) {
     await session.abortTransaction();
     res.status(400).json({ message: error.message });
@@ -752,7 +772,7 @@ classRouter.delete('/:id', isAuth, async (req, res) => {
 
     const homeroomAssignment = await Homeroom.findOne({ class: id }).session(session);
     if (homeroomAssignment) {
-      throw new Error('Không thể xóa lớp học đang được gán làm homeroom cho giáo viên');
+      throw new Error('Không thể xóa lớp học đang có giáo viên chủ nhiệm');
     }
 
     const existingAssignments = await TeacherAssignment.findOne({ class: id }).session(session);
@@ -824,6 +844,21 @@ classRouter.put('/:id/update-subject/:subjectId', isAuth, async (req, res) => {
       throw new Error('Không tìm thấy môn học trong lớp này');
     }
 
+    const oldLessonCount = classToUpdate.subjects[subjectIndex].lessonCount;
+
+    // Check if the new lesson count is less than the old one
+    if (lessonCount < oldLessonCount) {
+      // Check if the subject has been assigned to a teacher
+      const existingAssignment = await TeacherAssignment.findOne({
+        class: id,
+        subject: subjectId
+      }).session(session);
+
+      if (existingAssignment) {
+        throw new Error('Không thể giảm số tiết cho môn học đã được phân công giảng dạy');
+      }
+    }
+
     const classBefore = {
       ...classToUpdate.toObject(),
       subjects: classToUpdate.subjects.map(s => ({
@@ -833,7 +868,6 @@ classRouter.put('/:id/update-subject/:subjectId', isAuth, async (req, res) => {
       }))
     };
 
-    const oldLessonCount = classToUpdate.subjects[subjectIndex].lessonCount;
     const lessonCountDifference = lessonCount - oldLessonCount;
 
     classToUpdate.subjects[subjectIndex].lessonCount = lessonCount;

@@ -48,13 +48,23 @@ const MultiTeacherModal = ({ isOpen, onClose, onTeachersAdded }) => {
     const handleDownloadTemplate = () => {
         const data = [
             ['Họ và tên', 'Email', 'Số điện thoại', 'Tổ chuyên môn', 'Môn học giảng dạy', 'Hình thức giáo viên', 'Số tiết dạy một tuần', 'Số tuần dạy', 'Số tiết giảm 1 tuần', 'Số tuần giảm', 'Nội dung giảm'],
-            ['Nguyễn Văn A', 'nguyenvana@example.com', '0923456789', 'Tổ Tiếng Anh', 'Tiếng Anh', 'Cơ hữu', '20', '15', '2', '18', 'GVCN'],
-            ['Trần Thị B', 'tranthib@example.com', '0987654321', 'Tổ Vật lý', 'Vật lý',  'Thỉnh giảng', '', '', '', '', ''],
+            ['Nguyễn Văn A', 'nguyenvana@example.com', '0923456789', 'Tổ Vật lý', 'Vật lý', 'Cơ hữu', '20', '15', '2', '18', 'PTN Lý'],
+            ['Trần Thị B', 'tranthib@example.com', '0987654321', 'Tổ Tiếng Anh', 'Tiếng Anh',  'Thỉnh giảng', '', '', '', '', ''],
         ];
 
         const ws = utils.aoa_to_sheet(data);
         const wb = utils.book_new();
         utils.book_append_sheet(wb, ws, "Template");
+
+        const departmentNames = departments.filter(dept => dept.name !== "Tổ Giáo vụ – Đào tạo").map(dept => dept.name);
+        const subjectNames = subjects.map(subject => subject.name);
+        const teacherTypes = ['Cơ hữu', 'Thỉnh giảng'];
+
+        ws['!dataValidation'] = [
+            { sqref: 'D2:D1000', type: 'list', formulas: departmentNames },
+            { sqref: 'E2:E1000', type: 'list', formulas: subjectNames },
+            { sqref: 'F2:F1000', type: 'list', formulas: teacherTypes }
+        ];
 
         const excelBuffer = write(wb, { bookType: 'xlsx', type: 'array' });
         const dataBlob = new Blob([excelBuffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet;charset=UTF-8' });
@@ -149,14 +159,12 @@ const MultiTeacherModal = ({ isOpen, onClose, onTeachersAdded }) => {
                 ));
             }
     
-            // Đóng modal ngay lập tức
             clearData();
             onClose();
 
-            // Hiển thị thông báo toast và cập nhật danh sách giáo viên
             if (successCount > 0) {
                 toast.success(`Đã tạo thành công ${successCount} giáo viên`);
-                onTeachersAdded(); // Cập nhật danh sách giáo viên
+                onTeachersAdded();
             }
     
             if (errorMessages.length > 0) {
@@ -179,24 +187,53 @@ const MultiTeacherModal = ({ isOpen, onClose, onTeachersAdded }) => {
         setIsEditing(false);
     };
 
-    const validateInput = (value, header) => {
-        if (['Họ và tên', 'Email', 'Tổ chuyên môn', 'Môn học giảng dạy', 'Hình thức giáo viên'].includes(header)) {
+    const validateInput = (value, header, row) => {
+        if (header === 'Họ và tên') {
+            return value && value.trim() !== '' && !/\d/.test(value);
+        } else if (header === 'Email') {
             return value && value.trim() !== '';
-        } else if (['Số tiết dạy một tuần', 'Số tuần dạy', 'Số tiết giảm 1 tuần', 'Số tuần giảm'].includes(header)) {
+        } else if (header === 'Tổ chuyên môn') {
+            return departments.some(dept => dept.name === value && dept.name !== "Tổ Giáo vụ – Đào tạo");
+        } else if (header === 'Môn học giảng dạy') {
+            return subjects.some(subject => subject.name === value);
+        } else if (header === 'Hình thức giáo viên') {
+            return ['Cơ hữu', 'Thỉnh giảng'].includes(value);
+        } else if (['Số tiết dạy một tuần', 'Số tuần dạy'].includes(header)) {
             const numValue = Number(value);
+            if (row['Hình thức giáo viên'] === 'Cơ hữu') {
+                return !isNaN(numValue) && numValue > 0;
+            }
             return !isNaN(numValue) && numValue >= 0;
+        } else if (['Số tiết giảm 1 tuần', 'Số tuần giảm', 'Nội dung giảm'].includes(header)) {
+            const reductionFields = ['Số tiết giảm 1 tuần', 'Số tuần giảm', 'Nội dung giảm'];
+            const hasReductionData = reductionFields.some(field => row[field] !== '');
+            if (hasReductionData) {
+                return reductionFields.every(field => {
+                    if (['Số tiết giảm 1 tuần', 'Số tuần giảm'].includes(field)) {
+                        const numValue = Number(row[field]);
+                        return !isNaN(numValue) && numValue > 0;
+                    }
+                    return row[field] !== '';
+                });
+            }
+            return true;
         } else if (header === 'Số điện thoại') {
             return value === '' || /^[0-9]{10}$/.test(value);
         }
+
         return true;
     };
 
     const validateAllData = () => {
         for (let row of editingData) {
             for (let [header, value] of Object.entries(row)) {
-                if (!validateInput(value, header)) {
+                if (!validateInput(value, header, row)) {
                     return false;
                 }
+            }
+            if (row['Hình thức giáo viên'] === 'Cơ hữu' && 
+                (row['Số tiết dạy một tuần'] === '' || row['Số tuần dạy'] === '')) {
+                return false;
             }
         }
         return true;
@@ -267,7 +304,7 @@ const MultiTeacherModal = ({ isOpen, onClose, onTeachersAdded }) => {
                         <div className={styles.tableWrapper}>
                             <table className={styles.previewTable}>
                                 <thead>
-                                    <tr>
+                                <tr>
                                         {headers.map((header, index) => (
                                             <th key={index} className={header === 'Họ và tên' || header === 'Email' ? styles.wideColumn : ''}>{header}</th>
                                         ))}
@@ -277,14 +314,15 @@ const MultiTeacherModal = ({ isOpen, onClose, onTeachersAdded }) => {
                                     {editingData.map((row, rowIndex) => (
                                         <tr key={rowIndex}>
                                             {headers.map((header, cellIndex) => {
-                                                const isValid = validateInput(row[header], header);
+                                                const isValid = validateInput(row[header], header, row);
                                                 return (
-                                                    <td key={cellIndex} className={`${!isValid ? styles.invalidInput : ''} ${header === 'Họ và tên' || header === 'Email' ? styles.wideColumn : ''}`}>
+                                                    <td key={cellIndex} className={`${header === 'Họ và tên' || header === 'Email' ? styles.wideColumn : ''}`}>
                                                         {isEditing ? (
                                                             header === 'Tổ chuyên môn' ? (
                                                                 <select
                                                                     value={row[header]}
                                                                     onChange={(e) => handleEdit(rowIndex, header, e.target.value)}
+                                                                    className={!isValid ? `${styles.invalidInput} ${styles.invalidSelect}` : ''}
                                                                 >
                                                                     <option value="">Chọn Tổ bộ môn</option>
                                                                     {departments.filter(dept => dept.name !== "Tổ Giáo vụ – Đào tạo").map((dept) => (
@@ -292,9 +330,10 @@ const MultiTeacherModal = ({ isOpen, onClose, onTeachersAdded }) => {
                                                                     ))}
                                                                 </select>
                                                             ) : header === 'Môn học giảng dạy' ? (
-                                                                <select
+                                                                <select 
                                                                     value={row[header]}
                                                                     onChange={(e) => handleEdit(rowIndex, header, e.target.value)}
+                                                                    className={!isValid ? `${styles.invalidInput} ${styles.invalidSelect}` : ''}
                                                                 >
                                                                     <option value="">Chọn môn học</option>
                                                                     {subjects.map((subject) => (
@@ -305,6 +344,7 @@ const MultiTeacherModal = ({ isOpen, onClose, onTeachersAdded }) => {
                                                                 <select
                                                                     value={row[header]}
                                                                     onChange={(e) => handleEdit(rowIndex, header, e.target.value)}
+                                                                    className={!isValid ? `${styles.invalidInput} ${styles.invalidSelect}` : ''}
                                                                 >
                                                                     <option value="">Chọn hình thức giáo viên</option>
                                                                     <option value="Cơ hữu">Cơ hữu</option>
@@ -315,9 +355,14 @@ const MultiTeacherModal = ({ isOpen, onClose, onTeachersAdded }) => {
                                                                     type={['Số tiết dạy một tuần', 'Số tuần dạy', 'Số tiết giảm 1 tuần', 'Số tuần giảm'].includes(header) ? 'number' : 'text'}
                                                                     value={row[header] || ''}
                                                                     onChange={(e) => handleEdit(rowIndex, header, e.target.value)}
+                                                                    className={!isValid ? styles.invalidInput : ''}
                                                                 />
                                                             )
-                                                        ) : row[header] || '-'}
+                                                        ) : (
+                                                            <span className={!isValid ? styles.invalidInput : ''}>
+                                                                {row[header] || '-'}
+                                                            </span>
+                                                        )}
                                                     </td>
                                                 );
                                             })}
