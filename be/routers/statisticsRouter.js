@@ -21,7 +21,7 @@ const getTeacherDataWithReductions = async (teacher) => {
     .populate('class', 'name grade')
     .populate('subject', 'name')
 
-  const teachingDetails = assignments.map(assignment => ({
+  const teachingDetails  = assignments.map(assignment => ({
     className: assignment.class?.name,
     grade: assignment.class?.grade,
     subject: assignment.subject?.name,
@@ -49,7 +49,8 @@ const getTeacherDataWithReductions = async (teacher) => {
       grade: homeroom.class?.grade,
       reducedLessonsPerWeek: homeroom.reducedLessonsPerWeek,
       reducedWeeks: homeroom.reducedWeeks,
-      totalReducedLessons: homeroom.totalReducedLessons
+      totalReducedLessons: homeroom.totalReducedLessons,
+      reductionReason: "GVCN"
     } : null,
     finalBasicTeachingLessons: teacher.finalBasicTeachingLessons,
     totalAssignment: teacher.totalAssignment,
@@ -288,7 +289,10 @@ statisticsRouter.get('/all-teachers', isAuth, async (req, res) => {
           totalLessonsQ5S: 1,
           totalLessonsQ5NS: 1,
           totalLessonsTDS: 1,
-          totalLessonsTDNS: 1
+          totalLessonsTDNS: 1,
+          reducedLessonsPerWeek: 1,
+          reducedWeeks: 1,
+          reductionReason: 1
         }
       }
     ]);
@@ -302,7 +306,10 @@ statisticsRouter.get('/all-teachers', isAuth, async (req, res) => {
         totalLessonsQ5S: teacher.totalLessonsQ5S || 0,
         totalLessonsQ5NS: teacher.totalLessonsQ5NS || 0,
         totalLessonsTDS: teacher.totalLessonsTDS || 0,
-        totalLessonsTDNS: teacher.totalLessonsTDNS || 0
+        totalLessonsTDNS: teacher.totalLessonsTDNS || 0,
+        reducedLessonsPerWeek: teacher.reducedLessonsPerWeek || 0,
+        reducedWeeks: teacher.reducedWeeks || 0,
+        reductionReason: teacher.reductionReason || ''
       };
     }));
     

@@ -13,7 +13,7 @@ import SearchIcon from '@mui/icons-material/Search';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import styles from '../../css/Ministry/MinistryTeacherStatic.module.css';
 import ExportAllTeachersButton from './Component/AllTeachersReport.jsx';
-
+import ExportTeachersExcel from './Component/Statistics/ExportTeachersExcel.jsx';
 const MinistryTeacherStatic = () => { 
     const [user, setUser] = useState(null);
     const [teachers, setTeachers] = useState([]);
@@ -82,20 +82,6 @@ const MinistryTeacherStatic = () => {
         setPage(0);
     };
 
-    const formatTeachingDetails = (teachingDetails) => {
-        const detailsByGrade = teachingDetails.reduce((acc, detail) => {
-            if (!acc[detail.grade]) {
-                acc[detail.grade] = [];
-            }
-            acc[detail.grade].push(`${detail.className}: ${detail.subject} - ${detail.completedLessons} tiết`);
-            return acc;
-        }, {});
-
-        return Object.entries(detailsByGrade).map(([grade, details]) => (
-            `Khối ${grade}:\n${details.join('\n')}`
-        )).join('\n\n');
-    };
-
     const calculateCompletionPercentage = (totalAssignment, finalBasicTeachingLessons) => {
         if (finalBasicTeachingLessons === 0) return 0;
         const percentage = (totalAssignment / finalBasicTeachingLessons) * 100;
@@ -153,49 +139,79 @@ const MinistryTeacherStatic = () => {
         { field: 'completedLessons', label: 'Số tiết', width: '5%' },
     ];
 
-    const rows = paginatedTeachers.flatMap((teacher, index) => {
+    const rows = paginatedTeachers.map((teacher, index) => {
         const baseIndex = page * rowsPerPage + index + 1;
-        const totalReductionLessons = teacher.teacherReduction.totalReducedLessons + (teacher.homeroom ? teacher.homeroom.totalReducedLessons : 0);
-        
+        const totalReductionLessons = (teacher.teacherReduction?.totalReducedLessons || 0) + (teacher.homeroom?.totalReducedLessons || 0);
+        const finalBasicTeachingLessons = teacher.type === "Thỉnh giảng" ? '' : teacher.basicTeachingLessons - totalReductionLessons;
+    
         const teachingDetailsRows = teacher.teachingDetails && teacher.teachingDetails.length > 0
             ? teacher.teachingDetails
             : [{ grade: '', className: '', subject: '', completedLessons: '' }];
-
-        const reductionRows = teacher.reductions && teacher.reductions.length > 0
-            ? teacher.reductions
-            : [{ reducedLessonsPerWeek: '', reducedWeeks: '', totalReducedLessons: '', reductionReason: '' }];
-
-        const maxRows = Math.max(teachingDetailsRows.length, reductionRows.length);
-
-        return Array.from({ length: maxRows }, (_, detailIndex) => ({
-            id: `${teacher.id}-${detailIndex}`,
-            index: detailIndex === 0 ? baseIndex : '',
-            name: detailIndex === 0 ? teacher.name : '',
-            departmentName: detailIndex === 0 ? teacher.departmentName : '',
-            teachingSubjects: detailIndex === 0 ? teacher.teachingSubjects : '',
-            homeroomClass: detailIndex === 0 ? (teacher.homeroom ? teacher.homeroom.className : '-') : '',
-            type: detailIndex === 0 ? teacher.type : '',
-            lessonsPerWeek: detailIndex === 0 ? teacher.lessonsPerWeek : '',
-            teachingWeeks: detailIndex === 0 ? teacher.teachingWeeks : '',
-            basicTeachingLessons: detailIndex === 0 ? teacher.basicTeachingLessons : '',
-            totalReductionLessons: detailIndex === 0 ? totalReductionLessons : '',
-            finalBasicTeachingLessons: detailIndex === 0 ? (teacher.type === "Cơ hữu" ? teacher.basicTeachingLessons - totalReductionLessons : '-') : '',
-            totalLessonsQ5NS: detailIndex === 0 ? (teacher.totalLessonsQ5NS || 0) : '',
-            totalLessonsQ5S: detailIndex === 0 ? (teacher.totalLessonsQ5S || 0) : '',
-            totalLessonsTDNS: detailIndex === 0 ? (teacher.totalLessonsTDNS || 0) : '',
-            totalLessonsTDS: detailIndex === 0 ? (teacher.totalLessonsTDS || 0) : '',
-            totalAssignment: detailIndex === 0 ? (teacher.totalAssignment > 0 ? teacher.totalAssignment : "Chưa khai báo") : '',
-            completionPercentage: detailIndex === 0 ? (teacher.type === "Cơ hữu" ? `${calculateCompletionPercentage(teacher.totalAssignment, teacher.basicTeachingLessons - totalReductionLessons)}%` : '-') : '',
-            excessLessons: detailIndex === 0 ? (teacher.type === "Cơ hữu" ? calculateExcessLessons(teacher.totalAssignment, teacher.basicTeachingLessons - totalReductionLessons) : '-') : '',
-            grade: teachingDetailsRows[detailIndex] ? teachingDetailsRows[detailIndex].grade : '',
-            className: teachingDetailsRows[detailIndex] ? teachingDetailsRows[detailIndex].className : '',
-            subject: teachingDetailsRows[detailIndex] ? teachingDetailsRows[detailIndex].subject : '',
-            completedLessons: teachingDetailsRows[detailIndex] ? teachingDetailsRows[detailIndex].completedLessons : '',
-            reducedLessonsPerWeek: reductionRows[detailIndex] ? reductionRows[detailIndex].reducedLessonsPerWeek : '',
-            reducedWeeks: reductionRows[detailIndex] ? reductionRows[detailIndex].reducedWeeks : '',
-            totalReducedLessons: reductionRows[detailIndex] ? reductionRows[detailIndex].totalReducedLessons : '',
-            reductionReason: reductionRows[detailIndex] ? reductionRows[detailIndex].reductionReason : '',
-        }));
+    
+        const reductionRows = [];
+        if (teacher.teacherReduction) {
+            reductionRows.push({
+                reducedLessonsPerWeek: teacher.teacherReduction.reducedLessonsPerWeek,
+                reducedWeeks: teacher.teacherReduction.reducedWeeks,
+                totalReducedLessons: teacher.teacherReduction.totalReducedLessons,
+                reductionReason: teacher.teacherReduction.reductionReason
+            });
+        }
+        if (teacher.homeroom) {
+            reductionRows.push({
+                reducedLessonsPerWeek: teacher.homeroom.reducedLessonsPerWeek,
+                reducedWeeks: teacher.homeroom.reducedWeeks,
+                totalReducedLessons: teacher.homeroom.totalReducedLessons,
+                reductionReason: teacher.homeroom.reductionReason
+            });
+        }
+    
+        const filterAndJoin = (key) => {
+            const uniqueValues = new Set();
+            return reductionRows
+                .map(row => row[key])
+                .filter(value => {
+                    if (value && value !== '0' && value !== 'Nội dung giảm không có') {
+                        if (key === 'reducedWeeks') {
+                            if (uniqueValues.has(value)) {
+                                return false;
+                            }
+                            uniqueValues.add(value);
+                        }
+                        return true;
+                    }
+                    return false;
+                })
+                .join('; ');
+        };
+    
+        return {
+            id: teacher.id,
+            index: baseIndex,
+            name: teacher.name,
+            departmentName: teacher.departmentName,
+            teachingSubjects: teacher.teachingSubjects,
+            homeroomClass: teacher.homeroom ? teacher.homeroom.className : '-',
+            type: teacher.type,
+            lessonsPerWeek: teacher.lessonsPerWeek,
+            teachingWeeks: teacher.teachingWeeks,
+            basicTeachingLessons: teacher.basicTeachingLessons,
+            reducedLessonsPerWeek: filterAndJoin('reducedLessonsPerWeek'),
+            reducedWeeks: filterAndJoin('reducedWeeks'),
+            totalReducedLessons: filterAndJoin('totalReducedLessons'),
+            reductionReason: filterAndJoin('reductionReason'),
+            totalReductionLessons: totalReductionLessons,
+            finalBasicTeachingLessons: finalBasicTeachingLessons,
+            totalLessonsQ5NS: teacher.totalLessonsQ5NS || 0,
+            totalLessonsQ5S: teacher.totalLessonsQ5S || 0,
+            totalLessonsTDNS: teacher.totalLessonsTDNS || 0,
+            totalLessonsTDS: teacher.totalLessonsTDS || 0,
+            totalAssignment: teacher.totalAssignment > 0 ? teacher.totalAssignment : "Chưa khai báo",
+            completionPercentage: teacher.type === "Cơ hữu" ? `${calculateCompletionPercentage(teacher.totalAssignment, finalBasicTeachingLessons)}%` : '-',
+            excessLessons: teacher.type === "Cơ hữu" ? calculateExcessLessons(teacher.totalAssignment, finalBasicTeachingLessons) : '-',
+            teachingDetails: teachingDetailsRows,
+            reductionRows: reductionRows
+        };
     });
 
     return(
@@ -243,6 +259,7 @@ const MinistryTeacherStatic = () => {
                             ))}
                         </Select>
                         <ExportAllTeachersButton user={user?.user} />
+                        <ExportTeachersExcel teachers={teachers} />
                     </Box>
                 </Box>
                 <div className={styles.tableWrapper}>
@@ -268,34 +285,60 @@ const MinistryTeacherStatic = () => {
                                     </TableRow>
                                 </TableHead>
                                 <TableBody>
-                                    {rows.map((row) => (
-                                        <TableRow key={row.id}>
-                                            {columns.map((column) => {
-                                                if (column.field === 'reducedLessonsPerWeek' || column.field === 'reducedWeeks' || column.field === 'totalReducedLessons' || column.field === 'reductionReason') {
-                                                    return (
-                                                        <TableCell key={`${row.id}-${column.field}`}>
-                                                            {row.reductions && row.reductions.length > 0 ? (
-                                                                row.reductions.map((reduction, index) => (
-                                                                    <div key={index}>{reduction[column.field]}</div>
-                                                                ))
-                                                            ) : (
-                                                                <div>-</div>
-                                                            )}
-                                                        </TableCell>
-                                                    );
-                                                } else {
-                                                    return (
-                                                        <TableCell 
-                                                            key={`${row.id}-${column.field}`}
-                                                            className={column.sticky ? styles.stickyColumn : ''}
-                                                        >
-                                                            {row[column.field]}
-                                                        </TableCell>
-                                                    );
-                                                }
-                                            })}
-                                        </TableRow>
-                                    ))}
+                                    {rows.map((row, index) => {
+                                        const rowSpan = Math.max(row.teachingDetails.length, 1);
+                                        return (
+                                            <React.Fragment key={row.id}>
+                                                <TableRow className={index % 2 === 0 ? styles.evenRow : styles.oddRow}>
+                                                    <TableCell rowSpan={rowSpan} className={styles.stickyColumn}>{row.index}</TableCell>
+                                                    <TableCell rowSpan={rowSpan} className={styles.stickyColumn}>{row.name}</TableCell>
+                                                    <TableCell rowSpan={rowSpan}>{row.departmentName}</TableCell>
+                                                    <TableCell rowSpan={rowSpan}>{row.teachingSubjects}</TableCell>
+                                                    <TableCell rowSpan={rowSpan}>{row.homeroomClass}</TableCell>
+                                                    <TableCell rowSpan={rowSpan}>{row.type}</TableCell>
+                                                    <TableCell rowSpan={rowSpan}>{row.lessonsPerWeek}</TableCell>
+                                                    <TableCell rowSpan={rowSpan}>{row.teachingWeeks}</TableCell>
+                                                    <TableCell rowSpan={rowSpan}>{row.basicTeachingLessons}</TableCell>
+                                                    <TableCell rowSpan={rowSpan}>{row.reducedLessonsPerWeek}</TableCell>
+                                                    <TableCell rowSpan={rowSpan}>{row.reducedWeeks}</TableCell>
+                                                    <TableCell rowSpan={rowSpan}>{row.totalReducedLessons}</TableCell>
+                                                    <TableCell rowSpan={rowSpan}>{row.reductionReason}</TableCell>
+                                                    <TableCell rowSpan={rowSpan}>{row.totalReductionLessons}</TableCell>
+                                                    <TableCell rowSpan={rowSpan}>{row.finalBasicTeachingLessons}</TableCell>
+                                                    <TableCell rowSpan={rowSpan}>{row.totalLessonsQ5NS}</TableCell>
+                                                    <TableCell rowSpan={rowSpan}>{row.totalLessonsQ5S}</TableCell>
+                                                    <TableCell rowSpan={rowSpan}>{row.totalLessonsTDNS}</TableCell>
+                                                    <TableCell rowSpan={rowSpan}>{row.totalLessonsTDS}</TableCell>
+                                                    <TableCell rowSpan={rowSpan}>{row.totalAssignment}</TableCell>
+                                                    <TableCell rowSpan={rowSpan}>{row.completionPercentage}</TableCell>
+                                                    <TableCell rowSpan={rowSpan}>{row.excessLessons}</TableCell>
+                                                    {row.teachingDetails.length > 0 ? (
+                                                        <>
+                                                            <TableCell>{row.teachingDetails[0].grade}</TableCell>
+                                                            <TableCell>{row.teachingDetails[0].className}</TableCell>
+                                                            <TableCell>{row.teachingDetails[0].subject}</TableCell>
+                                                            <TableCell>{row.teachingDetails[0].completedLessons}</TableCell>
+                                                        </>
+                                                    ) : (
+                                                        <>
+                                                            <TableCell rowSpan={rowSpan}>-</TableCell>
+                                                            <TableCell rowSpan={rowSpan}>-</TableCell>
+                                                            <TableCell rowSpan={rowSpan}>-</TableCell>
+                                                            <TableCell rowSpan={rowSpan}>-</TableCell>
+                                                        </>
+                                                    )}
+                                                </TableRow>
+                                                {row.teachingDetails.slice(1).map((detail, detailIndex) => (
+                                                    <TableRow key={`${row.id}-detail-${detailIndex}`} className={index % 2 === 0 ? styles.evenRow : styles.oddRow}>
+                                                        <TableCell>{detail.grade}</TableCell>
+                                                        <TableCell>{detail.className}</TableCell>
+                                                        <TableCell>{detail.subject}</TableCell>
+                                                        <TableCell>{detail.completedLessons}</TableCell>
+                                                    </TableRow>
+                                                ))}
+                                            </React.Fragment>
+                                        );
+                                    })}
                                 </TableBody>
                             </Table>
                         </div>
@@ -320,3 +363,4 @@ const MinistryTeacherStatic = () => {
 };
 
 export default MinistryTeacherStatic;
+

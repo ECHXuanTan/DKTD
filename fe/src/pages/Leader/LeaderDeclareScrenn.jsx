@@ -206,7 +206,7 @@ const LeaderDashboard = () => {
                                             {teacher.teachingDetails && teacher.teachingDetails.length > 0 ? (
                                                 <>
                                                     <TableCell>{teacher.teachingDetails[0].className}</TableCell>
-                                                    <TableCell>{teacher.teachingDetails[0].subjectName}</TableCell>
+                                                    <TableCell>{teacher.teachingDetails[0].subject}</TableCell>
                                                     <TableCell>{teacher.teachingDetails[0].completedLessons}</TableCell>
                                                 </>
                                             ) : (
@@ -226,7 +226,7 @@ const LeaderDashboard = () => {
                                         {teacher.teachingDetails && teacher.teachingDetails.slice(1).map((detail, detailIndex) => (
                                             <TableRow key={`${teacher.id}-${detailIndex}`} className={index % 2 === 0 ? styles.evenRow : styles.oddRow}>
                                                 <TableCell>{detail.className}</TableCell>
-                                                <TableCell>{detail.subjectName}</TableCell>
+                                                <TableCell>{detail.subject}</TableCell>
                                                 <TableCell>{detail.completedLessons}</TableCell>
                                             </TableRow>
                                         ))}
