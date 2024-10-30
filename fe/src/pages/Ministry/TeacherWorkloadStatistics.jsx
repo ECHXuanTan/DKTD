@@ -162,7 +162,7 @@ const TeacherWorkloadStatistics = () => {
                                                 <TableCell rowSpan={rowSpan} className={styles.stickyColumn}>{page * rowsPerPage + index + 1}</TableCell>
                                                 <TableCell rowSpan={rowSpan} className={styles.stickyColumn}>{teacher.name}</TableCell>
                                                 <TableCell rowSpan={rowSpan}>{teacher.departmentName}</TableCell>
-                                                <TableCell rowSpan={rowSpan}>{teacher.teachingSubject}</TableCell>
+                                                <TableCell rowSpan={rowSpan}>{teacher.teachingSubjectsName}</TableCell>
                                                 <TableCell rowSpan={rowSpan}>{teacher.lessonsPerWeek}</TableCell>
                                                 <TableCell rowSpan={rowSpan}>{teacher.teachingWeeks}</TableCell>
                                                 <TableCell rowSpan={rowSpan}>{teacher.basicTeachingLessons}</TableCell>

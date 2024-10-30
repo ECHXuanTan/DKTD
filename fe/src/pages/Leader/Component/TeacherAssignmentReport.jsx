@@ -181,13 +181,24 @@ const TeacherAssignmentReport = ({ teacherId }) => {
     };
 
     return (
-        <Button 
-            variant="contained" 
+            <button 
             onClick={exportToPDF}
-            style={{ marginTop: 20, backgroundColor: '#d98236' }}
+            style={{ 
+                backgroundColor: '#d98236',
+                color: 'white',
+                border: 'none',
+                padding: '10px 15px',
+                borderRadius: '4px',
+                cursor: 'pointer',
+                fontSize: '1em',
+                flex: 1,
+                maxWidth: '150px',
+                borderRadius: '26px',
+                fontWeight: 'bold',
+            }}
         >
             Xuất báo cáo
-        </Button>
+        </button>
     );
 };
 

@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { Helmet } from 'react-helmet';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, Link } from 'react-router-dom';
 import { Circles } from 'react-loader-spinner';
-import { FaEdit, FaTrash } from 'react-icons/fa';
+import { FaEdit, FaTrash, FaCheck, FaTimes } from 'react-icons/fa';
 import Header from '../../components/Header.js';
 import Footer from '../../components/Footer.js';
 import { getUser } from '../../services/authServices.js';
@@ -11,33 +11,32 @@ import { getAllAssignmentTeachers, getClassSubjectInfo, createAssignment, editAs
 import { getSubjectsByDepartment } from '../../services/subjectServices.js';
 import { getClassesBySubject } from '../../services/classServices.js';
 import { toast, ToastContainer } from 'react-toastify';
+import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import Modal from 'react-modal';
 import 'react-toastify/dist/ReactToastify.css';
 import styles from '../../css/Leader/TeacherDeclareScreen.module.css';
 import TeacherAssignmentReport from './Component/TeacherAssignmentReport.jsx';
+import CreateAssignmentModal from './Component/CreateAssignmentModal.jsx';
 
 Modal.setAppElement('#root');
 
 const TeacherDeclareScreen = () => { 
     const [user, setUser] = useState(null);
     const [teacher, setTeacher] = useState(null);
-    const [classes, setClasses] = useState([]);
     const [assignments, setAssignments] = useState([]);
     const [subjects, setSubjects] = useState([]);
-    const [errorMessage, setErrorMessage] = useState('');
     const [showModal, setShowModal] = useState(false);
     const [loading, setLoading] = useState(true);
     const [isLoading, setIsLoading] = useState(false);
-    const [selectedClass, setSelectedClass] = useState('');
-    const [selectedSubject, setSelectedSubject] = useState('');
-    const [lessonCount, setLessonCount] = useState('');
-    const [classSubjectInfo, setClassSubjectInfo] = useState({});
-    const [editingAssignment, setEditingAssignment] = useState(null);
-    const [newLessonCount, setNewLessonCount] = useState('');
-    const [editingClassSubjectInfo, setEditingClassSubjectInfo] = useState({});
+    const [editingId, setEditingId] = useState(null);
+    const [editValues, setEditValues] = useState({
+        lessonsPerWeek: '',
+        numberOfWeeks: ''
+    });
     const [showDeleteConfirmModal, setShowDeleteConfirmModal] = useState(false);
     const [deletingAssignment, setDeletingAssignment] = useState(null);
-    const [classSubjectError, setClassSubjectError] = useState('');
+    const [selectedGrade, setSelectedGrade] = useState('all');
+    const [maxLessons, setMaxLessons] = useState({});
     const { id } = useParams();
     const navigate = useNavigate();
 
@@ -49,7 +48,6 @@ const TeacherDeclareScreen = () => {
                 
                 if (userData) {
                     if (!userData || userData.user.role !== 0) {
-                        // Redirect based on user role
                         switch(userData.user.role) {
                           case 1:
                             navigate('/ministry-declare');
@@ -73,7 +71,6 @@ const TeacherDeclareScreen = () => {
                 setLoading(false);
             } catch (error) {
                 console.error('Error fetching data:', error);
-                setErrorMessage(error.message);
                 setLoading(false);
             }
         };
@@ -81,141 +78,82 @@ const TeacherDeclareScreen = () => {
     }, [navigate, id]);
 
     useEffect(() => {
-        const fetchClassSubjectInfo = async () => {
-            if (selectedClass && selectedSubject && teacher) {
-                try {
-                    const info = await getClassSubjectInfo(selectedClass, selectedSubject, teacher._id);
-                    setClassSubjectInfo(info);
-                    setClassSubjectError('');
-                } catch (error) {
-                    console.error('Error fetching class subject info:', error);
-                    if (error.response && error.response.status === 404) {
-                        setClassSubjectError('Môn học không được khai báo trong lớp này');
-                    } else {
-                        toast.error('Error fetching class information');
-                    }
-                    setClassSubjectInfo({});
-                }
-            }
-        };
-    
-        fetchClassSubjectInfo();
-    }, [selectedClass, selectedSubject, teacher]);
+        if (teacher && assignments) {
+            const totalLessons = assignments.reduce((sum, assignment) => 
+                sum + assignment.completedLessons, 0);
+            
+            setTeacher(prevTeacher => ({
+                ...prevTeacher,
+                totalAssignment: totalLessons
+            }));
+        }
+    }, [assignments]);
 
-    const handleSubjectChange = async (e) => {
-        const subjectId = e.target.value;
-        setSelectedSubject(subjectId);
-        setSelectedClass('');
-        setClassSubjectInfo({});
-        if (subjectId) {
-            try {
-                const classesData = await getClassesBySubject(subjectId);
-                
-                // Filter out classes that already have assignments for this subject
-                const filteredClasses = classesData.classes.filter(cls => 
-                    !assignments.some(assignment => 
-                        assignment.subjectId === subjectId && assignment.classId === cls._id
-                    )
-                );
-                
-                setClasses(filteredClasses);
-                
-                if (filteredClasses.length === 0) {
-                    toast.info('Tất cả các lớp đã được khai báo cho môn học này');
-                }
-            } catch (error) {
-                console.error('Error fetching classes by subject:', error);
-                toast.error('Error fetching classes for the selected subject');
-            }
-        } else {
-            setClasses([]);
+    const handleCreateAssignment = async (assignments) => {
+        try {
+            setIsLoading(true);
+            await createAssignment(assignments);
+            toast.success('Phân công tiết dạy thành công');
+            
+            const updatedAssignments = await getAllAssignmentTeachers(teacher._id);
+            setAssignments(updatedAssignments);
+            
+            setShowModal(false);
+        } catch (error) {
+            toast.error(error.response?.data?.message || 'Có lỗi xảy ra khi phân công tiết dạy');
+        } finally {
+            setIsLoading(false);
         }
     };
 
-    const handleClassChange = (e) => {
-        setSelectedClass(e.target.value);
-        setClassSubjectInfo({});
+    const handleStartEdit = async (assignment) => {
+        try {
+            const info = await getClassSubjectInfo(assignment.classId, assignment.subjectId, teacher._id);
+            setMaxLessons({
+                [assignment.id]: info.remainingLessons + assignment.completedLessons
+            });
+            setEditingId(assignment.id);
+            setEditValues({
+                lessonsPerWeek: assignment.lessonsPerWeek.toString(),
+                numberOfWeeks: assignment.numberOfWeeks.toString()
+            });
+        } catch (error) {
+            toast.error('Lỗi khi lấy thông tin số tiết');
+        }
     };
 
-    const handleDeclare = async (e) => {
-        e.preventDefault();
-        if (!selectedClass || !selectedSubject || !lessonCount) {
-            toast.error('Vui lòng điền đầy đủ thông tin');
+    const handleEditSubmit = async (assignment) => {
+        const lessonsPerWeek = parseInt(editValues.lessonsPerWeek);
+        const numberOfWeeks = parseInt(editValues.numberOfWeeks);
+
+        if (isNaN(lessonsPerWeek) || isNaN(numberOfWeeks) || 
+            lessonsPerWeek < 0 || numberOfWeeks < 0) {
+            toast.error('Số tiết một tuần và số tuần không hợp lệ');
             return;
         }
-        
-        const lessonCountInt = parseInt(lessonCount);
-        if (lessonCountInt > classSubjectInfo.remainingLessons) {
-            toast.error(`Số tiết không được vượt quá ${classSubjectInfo.remainingLessons}`);
+
+        const totalLessons = lessonsPerWeek * numberOfWeeks;
+        if (totalLessons > maxLessons[assignment.id]) {
+            toast.error(`Tổng số tiết không được vượt quá ${maxLessons[assignment.id]}`);
             return;
         }
         
         try {
             setIsLoading(true);
-            const result = await createAssignment(selectedClass, selectedSubject, teacher._id, lessonCountInt);
-            setShowModal(false);
-            toast.success('Khai báo tiết dạy thành công');
-            
+            await editAssignment(assignment.id, lessonsPerWeek, numberOfWeeks);
+            toast.success('Cập nhật phân công tiết dạy thành công');
             const updatedAssignments = await getAllAssignmentTeachers(teacher._id);
             setAssignments(updatedAssignments);
-            
-            setSelectedClass('');
-            setSelectedSubject('');
-            setLessonCount('');
-            setClassSubjectInfo({});
         } catch (error) {
-            console.error('Error creating assignment:', error);
-            toast.error(error.response?.data?.message || 'Có lỗi xảy ra khi khai báo tiết dạy');
+            toast.error(error.response?.data?.message || 'Có lỗi xảy ra khi cập nhật phân công tiết dạy');
         } finally {
             setIsLoading(false);
+            setEditingId(null);
+            setEditValues({ lessonsPerWeek: '', numberOfWeeks: '' });
+            setMaxLessons({});
         }
     };
 
-    const handleEdit = async (assignment) => {
-        if (!assignment) {
-            console.error('No assignment provided for editing');
-            return;
-        }
-        setEditingAssignment(assignment);
-        setNewLessonCount(assignment.completedLessons.toString());
-        try {
-            const info = await getClassSubjectInfo(assignment.classId, assignment.subjectId, teacher._id);
-            setEditingClassSubjectInfo(info);
-        } catch (error) {
-            console.error('Error fetching class subject info:', error);
-            toast.error('Error fetching class information');
-        }
-    };
-  
-    const handleEditSubmit = async (e) => {
-        e.preventDefault();
-        if (!editingAssignment) {
-            toast.error('Không có thông tin khai báo để chỉnh sửa');
-            return;
-        }
-        const newLessonsInt = parseInt(newLessonCount);
-        
-        const maxLessons = editingClassSubjectInfo.remainingLessons + (editingAssignment.completedLessons || 0);
-        
-        if (newLessonsInt > maxLessons) {
-            toast.error(`Số tiết không được vượt quá ${maxLessons}`);
-            return;
-        }
-        
-        setIsLoading(true);
-        try {
-            await editAssignment(editingAssignment.id, newLessonsInt);
-            toast.success('Cập nhật khai báo tiết dạy thành công');
-            const updatedAssignments = await getAllAssignmentTeachers(teacher._id);
-            setAssignments(updatedAssignments);
-            setEditingAssignment(null);
-        } catch (error) {
-            toast.error(error.response?.data?.message || 'Có lỗi xảy ra khi cập nhật khai báo tiết dạy');
-        } finally {
-            setIsLoading(false);
-        }
-    };
-        
     const handleDelete = (assignment) => {
         setDeletingAssignment(assignment);
         setShowDeleteConfirmModal(true);
@@ -226,11 +164,11 @@ const TeacherDeclareScreen = () => {
             try {
                 setIsLoading(true);
                 await deleteAssignment(deletingAssignment.id);
-                toast.success('Xóa khai báo tiết dạy thành công');
+                toast.success('Xóa phân công tiết dạy thành công');
                 const updatedAssignments = await getAllAssignmentTeachers(teacher._id);
                 setAssignments(updatedAssignments);
             } catch (error) {
-                toast.error(error.response?.data?.message || 'Có lỗi xảy ra khi xóa khai báo tiết dạy');
+                toast.error(error.response?.data?.message || 'Có lỗi xảy ra khi xóa phân công tiết dạy');
             } finally {
                 setIsLoading(false);
                 setShowDeleteConfirmModal(false);
@@ -239,162 +177,248 @@ const TeacherDeclareScreen = () => {
         }
     };
 
-    const LoadingSpinner = () => (
-        <div className={styles.loadingContainer}>
-          <Circles color="#00BFFF" height={80} width={80} />
-        </div>
+    const handleCancelEdit = () => {
+        setEditingId(null);
+        setEditValues({ lessonsPerWeek: '', numberOfWeeks: '' });
+        setMaxLessons({});
+    };
+
+    const filteredAssignments = assignments.filter(assignment => 
+        selectedGrade === 'all' ? true : assignment.grade === parseInt(selectedGrade)
     );
 
     if (loading) {
-        return <LoadingSpinner />;
+        return (
+            <div className={styles.loadingContainer}>
+                <Circles color="#00BFFF" height={80} width={80} />
+            </div>
+        );
     }
 
     return(
         <>
-        <Helmet>
-            <title>Trang quản lý khai báo tiết dạy cho giáo viên</title>
-        </Helmet>
-        <Header/>
-        <ToastContainer />
-        
-        <div className={styles.container}>
-            <div className={styles.grid}>
-                <div className={styles.card}>
-                    <h2 className={styles.title}>Thông tin giáo viên</h2>
-                    {teacher && (
-                        <>
-                        <p className={styles.info}><span className={styles.label}>Tên:</span> {teacher.name}</p>
-                        <p className={styles.info}><span className={styles.label}>Email:</span> {teacher.email}</p>
-                        <p className={styles.info}><span className={styles.label}>Số điện thoại:</span> {teacher.phone}</p>
-                        <p className={styles.info}><span className={styles.label}>Chức vụ:</span> {teacher.position}</p>
-                        <p className={styles.info}><span className={styles.label}>Tổ bộ môn:</span> {teacher.department.name}</p>
-                        <TeacherAssignmentReport teacherId={teacher._id} />
-                        </>
-                    )}
-                </div>
-                <div className={styles.card}>
-                    <h2 className={styles.title}>Danh sách lớp đã khai báo</h2>
-                    {assignments.length > 0 ? (
-                        <ul className={styles.assignmentList}>
-                        {assignments.map((assignment, index) => (
-                            <li key={assignment.id} className={styles.assignmentItem}>
-                            <span>Lớp: {assignment.className}, Môn: {assignment.subjectName}, Số tiết: {assignment.completedLessons}</span>
-                            <div className={styles.actionButtons}>
-                                <button className={styles.editButton} onClick={() => handleEdit(assignment)} disabled={isLoading}>
-                                    {isLoading ? <LoadingSpinner /> : <FaEdit />}
-                                </button>
-                                <button className={styles.deleteButton} onClick={() => handleDelete(assignment)} disabled={isLoading}>
-                                    {isLoading ? <LoadingSpinner /> : <FaTrash />}
-                                </button>
+            <Helmet>
+                <title>Trang quản lý phân công tiết dạy cho giáo viên</title>
+            </Helmet>
+            <Header/>
+            <ToastContainer />
+            
+            <div className={styles.container}>
+                <Link to="/leader-declare" className={styles.backLink}>
+                    <ArrowBackIcon/>
+                </Link>
+                <div className={styles.grid}>
+                    <div className={styles.card}>
+                        <h2 className={styles.title}>Thông tin giáo viên</h2>
+                        {teacher && (
+                            <>
+                                <p className={styles.info}><span className={styles.label}>Tên:</span> {teacher.name}</p>
+                                <p className={styles.info}><span className={styles.label}>Email:</span> {teacher.email}</p>
+                                <p className={styles.info}><span className={styles.label}>Số điện thoại:</span> {teacher.phone}</p>
+                                <p className={styles.info}><span className={styles.label}>Môn học giảng dạy:</span> {teacher.teachingSubjects?.name}</p>
+                                <p className={styles.info}><span className={styles.label}>Tổ bộ môn:</span> {teacher.department.name}</p>
+                                <p className={styles.info}><span className={styles.label}>Tổng số tiết đã phân công:</span> {teacher.totalAssignment || 0}</p>
+                                <p className={styles.info}><span className={styles.label}>Số tiết chuẩn:</span> {teacher.basicTeachingLessons || 0}</p>
+                                <p className={styles.info}><span className={styles.label}>Số tiết dư:</span> {
+                                    teacher.basicTeachingLessons && teacher.totalAssignment > teacher.basicTeachingLessons 
+                                    ? teacher.totalAssignment - teacher.basicTeachingLessons 
+                                    : 0
+                                }</p>
+                                <p className={styles.info}><span className={styles.label}>Lớp chủ nhiệm:</span> {teacher.homeroom?.class || 'Không có'}</p>
+                                <div className={styles.buttonGroup}>
+                                    <button className={styles.button} onClick={() => setShowModal(true)}>Phân công tiết dạy</button>
+                                    <TeacherAssignmentReport teacherId={teacher._id} />
+                                </div>
+                            </>
+                        )}
+                    </div>
+                    <div className={styles.card}>
+                        <div className={styles.headerSection}>
+                            <h2 className={styles.title}>Danh sách lớp đã phân công</h2>
+                            <select 
+                                className={styles.gradeSelect}
+                                value={selectedGrade}
+                                onChange={(e) => setSelectedGrade(e.target.value)}
+                            >
+                                <option value="all">Tất cả</option>
+                                <option value="10">Khối 10</option>
+                                <option value="11">Khối 11</option>
+                                <option value="12">Khối 12</option>
+                            </select>
+                        </div>
+                        {assignments.length > 0 ? (
+                            <div className={styles.tableContainer}>
+                                <table className={styles.table}>
+                                    <thead>
+                                        <tr>
+                                            <th>STT</th>
+                                            <th>Lớp</th>
+                                            <th>Môn học</th>
+                                            {editingId !== null && <th>Số tiết trống</th>}
+                                            <th>Số tiết/tuần</th>
+                                            <th>Số tuần</th>
+                                            <th>Tổng số tiết</th>
+                                            <th>Thao tác</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {filteredAssignments.map((assignment, index) => (
+                                            <tr key={assignment.id}>
+                                                <td>{index + 1}</td>
+                                                <td>{assignment.className}</td>
+                                                <td>{assignment.subjectName}</td>
+                                                {editingId !== null && (
+                                                    <td>{editingId === assignment.id ? maxLessons[assignment.id] : ''}</td>
+                                                )}
+                                                <td>
+                                                    {editingId === assignment.id ? (
+                                                        <input
+                                                            type="number"
+                                                            className={styles.editInput}
+                                                            value={editValues.lessonsPerWeek}
+                                                            onChange={(e) => {
+                                                                const value = e.target.value;
+                                                                const numberOfWeeks = parseInt(editValues.numberOfWeeks) || 0;
+                                                                if (value === '' || 
+                                                                    (parseInt(value) >= 0 && 
+                                                                    parseInt(value) * numberOfWeeks <= maxLessons[assignment.id])) {
+                                                                    setEditValues(prev => ({
+                                                                        ...prev,
+                                                                        lessonsPerWeek: value
+                                                                    }));
+                                                                }
+                                                            }}
+                                                            min="0"
+                                                        />
+                                                    ) : (
+                                                        assignment.lessonsPerWeek
+                                                    )}
+                                                </td>
+                                                <td>
+                                                    {editingId === assignment.id ? (
+                                                        <input
+                                                            type="number"
+                                                            className={styles.editInput}
+                                                            value={editValues.numberOfWeeks}
+                                                            onChange={(e) => {
+                                                                const value = e.target.value;
+                                                                const lessonsPerWeek = parseInt(editValues.lessonsPerWeek) || 0;
+                                                                if (value === '' || 
+                                                                    (parseInt(value) >= 0 && 
+                                                                    lessonsPerWeek * parseInt(value) <= maxLessons[assignment.id])) {
+                                                                    setEditValues(prev => ({
+                                                                        ...prev,
+                                                                        numberOfWeeks: value
+                                                                    }));
+                                                                }
+                                                            }}
+                                                            min="0"
+                                                        />
+                                                    ) : (
+                                                        assignment.numberOfWeeks
+                                                    )}
+                                                </td>
+                                                <td>
+                                                    {editingId === assignment.id ? (
+                                                        <div className={styles.totalLessons}>
+                                                            {(parseInt(editValues.lessonsPerWeek) || 0) * 
+                                                            (parseInt(editValues.numberOfWeeks) || 0)}
+                                                        </div>
+                                                    ) : (
+                                                        assignment.completedLessons
+                                                    )}
+                                                </td>
+                                                <td>
+                                                <div className={styles.actionButtons}>
+                                                        {editingId === assignment.id ? (
+                                                            <div className={styles.editGroup}>
+                                                                <button 
+                                                                    className={styles.editAction}
+                                                                    onClick={() => handleEditSubmit(assignment)}
+                                                                    disabled={isLoading}
+                                                                >
+                                                                    <FaCheck />
+                                                                </button>
+                                                                <button 
+                                                                    className={styles.editAction}
+                                                                    onClick={handleCancelEdit}
+                                                                >
+                                                                    <FaTimes />
+                                                                </button>
+                                                            </div>
+                                                        ) : (
+                                                            <>
+                                                                <button 
+                                                                    className={styles.editButton}
+                                                                    onClick={() => handleStartEdit(assignment)}
+                                                                    disabled={isLoading || editingId !== null}
+                                                                >
+                                                                    <FaEdit />
+                                                                </button>
+                                                                <button
+                                                                    className={styles.deleteButton}
+                                                                    onClick={() => handleDelete(assignment)}
+                                                                    disabled={isLoading}
+                                                                >
+                                                                    <FaTrash />
+                                                                </button>
+                                                            </>
+                                                        )}
+                                                    </div>
+                                                </td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
                             </div>
-                            </li>
-                        ))}
-                        </ul>
-                    ) : (
-                        <p>Chưa có dữ liệu</p>
-                    )}
-                    <button className={styles.button} onClick={() => setShowModal(true)}>Khai báo tiết dạy</button>
+                        ) : (
+                            <p>Giáo viên chưa có dữ liệu phân công</p>
+                        )}
+                    </div>
                 </div>
             </div>
-        </div>
 
-        <Modal
-            isOpen={showModal}
-            onRequestClose={() => setShowModal(false)}
-            className={styles.modal}
-        >
-            <h2>Khai báo lớp</h2>
-            <form onSubmit={handleDeclare} className={styles.form}>
-                <select
-                    className={styles.select}
-                    value={selectedSubject}
-                    onChange={handleSubjectChange}
-                >
-                    <option value="">Chọn môn học</option>
-                    {subjects.map((subject) => (
-                        <option key={subject._id} value={subject._id}>{subject.name}</option>
-                    ))}
-                </select>
-                <select 
-                    className={styles.select}
-                    value={selectedClass} 
-                    onChange={handleClassChange}
-                    disabled={!selectedSubject || classes.length === 0}
-                >
-                    <option value="">Chọn lớp</option>
-                    {classes.map((cls) => (
-                        <option key={cls._id} value={cls._id}>{cls.name}</option>
-                    ))}
-                </select>
-                {classes.length === 0 && selectedSubject && (
-                    <p style={{textAlign:'center', fontWeight:'600', color: '#dc2f2f'}}>Không có lớp nào khả dụng cho môn học này</p>
-                )}
-                {classSubjectError ? (
-                    <p style={{textAlign:'center', fontWeight:'600', color: '#dc2f2f'}}>{classSubjectError}</p>
-                ) : classSubjectInfo.remainingLessons !== undefined ? (
-                    <p>Số tiết còn trống: {classSubjectInfo.remainingLessons}</p>
-                ) : null}
-                <input 
-                    className={styles.input}
-                    type="number" 
-                    placeholder="Số tiết"
-                    value={lessonCount}
-                    onChange={(e) => setLessonCount(e.target.value)}
-                    disabled={!!classSubjectError}
-                />
-                <button 
-                    className={styles.button} 
-                    type="submit" 
-                    disabled={isLoading || !!classSubjectError}
-                >
-                    {isLoading ? <LoadingSpinner/> : 'Khai báo tiết dạy'}
-                </button>
-            </form>
-        </Modal>
-        <Modal
-            isOpen={!!editingAssignment}
-            onRequestClose={() => setEditingAssignment(null)}
-            className={styles.modal}
-        >
-            <h2>Chỉnh sửa khai báo</h2>
-            {editingAssignment && (
-                <form onSubmit={handleEditSubmit} className={styles.form}>
-                    {editingClassSubjectInfo.remainingLessons !== undefined && (
-                        <p>Số tiết còn trống: {editingClassSubjectInfo.remainingLessons + (editingAssignment?.completedLessons || 0)}</p>
-                    )}
-                    <input
-                        className={styles.input}
-                        type="number"
-                        value={newLessonCount}
-                        onChange={(e) => setNewLessonCount(e.target.value)}
-                        required
-                    />
-                    <button className={styles.button} type="submit" disabled={isLoading}>
-                        {isLoading ? <LoadingSpinner/> : 'Cập nhật'}
-                    </button>
-                </form>
-            )}
-        </Modal>
-        <Modal
-            isOpen={showDeleteConfirmModal}
-            onRequestClose={() => setShowDeleteConfirmModal(false)}
-            className={styles.modal}
-        >
-            <div className={styles.modal}>
-                <h2>Xác nhận xóa</h2>
-                <p>Bạn có chắc chắn muốn xóa khai báo này?</p>
-                <div className={styles.modalButtons}>
-                    <button className={styles.cancelButton} onClick={() => setShowDeleteConfirmModal(false)}>Hủy</button>
-                    <button className={styles.deleteButton} onClick={confirmDelete} disabled={isLoading}>
-                    {isLoading ? <LoadingSpinner size={20} /> : 'Xóa'}
-                    </button>
+            <CreateAssignmentModal
+                isOpen={showModal}
+                onClose={() => setShowModal(false)}
+                subjects={subjects}
+                teacherId={teacher?._id}
+                onAssignmentCreate={handleCreateAssignment}
+                existingAssignments={assignments}
+            />
+
+            <Modal
+                isOpen={showDeleteConfirmModal}
+                onRequestClose={() => setShowDeleteConfirmModal(false)}
+                className={styles.modal}
+            >
+                <div className={styles.modal}>
+                    <h2>Xác nhận xóa</h2>
+                    <p>Bạn có chắc chắn muốn xóa phân công này?</p>
+                    <div className={styles.modalButtons}>
+                        <button 
+                            className={styles.cancelButton} 
+                            onClick={() => setShowDeleteConfirmModal(false)}
+                        >
+                            Hủy
+                        </button>
+                        <button 
+                            className={styles.deleteButton} 
+                            onClick={confirmDelete} 
+                            disabled={isLoading}
+                        >
+                            {isLoading ? 
+                                <Circles color="#ffffff" height={20} width={20} /> : 
+                                'Xóa'
+                            }
+                        </button>
+                    </div>
                 </div>
-            </div>
-        </Modal>
+            </Modal>
 
-        <Footer/>
+            <Footer/>
         </>
-    )
-}
+    );
+};
 
 export default TeacherDeclareScreen;

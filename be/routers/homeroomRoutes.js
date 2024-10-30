@@ -12,7 +12,7 @@ homeroomRouters.post('/', async (req, res) => {
   } catch (error) {
     res.status(400).json({ message: error.message });
   }
-});
+}); 
 
 // Get all homerooms
 homeroomRouters.get('/', async (req, res) => {
@@ -58,6 +58,20 @@ homeroomRouters.delete('/teacher/:teacherId', async (req, res) => {
       res.json({ message: 'Homeroom deleted successfully', deletedHomeroom });
     } else {
       res.status(404).json({ message: 'No homeroom found for this teacher' });
+    }
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+});
+
+// Delete a homeroom by ID
+homeroomRouters.delete('/:id', async (req, res) => {
+  try {
+    const homeroom = await Homeroom.findByIdAndDelete(req.params.id);
+    if (homeroom) {
+      res.json({ message: 'Homeroom deleted successfully', deletedHomeroom: homeroom });
+    } else {
+      res.status(404).json({ message: 'Homeroom not found' });
     }
   } catch (error) {
     res.status(500).json({ message: error.message });

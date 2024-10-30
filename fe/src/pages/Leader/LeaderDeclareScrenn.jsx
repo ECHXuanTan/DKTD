@@ -34,7 +34,6 @@ const LeaderDashboard = () => {
                 
                 if (userData) {
                     if (!userData || userData.user.role !== 0) {
-                        // Redirect based on user role
                         switch(userData.user.role) {
                           case 1:
                             navigate('/ministry-declare');
@@ -48,9 +47,8 @@ const LeaderDashboard = () => {
                     }
                     const teachersData = await getDepartmentTeachers();
                     if (Array.isArray(teachersData) && teachersData.length > 0) {
-                        const sortedTeachers = teachersData.sort((a, b) => a.name.localeCompare(b.name));
-                        setTeachers(sortedTeachers);
-                        setCurrentDepartment(sortedTeachers[0].departmentName);
+                        setTeachers(teachersData);
+                        setCurrentDepartment(teachersData[0].departmentName);
                         const teacherData = await getTeacherByEmail();
                         setTeacher(teacherData);
                         const aboveTeachers = await getAboveTeachers(teacherData.department._id);
@@ -129,13 +127,13 @@ const LeaderDashboard = () => {
                     </Grid>
                     <Grid item xs={12} sm={6} md={3}>
                         <Paper className={`${styles.statBox} ${styles.orangeBox}`}>
-                            <Typography variant="h6">Giáo viên vượt quá 25% số tiết cơ bản</Typography>
+                            <Typography variant="h6">Giáo viên vượt quá 25% số tiết chuẩn</Typography>
                             <Typography variant="h4">{aboveThresholdCount}</Typography>
                         </Paper>
                     </Grid>
                     <Grid item xs={12} sm={6} md={3}>
                         <Paper className={`${styles.statBox} ${styles.redBox}`}>
-                            <Typography variant="h6">Giáo viên chưa đạt số tiết cơ bản</Typography>
+                            <Typography variant="h6">Giáo viên chưa đạt số tiết chuẩn</Typography>
                             <Typography variant="h4">{belowThresholdCount}</Typography>
                         </Paper>
                     </Grid>
@@ -162,10 +160,10 @@ const LeaderDashboard = () => {
                     <Box>
                         <ExportPDFButton user={user?.user} currentDepartment={currentDepartment} />
                         <Link to="/leader/class-statistics" style={{ textDecoration: 'none', marginLeft: '10px' }}>
-                            <Button variant="contained">Thống kê theo lớp</Button>
+                            <Button style={{borderRadius: '26px', fontWeight: 'bold'}} variant="contained">Thống kê theo lớp</Button>
                         </Link>
                         <Link to="/leader/warning" style={{ textDecoration: 'none', marginLeft: '10px' }}>
-                            <Button variant="contained" className={styles.warningButton}>
+                            <Button style={{borderRadius: '26px', fontWeight: 'bold'}} variant="contained" className={styles.warningButton}>
                                 Cảnh báo
                             </Button>
                         </Link>
@@ -179,8 +177,8 @@ const LeaderDashboard = () => {
                                 <TableCell className={styles.tableHeader}>Tên giáo viên</TableCell>
                                 <TableCell className={styles.tableHeader}>Tiết/Tuần</TableCell>
                                 <TableCell className={styles.tableHeader}>Số tuần dạy</TableCell>
-                                <TableCell className={styles.tableHeader}>Số tiết cơ bản</TableCell>
-                                <TableCell className={styles.tableHeader}>Tổng số tiết</TableCell>
+                                <TableCell className={styles.tableHeader}>Số tiết chuẩn</TableCell>
+                                <TableCell className={styles.tableHeader}>Tổng số tiết được phân công</TableCell>
                                 <TableCell className={styles.tableHeader}>Tỉ lệ hoàn thành</TableCell>
                                 <TableCell className={styles.tableHeader}>Số tiết dư</TableCell>
                                 <TableCell className={styles.tableHeader}>Lớp</TableCell>
@@ -218,7 +216,7 @@ const LeaderDashboard = () => {
                                             )}
                                             <TableCell rowSpan={rowSpan}>
                                                 <EditIcon
-                                                    onClick={() => handleEditTeacher(teacher.id)}
+                                                    onClick={() => handleEditTeacher(teacher._id)}
                                                     style={{ cursor: 'pointer' }}
                                                 />
                                             </TableCell>

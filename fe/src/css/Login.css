@@ -133,7 +133,9 @@
 .login-subtitle {
   font-size: 18px;
   color: #666;
-  margin-bottom: 20px;
+  margin: 0 auto;
+  max-width: 350px;
+  line-height: 1.5;
 }
 
 .login-button {

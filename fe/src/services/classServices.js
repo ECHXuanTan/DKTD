@@ -37,25 +37,20 @@ export const getClassById = async (classId) => {
 };
 
 export const createClass = async (classData) => {
-    try {
-        const userToken = localStorage.getItem('userToken');
-        const response = await api.post('api/class/create-class', classData, {
-            headers: {
-                'Content-Type': 'application/json',
-                Authorization: `Bearer ${userToken}`,
-            },
-        });
-        return response.data;
-    } catch (error) {
-        console.error('Error creating class:', error);
-        throw error;
-    }
-};
-
-export const createClasses = async (classesData) => {
   try {
       const userToken = localStorage.getItem('userToken');
-      const response = await api.post('api/class/create-classes', { classes: classesData }, {
+      // Transform the data to include calculated lessonCount
+      const transformedData = {
+          ...classData,
+          subjects: classData.subjects.map(subject => ({
+              subjectId: subject.subjectId,
+              periodsPerWeek: parseInt(subject.periodsPerWeek),
+              numberOfWeeks: parseInt(subject.numberOfWeeks),
+              lessonCount: parseInt(subject.lessonCount)
+          }))
+      };
+      
+      const response = await api.post('api/class/create-class', transformedData, {
           headers: {
               'Content-Type': 'application/json',
               Authorization: `Bearer ${userToken}`,
@@ -63,23 +58,74 @@ export const createClasses = async (classesData) => {
       });
       return response.data;
   } catch (error) {
+      console.error('Error creating class:', error);
+      throw error;
+  }
+};
+
+export const createClasses = async (classesData) => {
+  try {
+      const userToken = localStorage.getItem('userToken');
+      // Remove the redundant transformation since data is already formatted
+      const response = await api.post('api/class/create-classes', 
+          { classes: classesData }, // Send formatted data directly
+          {
+              headers: {
+                  'Content-Type': 'application/json',
+                  Authorization: `Bearer ${userToken}`,
+              },
+          }
+      );
+      return response.data;
+  } catch (error) {
       console.error('Error creating multiple classes:', error);
       throw error;
   }
 };
 
-export const updateSubjectLessonCount = async (classId, subjectId, lessonCount) => {
+export const updateSubjectLessonCount = async (classId, subjectId, periodsPerWeek, numberOfWeeks) => {
   try {
     const userToken = localStorage.getItem('userToken');
-    const response = await api.put(`api/class/${classId}/update-subject/${subjectId}`, { lessonCount }, {
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${userToken}`,
+    const response = await api.put(
+      `api/class/${classId}/update-subject/${subjectId}`, 
+      { 
+        periodsPerWeek: parseInt(periodsPerWeek), 
+        numberOfWeeks: parseInt(numberOfWeeks) 
       },
-    });
+      {
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${userToken}`,
+        },
+      }
+    );
     return response.data;
   } catch (error) {
-    console.error('Error updating subject lesson count:', error);
+    console.error('Error updating subject:', error);
+    throw error;
+  }
+};
+
+export const addSubjectToClass = async (classId, subjectId, periodsPerWeek, numberOfWeeks) => {
+  try {
+    const userToken = localStorage.getItem('userToken');
+    const response = await api.post(
+      `api/class/${classId}/add-subject`,
+      {
+        subjectId,
+        periodsPerWeek: parseInt(periodsPerWeek),
+        numberOfWeeks: parseInt(numberOfWeeks)
+      },
+      {
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${userToken}`,
+        },
+      }
+    );
+    return response.data;
+  } catch (error) {
+    console.error('Error adding subject to class:', error);
     throw error;
   }
 };
@@ -96,25 +142,6 @@ export const removeSubjectFromClass = async (classId, subjectId) => {
     return response.data;
   } catch (error) {
     console.error('Error removing subject from class:', error);
-    throw error;
-  }
-};
-
-export const addSubjectToClass = async (classId, subjectId, lessonCount) => {
-  try {
-    const userToken = localStorage.getItem('userToken');
-    const response = await api.post(`api/class/${classId}/add-subject`, 
-      { subjectId, lessonCount },
-      {
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${userToken}`,
-        },
-      }
-    );
-    return response.data;
-  } catch (error) {
-    console.error('Error adding subject to class:', error);
     throw error;
   }
 };
@@ -171,20 +198,23 @@ export const deleteClass = async (classId) => {
 
 export const addSubjectsToClasses = async (classSubjectsData) => {
   try {
-    const userToken = localStorage.getItem('userToken');
-    const response = await api.post('api/class/add-subjects-to-classes', 
-      { classes: classSubjectsData.classes },  // Thay đổi ở đây
-      {
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${userToken}`,
-        },
-      }
-    );
-    return response.data;
+      const userToken = localStorage.getItem('userToken');
+      
+      // Gửi dữ liệu trực tiếp lên API mà không cần transform
+      const response = await api.post(
+          'api/class/add-subjects-to-classes', 
+          classSubjectsData,  // Đã được format từ modal
+          {
+              headers: {
+                  'Content-Type': 'application/json',
+                  Authorization: `Bearer ${userToken}`,
+              },
+          }
+      );
+      return response.data;
   } catch (error) {
-    console.error('Error adding subjects to classes:', error);
-    throw error;
+      console.error('Error adding subjects to classes:', error);
+      throw error;
   }
 };
 

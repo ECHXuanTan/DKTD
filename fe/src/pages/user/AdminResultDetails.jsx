@@ -295,9 +295,6 @@ const AdminResultDetail = () => {
           )}
         </div>
       )}
-      <div className="button-container">
-        <button className="register-button" onClick={handleBack}>Quay lại</button>
-      </div>
     </div>
   );
 };

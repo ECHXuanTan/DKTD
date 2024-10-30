@@ -199,7 +199,7 @@ const ExportAllClassesButton = ({ user }) => {
         <Button 
             variant="contained" 
             onClick={exportToPDF}
-            style={{ marginRight: '10px', backgroundColor: '#d98236', fontWeight: '600' }}
+            style={{ marginRight: '10px', backgroundColor: '#d98236', fontWeight: '600', borderRadius: '26px' }}
         >
             Xuất báo cáo tất cả lớp
         </Button>

@@ -24,6 +24,7 @@ import DeleteSubjectModal from './Component/DeleteSubjectModal.jsx';
 import AddSubjectModal from './Component/AddSubjectModal.jsx';
 import DeleteClassModal from './Component/DeleteClassModal.jsx';
 import MultiSubjectUploadModal from './Component/MultiSubjectUploadModal.jsx';
+import ExportTeachersClassExcel from './Component/Statistics/ExportTeachersClassExcel.jsx';
 
 const ClassScreen = () => { 
     const [user, setUser] = useState(null);
@@ -45,6 +46,16 @@ const ClassScreen = () => {
     const [rowsPerPage, setRowsPerPage] = useState(25);
     const navigate = useNavigate();
 
+    const fetchClasses = async () => {
+        try {
+            const classData = await getClasses();
+            setClasses(classData);
+        } catch (error) {
+            console.error('Error fetching classes:', error);
+            toast.error('Đã xảy ra lỗi khi tải dữ liệu lớp học');
+        }
+    };
+
     useEffect(() => {
         const fetchUserAndData = async () => {
             try {
@@ -53,7 +64,6 @@ const ClassScreen = () => {
                 
                 if (userData) {
                     if (!userData || userData.user.role !== 1) {
-                        // Redirect based on user role
                         switch(userData.user.role) {
                           case 2:
                             navigate('/admin-dashboard');
@@ -65,8 +75,7 @@ const ClassScreen = () => {
                             navigate('/login');
                         }
                     }
-                    const classData = await getClasses();
-                    setClasses(classData);
+                    await fetchClasses();
                     const subjectData = await getSubject();
                     setSubjects(subjectData);
                 }
@@ -79,6 +88,11 @@ const ClassScreen = () => {
         };
         fetchUserAndData();
     }, [navigate]);
+
+    useEffect(() => {
+        const interval = setInterval(fetchClasses, 5000); // Poll every 5 seconds
+        return () => clearInterval(interval);
+    }, []);
 
     const handleSearchChange = (event) => {
         setSearchQuery(event.target.value);
@@ -99,15 +113,9 @@ const ClassScreen = () => {
         setPage(0);
     };
 
-    const handleClassAdded = async () => {
-        try {
-            const updatedClassData = await getClasses();
-            setClasses(updatedClassData);
-            toast.success('Danh sách lớp đã được cập nhật');
-        } catch (error) {
-            console.error('Error refreshing classes:', error);
-            toast.error('Không thể cập nhật danh sách lớp');
-        }
+    const handleClassAdded = () => {
+        fetchClasses();
+        toast.success('Danh sách lớp đã được cập nhật');
     };
 
     const handleEditSubject = (classItem, subject) => {
@@ -132,22 +140,15 @@ const ClassScreen = () => {
         setShowDeleteClassModal(true);
     };
 
-    const handleUpdateSubject = async (newLessonCount) => {
+    const handleUpdateSubject = async (updatedData) => {
         try {
-            await updateSubjectLessonCount(currentClass._id, currentSubject.subject._id, parseInt(newLessonCount));
-            const updatedClasses = classes.map(classItem => 
-                classItem._id === currentClass._id
-                    ? {
-                        ...classItem,
-                        subjects: classItem.subjects.map(subject => 
-                            subject.subject._id === currentSubject.subject._id
-                                ? {...subject, lessonCount: parseInt(newLessonCount)}
-                                : subject
-                        )
-                    }
-                    : classItem
+            await updateSubjectLessonCount(
+                currentClass._id, 
+                currentSubject.subject._id, 
+                updatedData.periodsPerWeek, 
+                updatedData.numberOfWeeks
             );
-            setClasses(updatedClasses);
+            await fetchClasses();
             setShowEditSubjectModal(false);
             toast.success('Cập nhật môn học thành công');
         } catch (err) {
@@ -159,19 +160,11 @@ const ClassScreen = () => {
     const handleRemoveSubject = async () => {
         try {
             await removeSubjectFromClass(currentClass._id, currentSubject.subject._id);
-            const updatedClasses = classes.map(classItem => 
-                classItem._id === currentClass._id
-                    ? {
-                        ...classItem,
-                        subjects: classItem.subjects.filter(subject => subject.subject._id !== currentSubject.subject._id)
-                    }
-                    : classItem
-            );
-            setClasses(updatedClasses);
+            await fetchClasses();
             setShowDeleteSubjectModal(false);
             toast.success('Xóa môn học thành công');
         } catch (err) {
-            if (err.response && err.response.data && err.response.data.message === 'Không thể xóa môn học đã được phân công giảng dạy') {
+            if (err.response?.data?.message === 'Không thể xóa môn học đã được phân công giảng dạy') {
                 toast.error('Không thể xóa môn học đã được phân công giảng dạy');
             } else {
                 toast.error('Xóa môn học thất bại');
@@ -179,36 +172,23 @@ const ClassScreen = () => {
         }
     };
 
-    const handleAddNewSubject = async (subjectId, lessonCount) => {
+    const handleAddNewSubject = async (data) => {
         try {
-            const response = await addSubjectToClass(currentClass._id, subjectId, parseInt(lessonCount));
-            const addedSubject = subjects.find(subject => subject._id === subjectId);
-            const updatedClasses = classes.map(classItem => 
-                classItem._id === currentClass._id
-                    ? {
-                        ...classItem,
-                        subjects: [
-                            ...classItem.subjects,
-                            {
-                                _id: response.class.subjects[response.class.subjects.length - 1]._id,
-                                subject: {
-                                    _id: addedSubject._id,
-                                    name: addedSubject.name
-                                },
-                                lessonCount: parseInt(lessonCount)
-                            }
-                        ]
-                    }
-                    : classItem
+            const { subjectId, periodsPerWeek, numberOfWeeks } = data;
+            await addSubjectToClass(
+                currentClass._id, 
+                subjectId, 
+                periodsPerWeek,
+                numberOfWeeks
             );
-            setClasses(updatedClasses);
+            await fetchClasses();
             setShowAddSubjectModal(false);
-            toast.success('Cập nhật môn học thành công');
+            toast.success('Thêm môn học thành công');
         } catch (err) {
-            if (err.response && err.response.status === 400) {
-                toast.error(err.response.data.message || 'Cập nhật môn học thất bại');
+            if (err.response?.status === 400) {
+                toast.error(err.response.data.message || 'Thêm môn học thất bại');
             } else {
-                toast.error('Cập nhật môn học thất bại. Vui lòng thử lại sau.');
+                toast.error('Thêm môn học thất bại. Vui lòng thử lại sau.');
             }
         }
     };
@@ -216,14 +196,13 @@ const ClassScreen = () => {
     const handleDeleteClassConfirm = async () => {
         try {
             await deleteClass(currentClass._id);
-            const updatedClasses = classes.filter(classItem => classItem._id !== currentClass._id);
-            setClasses(updatedClasses);
+            await fetchClasses();
             setShowDeleteClassModal(false);
             toast.success('Xóa lớp học thành công');
         } catch (err) {
-            if (err.response && err.response.data && err.response.data.message === 'Không thể xóa lớp học đã có môn được phân công giảng dạy') {
+            if (err.response?.data?.message === 'Không thể xóa lớp học đã có môn được phân công giảng dạy') {
                 toast.error('Không thể xóa lớp học đã có môn được phân công giảng dạy');
-            } else if (err.response && err.response.data && err.response.data.message === 'Không thể xóa lớp học đang có giáo viên chủ nhiệm') {
+            } else if (err.response?.data?.message === 'Không thể xóa lớp học đang có giáo viên chủ nhiệm') {
                 toast.error('Không thể xóa lớp học đang có giáo viên chủ nhiệm');
             } else {
                 toast.error('Xóa lớp học thất bại');
@@ -231,15 +210,9 @@ const ClassScreen = () => {
         }
     };
 
-    const handleMultiSubjectsAdded = async () => {
-        try {
-            const updatedClassData = await getClasses();
-            setClasses(updatedClassData);
-            toast.success('Danh sách lớp và môn học đã được cập nhật');
-        } catch (error) {
-            console.error('Error refreshing classes:', error);
-            toast.error('Không thể cập nhật danh sách lớp và môn học');
-        }
+    const handleMultiSubjectsAdded = () => {
+        fetchClasses();
+        toast.success('Danh sách lớp và môn học đã được cập nhật');
     };
 
     const columns = [
@@ -250,6 +223,8 @@ const ClassScreen = () => {
         { field: 'homeroomTeacher', label: 'Giáo viên chủ nhiệm', width: '15%' },
         { field: 'updatedAt', label: 'Lần điều chỉnh gần nhất', width: '12%' },
         { field: 'subjects', label: 'Môn học', width: '15%' },
+        { field: 'periodsPerWeek', label: 'Số tiết 1 tuần', width: '8%' },
+        { field: 'numberOfWeeks', label: 'Số tuần', width: '8%' },
         { field: 'lessonCount', label: 'Số tiết', width: '8%' },
         { field: 'subjectActions', label: 'Thao tác môn học', width: '10%', align: 'center' },
         { field: 'classActions', label: 'Thao tác lớp', width: '10%' },
@@ -261,9 +236,9 @@ const ClassScreen = () => {
             (gradeFilter === '' || classItem.grade === parseInt(gradeFilter))
         );
 
-        const paginatedClasses = rowsPerPage > 0
+    const paginatedClasses = rowsPerPage > 0
         ? filteredClasses.slice(page * rowsPerPage, (page + 1) * rowsPerPage)
-        : filteredClasses; // Show all classes when rowsPerPage is -1 (All)
+        : filteredClasses;
 
     const rows = paginatedClasses.flatMap((classItem, classIndex) => {
         const baseIndex = page * rowsPerPage + classIndex + 1;
@@ -276,6 +251,8 @@ const ClassScreen = () => {
             homeroomTeacher: subjectIndex === 0 ? (classItem.homeroomTeacher || '-') : null,
             updatedAt: subjectIndex === 0 ? new Date(classItem.updatedAt).toLocaleString() : null,
             subjects: subject.subject.name,
+            periodsPerWeek: subject.subject.name === "CCSHL" ? 4 : (subject.periodsPerWeek || '-'),
+            numberOfWeeks: subject.subject.name === "CCSHL" ? 18 : (subject.numberOfWeeks || '-'),
             lessonCount: subject.lessonCount,
             subjectActions: subject.subject.name === "CCSHL" ? (
                 <span>-</span>
@@ -333,7 +310,6 @@ const ClassScreen = () => {
                         <Typography>Tổng số lớp: {classes.length}</Typography>
                     </Box>
                     <Box display="flex" justifyContent="space-between" mb={3}>
-                        {/* Search and filter group */}
                         <Box display="grid" gridTemplateColumns="1fr 1fr" gap="20px" style={{ width: '50%' }}>
                             <TextField
                                 value={searchQuery}
@@ -362,7 +338,6 @@ const ClassScreen = () => {
                             </Select>
                         </Box>
                         
-                        {/* Buttons group */}
                         <Box display="grid" gridTemplateColumns="repeat(3, auto)" gap="20px">
                             <Button 
                                 variant="contained" 
@@ -412,11 +387,15 @@ const ClassScreen = () => {
                                         {rows.map((row) => (
                                             <TableRow key={row.id}>
                                                 {columns.map((column) => {
-                                                    if (row.isFirstRow || column.field === 'subjects' || column.field === 'lessonCount' || column.field === 'subjectActions') {
+                                                    if (row.isFirstRow || column.field === 'subjects' || column.field === 'lessonCount' || 
+                                                        column.field === 'periodsPerWeek' || column.field === 'numberOfWeeks' || 
+                                                        column.field === 'subjectActions') {
                                                         return (
                                                             <TableCell 
                                                                 key={`${row.id}-${column.field}`}
-                                                                rowSpan={column.field === 'subjects' || column.field === 'lessonCount' || column.field === 'subjectActions' ? 1 : row.rowSpan}
+                                                                rowSpan={column.field === 'subjects' || column.field === 'lessonCount' || 
+                                                                        column.field === 'periodsPerWeek' || column.field === 'numberOfWeeks' || 
+                                                                        column.field === 'subjectActions' ? 1 : row.rowSpan}
                                                                 className={column.sticky ? styles.stickyColumn : ''}
                                                             >
                                                                 {row[column.field]}
@@ -445,65 +424,64 @@ const ClassScreen = () => {
                                     }}
                                     onPageChange={handleChangePage}
                                     onRowsPerPageChange={handleChangeRowsPerPage}
-                                    sx={{ marginLeft: 'auto' }}  
-                                    
+                                    sx={{ marginLeft: 'auto' }}
                                 />
                             </TableRow>
                         </TableFooter>
                     </div>
                 </Box>
             </div>
-        <Footer />
+            <Footer />
     
-        <SingleClassModal
-            isOpen={showSingleClassModal}
-            onClose={() => setShowSingleClassModal(false)}
-            onClassAdded={handleClassAdded}
-            subjects={subjects}
-        />
+            <SingleClassModal
+                isOpen={showSingleClassModal}
+                onClose={() => setShowSingleClassModal(false)}
+                onClassAdded={handleClassAdded}
+                subjects={subjects}
+            />
 
-        <MultiClassModal
-            isOpen={showMultiClassModal}
-            onClose={() => setShowMultiClassModal(false)}
-            onClassesAdded={handleClassAdded}
-        />
+            <MultiClassModal
+                isOpen={showMultiClassModal}
+                onClose={() => setShowMultiClassModal(false)}
+                onClassesAdded={handleClassAdded}
+            />
 
-        <EditSubjectModal
-            isOpen={showEditSubjectModal}
-            onClose={() => setShowEditSubjectModal(false)}
-            onUpdateSubject={handleUpdateSubject}
-            subject={currentSubject}
-        />
+            <EditSubjectModal
+                isOpen={showEditSubjectModal}
+                onClose={() => setShowEditSubjectModal(false)}
+                onUpdateSubject={handleUpdateSubject}
+                subject={currentSubject}
+            />
 
-        <DeleteSubjectModal
-            isOpen={showDeleteSubjectModal}
-            onClose={() => setShowDeleteSubjectModal(false)}
-            onDeleteSubject={handleRemoveSubject}
-            subject={currentSubject}
-        />
+            <DeleteSubjectModal
+                isOpen={showDeleteSubjectModal}
+                onClose={() => setShowDeleteSubjectModal(false)}
+                onDeleteSubject={handleRemoveSubject}
+                subject={currentSubject}
+            />
 
-        <AddSubjectModal
-            isOpen={showAddSubjectModal}
-            onClose={() => setShowAddSubjectModal(false)}
-            onAddSubject={handleAddNewSubject}
-            subjects={subjects}
-            currentClass={currentClass}
-        />
+            <AddSubjectModal
+                isOpen={showAddSubjectModal}
+                onClose={() => setShowAddSubjectModal(false)}
+                onAddSubject={handleAddNewSubject}
+                subjects={subjects}
+                currentClass={currentClass}
+            />
 
-        <DeleteClassModal
-            isOpen={showDeleteClassModal}
-            onClose={() => setShowDeleteClassModal(false)}
-            onDeleteClass={handleDeleteClassConfirm}
-            classItem={currentClass}
-        />
+            <DeleteClassModal
+                isOpen={showDeleteClassModal}
+                onClose={() => setShowDeleteClassModal(false)}
+                onDeleteClass={handleDeleteClassConfirm}
+                classItem={currentClass}
+            />
 
-        <MultiSubjectUploadModal
-            isOpen={showMultiSubjectUploadModal}
-            onClose={() => setShowMultiSubjectUploadModal(false)}
-            onSubjectsAdded={handleMultiSubjectsAdded}
-        />
-    </>
-);
+            <MultiSubjectUploadModal
+                isOpen={showMultiSubjectUploadModal}
+                onClose={() => setShowMultiSubjectUploadModal(false)}
+                onSubjectsAdded={handleMultiSubjectsAdded}
+            />
+        </>
+    );
 }
 
 export default ClassScreen;

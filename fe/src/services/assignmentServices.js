@@ -30,14 +30,18 @@ export const getAllAssignmentTeachers = async (id) => {
     }
   };
 
-  export const createAssignment = async (classId, subjectId, teacherId, lessons) => {
+  export const createAssignment = async (assignments) => {
     try {
       const userToken = localStorage.getItem('userToken');
       const response = await api.post('api/assignment/assign', 
         {
-          classId,
-          subjectId,
-          assignments: [{ teacherId, lessons }]
+          assignments: assignments.map(assignment => ({
+            classId: assignment.classId,
+            subjectId: assignment.subjectId,
+            teacherId: assignment.teacherId,
+            lessonsPerWeek: assignment.lessonsPerWeek,
+            numberOfWeeks: assignment.numberOfWeeks
+          }))
         },
         {
           headers: {
@@ -47,18 +51,19 @@ export const getAllAssignmentTeachers = async (id) => {
       );
       return response.data;
     } catch (error) {
-      console.error('Error creating assignment:', error);
+      console.error('Error creating assignments:', error);
       throw error;
     }
   };
-
-  export const editAssignment = async (assignmentId, newLessons) => {
+  
+  export const editAssignment = async (assignmentId, lessonsPerWeek, numberOfWeeks) => {
     try {
       const userToken = localStorage.getItem('userToken');
       const response = await api.put('api/assignment/edit', 
         {
           assignmentId,
-          newLessons
+          lessonsPerWeek,
+          numberOfWeeks
         },
         {
           headers: {

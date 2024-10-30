@@ -9,101 +9,171 @@ import Subject from '../models/subjectModels.js';
 import Result from '../models/resultModel.js'; // Import the Result model
 
 const assignmentRouter = express.Router();
+// Helper function to sort classes
+const sortClasses = (a, b) => {
+  if (a.grade !== b.grade) {
+    return a.grade - b.grade;
+  }
+  return a.className.localeCompare(b.className, 'vi', { sensitivity: 'base' });
+};
 
-// Endpoint tạo assignment
+// POST endpoint để tạo assignment
 assignmentRouter.post('/assign', isAuth, isToTruong, async (req, res) => {
   const session = await mongoose.startSession();
   session.startTransaction();
 
   try {
-    const { classId, subjectId, assignments } = req.body;
-
-    const classData = await Class.findById(classId).session(session);
-    if (!classData) {
-      throw new Error('Không tìm thấy lớp học');
+    const { assignments } = req.body;
+    
+    // Validate input
+    if (!Array.isArray(assignments) || assignments.length === 0) {
+      throw new Error('Dữ liệu không hợp lệ');
     }
 
-    const subject = await Subject.findById(subjectId).populate('department').session(session);
-    if (!subject) {
-      throw new Error('Không tìm thấy môn học');
-    }
-
-    const subjectData = classData.subjects.find(s => s.subject.toString() === subjectId);
-    if (!subjectData) {
-      throw new Error('Không tìm thấy môn học trong lớp này');
-    }
-
-    const existingAssignments = await TeacherAssignment.find({
-      class: classId,
-      subject: subjectId
-    }).session(session);
-
-    if (classData.isSpecial) {
-      if (existingAssignments.length + assignments.length > subjectData.maxTeachers) {
-        throw new Error(`Vượt quá số lượng giáo viên tối đa (${subjectData.maxTeachers}) cho môn học này trong lớp đặc biệt`);
+    // Group assignments by class and subject
+    const groupedAssignments = assignments.reduce((acc, curr) => {
+      const key = `${curr.classId}-${curr.subjectId}`;
+      if (!acc[key]) {
+        acc[key] = {
+          classId: curr.classId,
+          subjectId: curr.subjectId,
+          assignments: []
+        };
       }
-    } else {
-      let totalExistingLessons = existingAssignments.reduce((sum, assignment) => sum + assignment.completedLessons, 0);
-      let totalNewLessons = assignments.reduce((sum, assignment) => sum + Math.max(0, assignment.lessons || 0), 0);
-      if (totalExistingLessons + totalNewLessons > subjectData.lessonCount) {
-        throw new Error('Tổng số tiết vượt quá số tiết cho phép của môn học');
-      }
-    }
-
-    for (const assignment of assignments) {
-      if (assignment.lessons < 0) {
-        throw new Error('Số tiết không thể là số âm');
-      }
-
-      const teacher = await Teacher.findById(assignment.teacherId).populate('department').session(session);
-      if (!teacher) {
-        throw new Error('Không tìm thấy giáo viên');
-      }
-
-      const maxLessons = subjectData.lessonCount;
-      const assignedLessons = classData.isSpecial ? 
-        Math.min(Math.max(0, assignment.lessons), maxLessons) : 
-        Math.min(Math.max(0, assignment.lessons), maxLessons - existingAssignments.reduce((sum, a) => sum + a.completedLessons, 0));
-
-      if (assignedLessons === 0) {
-        continue; // Skip this assignment if no lessons are assigned
-      }
-
-      const updatedAssignment = await TeacherAssignment.findOneAndUpdate(
-        { teacher: assignment.teacherId, class: classId, subject: subjectId },
-        { 
-          $set: { 
-            completedLessons: assignedLessons,
-            maxLessons: maxLessons
-          } 
-        },
-        { upsert: true, new: true, session }
-      );
-
-      await Teacher.findByIdAndUpdate(
-        assignment.teacherId,
-        { $inc: { totalAssignment: assignedLessons } },
-        { session }
-      );
-
-      await Department.findByIdAndUpdate(
-        subject.department._id,
-        { $inc: { declaredTeachingLessons: assignedLessons } },
-        { session }
-      );
-
-      const result = new Result({
-        action: 'CREATE',
-        user: req.user._id,
-        entityType: 'TeacherAssignment',
-        entityId: updatedAssignment._id,
-        dataAfter: updatedAssignment
+      acc[key].assignments.push({
+        teacherId: curr.teacherId,
+        lessonsPerWeek: curr.lessonsPerWeek,
+        numberOfWeeks: curr.numberOfWeeks
       });
-      await result.save({ session });
+      return acc;
+    }, {});
+
+    // Process each group of assignments
+    for (const group of Object.values(groupedAssignments)) {
+      const { classId, subjectId, assignments: groupAssignments } = group;
+
+      // Validate class and subject
+      const classData = await Class.findById(classId).session(session);
+      if (!classData) {
+        throw new Error(`Không tìm thấy lớp học với ID ${classId}`);
+      }
+
+      const subject = await Subject.findById(subjectId)
+        .populate('department')
+        .session(session);
+      if (!subject) {
+        throw new Error(`Không tìm thấy môn học với ID ${subjectId}`);
+      }
+
+      const subjectData = classData.subjects.find(
+        s => s.subject.toString() === subjectId
+      );
+      if (!subjectData) {
+        throw new Error(`Không tìm thấy môn học ${subject.name} trong lớp ${classData.name}`);
+      }
+
+      // Get existing assignments
+      const existingAssignments = await TeacherAssignment.find({
+        class: classId,
+        subject: subjectId
+      }).session(session);
+
+      // Validate assignments based on class type
+      if (classData.isSpecial) {
+        if (existingAssignments.length + groupAssignments.length > subjectData.maxTeachers) {
+          throw new Error(
+            `Vượt quá số lượng giáo viên tối đa (${subjectData.maxTeachers}) cho môn ${subject.name} trong lớp ${classData.name}`
+          );
+        }
+      } else {
+        const totalExistingLessons = existingAssignments.reduce(
+          (sum, assignment) => sum + assignment.completedLessons,
+          0
+        );
+        // Tính tổng số tiết mới dựa trên số tiết/tuần và số tuần
+        const totalNewLessons = groupAssignments.reduce(
+          (sum, assignment) => {
+            if (assignment.lessonsPerWeek < 0 || assignment.numberOfWeeks < 0) {
+              throw new Error('Số tiết một tuần và số tuần không thể là số âm');
+            }
+            return sum + (assignment.lessonsPerWeek * assignment.numberOfWeeks);
+          },
+          0
+        );
+        
+        if (totalExistingLessons + totalNewLessons > subjectData.lessonCount) {
+          throw new Error(
+            `Tổng số tiết (${totalExistingLessons + totalNewLessons}) vượt quá số tiết cho phép (${subjectData.lessonCount}) của môn ${subject.name} trong lớp ${classData.name}`
+          );
+        }
+      }
+
+      // Process individual assignments
+      for (const assignment of groupAssignments) {
+        const teacher = await Teacher.findById(assignment.teacherId)
+          .populate('department')
+          .session(session);
+        if (!teacher) {
+          throw new Error(`Không tìm thấy giáo viên với ID ${assignment.teacherId}`);
+        }
+
+        // Tính số tiết từ số tiết/tuần và số tuần
+        const calculatedLessons = assignment.lessonsPerWeek * assignment.numberOfWeeks;
+        const maxLessons = subjectData.lessonCount;
+        
+        const assignedLessons = classData.isSpecial
+          ? Math.min(calculatedLessons, maxLessons)
+          : Math.min(
+              calculatedLessons,
+              maxLessons - existingAssignments.reduce((sum, a) => sum + a.completedLessons, 0)
+            );
+
+        if (assignedLessons === 0) continue;
+
+        // Create assignment
+        const updatedAssignment = await TeacherAssignment.findOneAndUpdate(
+          {
+            teacher: assignment.teacherId,
+            class: classId,
+            subject: subjectId
+          },
+          {
+            $set: {
+              completedLessons: assignedLessons,
+              lessonsPerWeek: assignment.lessonsPerWeek,
+              numberOfWeeks: assignment.numberOfWeeks,
+            }
+          },
+          { upsert: true, new: true, session }
+        );
+
+        // Update related collections
+        await Teacher.findByIdAndUpdate(
+          assignment.teacherId,
+          { $inc: { totalAssignment: assignedLessons } },
+          { session }
+        );
+
+        await Department.findByIdAndUpdate(
+          subject.department._id,
+          { $inc: { declaredTeachingLessons: assignedLessons } },
+          { session }
+        );
+
+        // Create result record
+        const result = new Result({
+          action: 'CREATE',
+          user: req.user._id,
+          entityType: 'TeacherAssignment',
+          entityId: updatedAssignment._id,
+          dataAfter: updatedAssignment
+        });
+        await result.save({ session });
+      }
     }
 
     await session.commitTransaction();
-    res.status(200).json({ message: "Phân công giảng dạy thành công" });
+    res.status(200).json({ message: 'Phân công giảng dạy thành công' });
   } catch (error) {
     await session.abortTransaction();
     res.status(400).json({ message: error.message });
@@ -112,13 +182,17 @@ assignmentRouter.post('/assign', isAuth, isToTruong, async (req, res) => {
   }
 });
 
-// Endpoint sửa assignment
+// PUT endpoint để sửa assignment
 assignmentRouter.put('/edit', isAuth, isToTruong, async (req, res) => {
   const session = await mongoose.startSession();
   session.startTransaction();
 
   try {
-    const { assignmentId, newLessons } = req.body;
+    const { assignmentId, lessonsPerWeek, numberOfWeeks } = req.body;
+
+    if (lessonsPerWeek < 0 || numberOfWeeks < 0) {
+      throw new Error('Số tiết một tuần và số tuần không thể là số âm');
+    }
 
     const assignment = await TeacherAssignment.findById(assignmentId)
       .populate('class')
@@ -136,27 +210,62 @@ assignmentRouter.put('/edit', isAuth, isToTruong, async (req, res) => {
       throw new Error('Không tìm thấy khai báo giảng dạy');
     }
 
+    // Lưu trạng thái cũ trước khi cập nhật
     const oldAssignment = assignment.toObject();
     const oldLessons = assignment.completedLessons;
+    
+    // Tính số tiết mới từ số tiết/tuần và số tuần
+    const newLessons = lessonsPerWeek * numberOfWeeks;
     const lessonDifference = newLessons - oldLessons;
 
-    assignment.completedLessons = newLessons;
-    await assignment.save({ session });
+    // Kiểm tra số tiết có vượt quá số tiết cho phép không
+    const classSubject = assignment.class.subjects.find(
+      s => s.subject.toString() === assignment.subject._id.toString()
+    );
+    if (!classSubject) {
+      throw new Error('Không tìm thấy thông tin môn học trong lớp');
+    }
 
+    // Tính tổng số tiết đã phân công cho môn học trong lớp (trừ assignment hiện tại)
+    const existingAssignments = await TeacherAssignment.find({
+      class: assignment.class._id,
+      subject: assignment.subject._id,
+      _id: { $ne: assignmentId }
+    }).session(session);
+
+    const totalAssignedLessons = existingAssignments.reduce(
+      (sum, a) => sum + a.completedLessons,
+      0
+    );
+
+    // Kiểm tra tổng số tiết mới có vượt quá giới hạn không
+    if (totalAssignedLessons + newLessons > classSubject.lessonCount) {
+      throw new Error(
+        `Tổng số tiết (${totalAssignedLessons + newLessons}) vượt quá số tiết cho phép (${classSubject.lessonCount})`
+      );
+    }
+
+    // Cập nhật assignment với các giá trị mới
+    assignment.lessonsPerWeek = lessonsPerWeek;
+    assignment.numberOfWeeks = numberOfWeeks;
+    assignment.completedLessons = newLessons;
+    const updatedAssignment = await assignment.save({ session });
+
+    // Cập nhật tổng số tiết của giáo viên
     await Teacher.findByIdAndUpdate(
       assignment.teacher._id,
       { $inc: { totalAssignment: lessonDifference } },
       { session }
     );
 
-    // Update department's declaredTeachingLessons
+    // Cập nhật số tiết khai báo của tổ bộ môn
     await Department.findByIdAndUpdate(
       assignment.subject.department._id,
       { $inc: { declaredTeachingLessons: lessonDifference } },
       { session }
     );
 
-    // Create detailed result record for the update
+    // Tạo bản ghi kết quả
     const result = new Result({
       action: 'UPDATE',
       user: req.user._id,
@@ -186,43 +295,46 @@ assignmentRouter.put('/edit', isAuth, isToTruong, async (req, res) => {
             name: oldAssignment.teacher.department.name
           }
         },
+        lessonsPerWeek: oldAssignment.lessonsPerWeek,
+        numberOfWeeks: oldAssignment.numberOfWeeks,
         completedLessons: oldAssignment.completedLessons,
         createdAt: oldAssignment.createdAt,
         updatedAt: oldAssignment.updatedAt
       },
       dataAfter: {
-        _id: assignment._id,
+        _id: updatedAssignment._id,
         class: {
-          _id: assignment.class._id,
-          name: assignment.class.name,
-          grade: assignment.class.grade
+          _id: updatedAssignment.class._id,
+          name: updatedAssignment.class.name,
+          grade: updatedAssignment.class.grade
         },
         subject: {
-          _id: assignment.subject._id,
-          name: assignment.subject.name,
+          _id: updatedAssignment.subject._id,
+          name: updatedAssignment.subject.name,
           department: {
-            _id: assignment.subject.department._id,
-            name: assignment.subject.department.name
+            _id: updatedAssignment.subject.department._id,
+            name: updatedAssignment.subject.department.name
           }
         },
         teacher: {
-          _id: assignment.teacher._id,
-          name: assignment.teacher.name,
-          position: assignment.teacher.position,
+          _id: updatedAssignment.teacher._id,
+          name: updatedAssignment.teacher.name,
+          position: updatedAssignment.teacher.position,
           department: {
-            _id: assignment.teacher.department._id,
-            name: assignment.teacher.department.name
+            _id: updatedAssignment.teacher.department._id,
+            name: updatedAssignment.teacher.department.name
           }
         },
-        completedLessons: assignment.completedLessons,
-        createdAt: assignment.createdAt,
-        updatedAt: assignment.updatedAt
+        lessonsPerWeek: updatedAssignment.lessonsPerWeek,
+        numberOfWeeks: updatedAssignment.numberOfWeeks,
+        completedLessons: updatedAssignment.completedLessons,
+        createdAt: updatedAssignment.createdAt,
+        updatedAt: updatedAssignment.updatedAt
       }
     });
     await result.save({ session });
 
     await session.commitTransaction();
-
     res.status(200).json({ message: "Cập nhật khai báo giảng dạy thành công" });
   } catch (error) {
     console.error('Error in edit assignment:', error);
@@ -325,7 +437,6 @@ assignmentRouter.delete('/delete', isAuth, isToTruong, async (req, res) => {
 assignmentRouter.get('/teacher/:teacherId', isAuth, async (req, res) => {
   try {
     const { teacherId } = req.params;
-    console.log(req.user);
 
     const teacher = await Teacher.findById(teacherId);
     if (!teacher) {
@@ -333,7 +444,7 @@ assignmentRouter.get('/teacher/:teacherId', isAuth, async (req, res) => {
     }
 
     const assignments = await TeacherAssignment.find({ teacher: teacherId })
-      .populate('class', 'name _id')
+      .populate('class', 'name grade _id')
       .populate('subject', 'name _id');
 
     if (assignments.length === 0) {
@@ -344,12 +455,18 @@ assignmentRouter.get('/teacher/:teacherId', isAuth, async (req, res) => {
       id: assignment._id,
       className: assignment.class.name,
       classId: assignment.class._id,
+      grade: assignment.class.grade,
       subjectName: assignment.subject.name,
       subjectId: assignment.subject._id,
-      completedLessons: assignment.completedLessons
+      completedLessons: assignment.completedLessons,
+      lessonsPerWeek: assignment.lessonsPerWeek || 0, // Thêm trường mới
+      numberOfWeeks: assignment.numberOfWeeks || 0
     }));
 
-    res.status(200).json(formattedAssignments);
+    // Sort assignments by grade and class name
+    const sortedAssignments = formattedAssignments.sort(sortClasses);
+
+    res.status(200).json(sortedAssignments);
   } catch (error) {
     res.status(500).json({ message: 'Lỗi server', error: error.message });
   }

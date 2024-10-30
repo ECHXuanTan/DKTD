@@ -2,46 +2,6 @@ import React from 'react';
 import { Button } from '@mui/material';
 import * as XLSX from 'xlsx';
 
-const loadTimesNewRomanFonts = async () => {
-  const fontFiles = [
-    { name: 'timesnewromanpsmt', style: 'normal' },
-    { name: 'timesnewromanpsmtb', style: 'bold' },
-    { name: 'timesnewromanpsmti', style: 'italics' },
-    { name: 'timesnewromanpsmtbi', style: 'bolditalics' }
-  ];
-
-  const fonts = {};
-
-  for (const font of fontFiles) {
-    try {
-      const fontResponse = await fetch(`/assets/times/${font.name}.ttf`);
-      if (!fontResponse.ok) {
-        throw new Error(`HTTP error! status: ${fontResponse.status}`);
-      }
-      const fontBlob = await fontResponse.blob();
-      const fontBase64 = await new Promise((resolve) => {
-        const reader = new FileReader();
-        reader.onloadend = () => resolve(reader.result.split(',')[1]);
-        reader.onerror = (error) => {
-          console.error(`Error reading font ${font.name}:`, error);
-          resolve(null);
-        };
-        reader.readAsDataURL(fontBlob);
-      });
-
-      if (fontBase64) {
-        fonts[`${font.name}.ttf`] = fontBase64;
-      } else {
-        console.error(`Failed to load font: ${font.name}`);
-      }
-    } catch (error) {
-      console.error(`Error loading font ${font.name}:`, error);
-    }
-  }
-
-  return fonts;
-};
-
 const ExportTeachersExcel = ({ teachers }) => {
   const getLastName = (fullName) => {
     const nameParts = fullName.trim().split(' ');
@@ -64,8 +24,6 @@ const ExportTeachersExcel = ({ teachers }) => {
   };
 
   const handleExport = async () => {
-    const fonts = await loadTimesNewRomanFonts();
-
     const data = teachers.map((teacher, index) => ({
       STT: index + 1,
       'Họ và tên': teacher.name,
@@ -132,12 +90,12 @@ const ExportTeachersExcel = ({ teachers }) => {
 
     const workbook = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(workbook, worksheet, 'Teachers Statistics');
-    XLSX.writeFile(workbook, 'Teachers_Statistics.xlsx');
+    XLSX.writeFile(workbook, 'Tính_giờ_dạy_theo_gv.xlsx');
   };
 
   return (
-    <Button variant="contained" color="primary" onClick={handleExport}>
-      Export to Excel
+    <Button variant="contained" color="primary" onClick={handleExport} style={{borderRadius: '26px', fontWeight: 'bold'}}>
+      Xuất file Excel
     </Button>
   );
 };

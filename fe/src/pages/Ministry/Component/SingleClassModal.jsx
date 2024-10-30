@@ -15,7 +15,14 @@ const initialClassState = {
     grade: '',
     campus: '',
     size: '',
-    subjects: [{ subjectId: '', lessonCount: '', isEditing: true, isSpecialized: true }]
+    subjects: [{
+      subjectId: '',
+      periodsPerWeek: '',
+      numberOfWeeks: '',
+      lessonCount: '',
+      isEditing: true,
+      isSpecialized: true
+    }]
 };
 
 const FilterPanel = ({ isSpecialized, onChange }) => {
@@ -58,16 +65,33 @@ const SingleClassModal = ({ isOpen, onClose, onClassAdded, subjects }) => {
         setSelectedSubjects([]);
     };
 
+    const calculateLessonCount = (periodsPerWeek, numberOfWeeks) => {
+        if (periodsPerWeek && numberOfWeeks) {
+            return parseInt(periodsPerWeek) * parseInt(numberOfWeeks);
+        }
+        return '';
+    };
+
     const handleInputChange = (event, index) => {
         const { name, value } = event.target;
-        if (name === 'subjectId' || name === 'lessonCount') {
+        if (['subjectId', 'periodsPerWeek', 'numberOfWeeks'].includes(name)) {
             const updatedSubjects = [...newClass.subjects];
-            updatedSubjects[index] = { ...updatedSubjects[index], [name]: value };
+            updatedSubjects[index] = { 
+                ...updatedSubjects[index], 
+                [name]: value 
+            };
+
+            if (name === 'periodsPerWeek' || name === 'numberOfWeeks') {
+                const periodsPerWeek = name === 'periodsPerWeek' ? value : updatedSubjects[index].periodsPerWeek;
+                const numberOfWeeks = name === 'numberOfWeeks' ? value : updatedSubjects[index].numberOfWeeks;
+                updatedSubjects[index].lessonCount = calculateLessonCount(periodsPerWeek, numberOfWeeks);
+            }
+
             setNewClass(prevState => ({
                 ...prevState,
                 subjects: updatedSubjects
             }));
-        } else if (name === 'size' || name === 'lessonCount') {
+        } else if (name === 'size') {
             const numValue = parseInt(value);
             if (numValue < 1) return;
             setNewClass(prevState => ({
@@ -99,13 +123,20 @@ const SingleClassModal = ({ isOpen, onClose, onClassAdded, subjects }) => {
 
     const handleAddSubject = () => {
         const lastSubject = newClass.subjects[newClass.subjects.length - 1];
-        if (!lastSubject.subjectId || !lastSubject.lessonCount) {
-            toast.error('Vui lòng chọn môn học và nhập số tiết trước khi thêm môn mới.');
+        if (!lastSubject.subjectId || !lastSubject.periodsPerWeek || !lastSubject.numberOfWeeks) {
+            toast.error('Vui lòng điền đầy đủ thông tin môn học trước khi thêm môn mới.');
             return;
         }
         setNewClass(prevState => ({
             ...prevState,
-            subjects: [...prevState.subjects, { subjectId: '', lessonCount: '', isEditing: true, isSpecialized: true }]
+            subjects: [...prevState.subjects, {
+                subjectId: '',
+                periodsPerWeek: '',
+                numberOfWeeks: '',
+                lessonCount: '',
+                isEditing: true,
+                isSpecialized: true
+            }]
         }));
     };
 
@@ -115,7 +146,14 @@ const SingleClassModal = ({ isOpen, onClose, onClassAdded, subjects }) => {
             if (updatedSubjects.length === 0) {
                 return {
                     ...prevState,
-                    subjects: [{ subjectId: '', lessonCount: '', isEditing: true, isSpecialized: true }]
+                    subjects: [{
+                        subjectId: '',
+                        periodsPerWeek: '',
+                        numberOfWeeks: '',
+                        lessonCount: '',
+                        isEditing: true,
+                        isSpecialized: true
+                    }]
                 };
             }
             return {
@@ -138,12 +176,12 @@ const SingleClassModal = ({ isOpen, onClose, onClassAdded, subjects }) => {
     
     const handleSaveSubject = (index) => {
         const subject = newClass.subjects[index];
-        if (!subject.subjectId || !subject.lessonCount) {
+        if (!subject.subjectId || !subject.periodsPerWeek || !subject.numberOfWeeks) {
             toast.error('Vui lòng điền đầy đủ thông tin môn học trước khi lưu.');
             return;
         }
-        if (parseInt(subject.lessonCount) < 1) {
-            toast.error('Số tiết phải lớn hơn hoặc bằng 1.');
+        if (parseInt(subject.periodsPerWeek) < 1 || parseInt(subject.numberOfWeeks) < 1) {
+            toast.error('Số tiết một tuần và số tuần phải lớn hơn hoặc bằng 1.');
             return;
         }
         setNewClass(prevState => {
@@ -169,16 +207,22 @@ const SingleClassModal = ({ isOpen, onClose, onClassAdded, subjects }) => {
     const handleSubmit = async (event) => {
         event.preventDefault();
         const isAllSubjectsValid = newClass.subjects.every(subject => 
-            subject.subjectId && subject.lessonCount && parseInt(subject.lessonCount) >= 1
+            subject.subjectId && 
+            subject.periodsPerWeek && 
+            subject.numberOfWeeks && 
+            parseInt(subject.periodsPerWeek) >= 1 && 
+            parseInt(subject.numberOfWeeks) >= 1
         );
+        
         if (!isAllSubjectsValid) {
-            toast.error('Vui lòng điền đầy đủ thông tin cho tất cả các môn học và đảm bảo số tiết lớn hơn hoặc bằng 1.');
+            toast.error('Vui lòng điền đầy đủ thông tin cho tất cả các môn học và đảm bảo số tiết một tuần và số tuần lớn hơn hoặc bằng 1.');
             return;
         }
         if (parseInt(newClass.size) < 1) {
             toast.error('Sĩ số phải lớn hơn hoặc bằng 1.');
             return;
         }
+
         setIsCreatingClass(true);
         try {
             const classData = {
@@ -187,6 +231,8 @@ const SingleClassModal = ({ isOpen, onClose, onClassAdded, subjects }) => {
                 size: parseInt(newClass.size),
                 subjects: newClass.subjects.map(subject => ({
                     subjectId: subject.subjectId,
+                    periodsPerWeek: parseInt(subject.periodsPerWeek),
+                    numberOfWeeks: parseInt(subject.numberOfWeeks),
                     lessonCount: parseInt(subject.lessonCount),
                     isSpecialized: subject.isSpecialized
                 }))
@@ -278,6 +324,7 @@ const SingleClassModal = ({ isOpen, onClose, onClassAdded, subjects }) => {
                         </select>
                     </div>
                 </div>
+
                 <div className={styles.subjectsContainer}>
                     <h3>Danh sách môn học</h3>
                     {newClass.subjects.map((subject, index) => (
@@ -285,7 +332,7 @@ const SingleClassModal = ({ isOpen, onClose, onClassAdded, subjects }) => {
                             {!subject.isEditing ? (
                                 <div className={styles.subjectSummary}>
                                     <span>
-                                        {subjects.find(s => s._id === subject.subjectId)?.name} - {subject.lessonCount} tiết
+                                        {subjects.find(s => s._id === subject.subjectId)?.name} - {subject.periodsPerWeek} tiết/tuần x {subject.numberOfWeeks} tuần = {subject.lessonCount} tiết
                                         {subject.isSpecialized ? ' (Chuyên)' : ' (Không chuyên)'}
                                     </span>
                                     <div>
@@ -324,15 +371,35 @@ const SingleClassModal = ({ isOpen, onClose, onClassAdded, subjects }) => {
                                         </select>
                                     </div>
                                     <div className={styles.subjectInputGroup}>
-                                        <label htmlFor={`lessonCount-${index}`}>Số tiết:</label>
+                                        <label htmlFor={`periodsPerWeek-${index}`}>Số tiết/tuần:</label>
                                         <input
                                             type="number"
-                                            id={`lessonCount-${index}`}
-                                            name="lessonCount"
-                                            value={subject.lessonCount}
+                                            id={`periodsPerWeek-${index}`}
+                                            name="periodsPerWeek"
+                                            value={subject.periodsPerWeek}
                                             onChange={(e) => handleInputChange(e, index)}
                                             required
                                             min="1"
+                                        />
+                                    </div>
+                                    <div className={styles.subjectInputGroup}>
+                                        <label htmlFor={`numberOfWeeks-${index}`}>Số tuần:</label>
+                                        <input
+                                            type="number"
+                                            id={`numberOfWeeks-${index}`}
+                                            name="numberOfWeeks"
+                                            value={subject.numberOfWeeks}
+                                            onChange={(e) => handleInputChange(e, index)}
+                                            required
+                                            min="1"
+                                        />
+                                    </div>
+                                    <div className={styles.subjectInputGroup}>
+                                        <label>Tổng số tiết:</label>
+                                        <input type="text"
+                                            value={subject.lessonCount}
+                                            disabled
+                                            className={styles.disabledInput}
                                         />
                                     </div>
                                     <button type="button" onClick={() => handleSaveSubject(index)} className={styles.saveButton}>
@@ -348,6 +415,7 @@ const SingleClassModal = ({ isOpen, onClose, onClassAdded, subjects }) => {
                         </div>
                     ))}
                 </div>
+
                 <div className={styles.buttonGroup}>
                     <button type="button" onClick={handleAddSubject} className={styles.addButton}>
                         <AddIcon /> Thêm môn học
@@ -359,7 +427,9 @@ const SingleClassModal = ({ isOpen, onClose, onClassAdded, subjects }) => {
                             'Tạo Lớp'
                         )}
                     </button>
-                    <button type="button" onClick={handleClose} className={styles.cancelButton}>Hủy</button>
+                    <button type="button" onClick={handleClose} className={styles.cancelButton}>
+                        Hủy
+                    </button>
                 </div>
             </form>
         </Modal>

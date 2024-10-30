@@ -216,6 +216,29 @@
     border-radius: 30px; 
 }
 
+.disabledInput {
+    background-color: #f5f5f5;
+    border: 1px solid #ddd;
+    cursor: not-allowed;
+    color: #666;
+}
+
+.subjectInputGroup {
+    margin-bottom: 10px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.subjectInputGroup label {
+    min-width: 100px;
+}
+
+.subjectInputGroup input[type="number"],
+.subjectInputGroup input[type="text"] {
+    width: 100px;
+}
+
 @media (max-width: 768px) {
     .modal {
         width: 90%;

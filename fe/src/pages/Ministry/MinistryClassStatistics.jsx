@@ -14,6 +14,7 @@ import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import styles from '../../css/Ministry/MinistryClassStatistics.module.css';
 import ExportAllClassesButton from './Component/AllClassesReport.jsx';
 import SingleClassReport from './Component/SingleClassReport.jsx';
+import ExportTeachersClassExcel from './Component/Statistics/ExportTeachersClassExcel.jsx';
 
 const MinistryClassStatistics = () => { 
     const [user, setUser] = useState(null);
@@ -136,6 +137,7 @@ const MinistryClassStatistics = () => {
                             ))}
                         </Select>
                         <ExportAllClassesButton user={user?.user} />
+                        <ExportTeachersClassExcel />
                     </Box>
                 </Box>
                 <div className={styles.tableWrapper}>

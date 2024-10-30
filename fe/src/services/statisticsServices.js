@@ -219,3 +219,19 @@ export const getAllTeachersBelowBasic = async () => {
     throw error;
   }
 };
+
+export const getTeacherDetails = async () => {
+  try {
+    const userToken = localStorage.getItem('userToken');
+    const response = await api.get('api/statistics/teacher-details', {
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${userToken}`,
+      },
+    });
+    return response.data;
+  } catch (error) {
+    console.error('Error getting teacher details:', error);
+    throw error;
+  }
+};

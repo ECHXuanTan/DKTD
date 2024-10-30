@@ -21,7 +21,7 @@ const MultiClassModal = ({ isOpen, onClose, onClassesAdded }) => {
     const [isUploadingExcel, setIsUploadingExcel] = useState(false);
     const [isEditing, setIsEditing] = useState(false);
 
-    const fixedHeaders = ['Tên lớp', 'Khối', 'Sĩ số', 'Cơ sở'];
+    const headers_template = ['Tên lớp', 'Khối', 'Sĩ số', 'Cơ sở', 'Môn học', 'Số tiết/tuần', 'Số tuần'];
 
     useEffect(() => {
         if (excelData) {
@@ -30,15 +30,38 @@ const MultiClassModal = ({ isOpen, onClose, onClassesAdded }) => {
     }, [excelData]);
 
     const handleDownloadTemplate = () => {
-        const data = [
-            ['Tên lớp', 'Khối', 'Sĩ số', 'Cơ sở', 'Toán', 'Tin học', 'Vật lý', 'Hóa học', 'Sinh học', 'Công nghệ', 'Tiếng Anh', 'Ngữ văn', 'Lịch sử', 'Địa lý', 'Giáo dục kinh tế - Pháp luật', 'Giáo dục Quốc phòng', 'Thể dục'],
-            ['10A1', '10', '40', 'Quận 5', '45', '30', '30', '30', '30', '15', '45', '40', '30', '30', '15', '15', '30'],
-            ['11B2', '11', '45', 'Thủ Đức', '45', '30', '30', '30', '30', '15', '45', '40', '30', '30', '15', '15', '30'],
+        // Tạo mẫu dữ liệu với format dọc
+        const sampleData = [
+            // Lớp 10 ANH TEST
+            ['10 ANH TEST', '10', '40', 'Quận 5', 'Toán', '3', '15'],
+            ['10 ANH TEST', '10', '40', 'Quận 5', 'Ngữ văn', '2', '20'],
+            ['10 ANH TEST', '10', '40', 'Quận 5', 'Tiếng Anh', '3', '15'],
+            ['10 ANH TEST', '10', '40', 'Quận 5', 'Vật lý', '2', '15'],
+            ['10 ANH TEST', '10', '40', 'Quận 5', 'Hóa học', '2', '15'],
+            // Lớp 11 SINH TEST
+            ['11 SINH TEST', '11', '45', 'Thủ Đức', 'Toán', '3', '15'],
+            ['11 SINH TEST', '11', '45', 'Thủ Đức', 'Ngữ văn', '2', '20'],
+            ['11 SINH TEST', '11', '45', 'Thủ Đức', 'Tiếng Anh', '3', '15'],
+            ['11 SINH TEST', '11', '45', 'Thủ Đức', 'Vật lý', '2', '15'],
+            ['11 SINH TEST', '11', '45', 'Thủ Đức', 'Hóa học', '2', '15']
         ];
 
+        const data = [headers_template, ...sampleData];
         const ws = utils.aoa_to_sheet(data);
         const wb = utils.book_new();
         utils.book_append_sheet(wb, ws, "Template");
+
+        // Set column widths
+        const wscols = [
+            { wch: 15 }, // Tên lớp
+            { wch: 10 }, // Khối
+            { wch: 10 }, // Sĩ số
+            { wch: 15 }, // Cơ sở
+            { wch: 30 }, // Môn học
+            { wch: 15 }, // Số tiết/tuần
+            { wch: 10 }  // Số tuần
+        ];
+        ws['!cols'] = wscols;
 
         const excelBuffer = write(wb, { bookType: 'xlsx', type: 'array' });
         const dataBlob = new Blob([excelBuffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet;charset=UTF-8' });
@@ -57,52 +80,120 @@ const MultiClassModal = ({ isOpen, onClose, onClassesAdded }) => {
             const worksheet = workbook.Sheets[sheetName];
             const jsonData = utils.sheet_to_json(worksheet, { header: 1 });
             
-            const headers = jsonData[0];
-            setHeaders(headers);
+            // Validate headers
+            const uploadedHeaders = jsonData[0];
+            if (!headers_template.every((header, index) => header === uploadedHeaders[index])) {
+                toast.error('Format file không đúng. Vui lòng sử dụng template được cung cấp.');
+                return;
+            }
 
-            const processedData = jsonData.slice(1).map(row => {
-                const rowData = {};
-                headers.forEach((header, index) => {
-                    if (index < 4) {
-                        rowData[header] = row[index];
-                    } else {
-                        if (row[index]) {
-                            rowData[header] = parseInt(row[index], 10);
-                        }
-                    }
-                });
-                return rowData;
-            });
+            setHeaders(uploadedHeaders);
+            const processedData = jsonData.slice(1).map(row => ({
+                'Tên lớp': row[0],
+                'Khối': row[1],
+                'Sĩ số': row[2],
+                'Cơ sở': row[3],
+                'Môn học': row[4],
+                'Số tiết/tuần': row[5],
+                'Số tuần': row[6]
+            }));
             
             setExcelData(processedData);
         };
         reader.readAsArrayBuffer(file);
     };
 
+    const processDataForUpload = (data) => {
+        // Group data by class
+        const classGroups = data.reduce((acc, row) => {
+            const className = row['Tên lớp'];
+            if (!acc[className]) {
+                acc[className] = {
+                    name: className,
+                    grade: parseInt(row['Khối']),
+                    size: parseInt(row['Sĩ số']),
+                    campus: row['Cơ sở'],
+                    subjects: []
+                };
+            }
+            
+            // Thêm thông tin môn học với đầy đủ các trường
+            acc[className].subjects.push({
+                subjectName: row['Môn học'],
+                periodsPerWeek: parseInt(row['Số tiết/tuần']),
+                numberOfWeeks: parseInt(row['Số tuần']),
+                lessonCount: parseInt(row['Số tiết/tuần']) * parseInt(row['Số tuần'])
+            });
+            
+            return acc;
+        }, {});
+    
+        return Object.values(classGroups);
+    };
+    
+    // Cập nhật validate để kiểm tra chặt chẽ hơn
+    const validateInput = (value, type) => {
+        if (!value && value !== 0) return false;
+        
+        switch (type) {
+            case 'text':
+                return value.trim() !== '';
+            case 'grade':
+                return ['10', '11', '12'].includes(value.toString());
+            case 'number':
+                const num = Number(value);
+                return !isNaN(num) && num > 0 && Number.isInteger(num);
+            case 'campus':
+                return ['Quận 5', 'Thủ Đức'].includes(value);
+            case 'subject':
+                return value.trim() !== '';
+            default:
+                return true;
+        }
+    };
+    
+    const validateAllData = () => {
+        if (!editingData || editingData.length === 0) return false;
+    
+        const requiredFields = {
+            'Tên lớp': 'text',
+            'Khối': 'grade',
+            'Sĩ số': 'number',
+            'Cơ sở': 'campus',
+            'Môn học': 'subject',
+            'Số tiết/tuần': 'number',
+            'Số tuần': 'number'
+        };
+    
+        return editingData.every(row => {
+            return Object.entries(requiredFields).every(([field, type]) => {
+                const isValid = validateInput(row[field], type);
+                if (!isValid) {
+                    console.error(`Validation failed for ${field}:`, row[field]);
+                }
+                return isValid;
+            });
+        });
+    };
+    
     const handleExcelUpload = async () => {
         if (!excelFile) {
             toast.error('Vui lòng chọn file Excel trước khi tải lên');
             return;
         }
-
+    
         if (!validateAllData()) {
             toast.error('Vui lòng kiểm tra lại dữ liệu. Đảm bảo tất cả các trường đều hợp lệ.');
             return;
         }
-
+    
         setIsUploadingExcel(true);
         try {
-            const formattedData = editingData.map(row => {
-                const { 'Tên lớp': name, 'Khối': grade, 'Sĩ số': size, 'Cơ sở': campus, ...subjects } = row;
-                return {
-                    name,
-                    grade: parseInt(grade, 10),
-                    size: parseInt(size, 10),
-                    campus,
-                    ...subjects
-                };
-            });
-
+            const formattedData = processDataForUpload(editingData);
+            
+            // Log để debug
+            console.log('Formatted data:', formattedData);
+            
             await createClasses(formattedData);
             toast.success('Tải lên và tạo lớp thành công!');
             onClassesAdded();
@@ -110,7 +201,7 @@ const MultiClassModal = ({ isOpen, onClose, onClassesAdded }) => {
             onClose();
         } catch (error) {
             console.error('Error uploading Excel file:', error);
-            if (error.response && error.response.data && error.response.data.message) {
+            if (error.response?.data?.message) {
                 const errorMessage = error.response.data.message;
                 if (errorMessage.includes('Tên lớp đã tồn tại')) {
                     const classNames = errorMessage.split(':')[1].trim();
@@ -126,72 +217,29 @@ const MultiClassModal = ({ isOpen, onClose, onClassesAdded }) => {
         }
     };
 
-    const clearData = () => {
-        setExcelData(null);
-        setEditingData(null);
-        setExcelFile(null);
-        setHeaders([]);
-        setIsEditing(false);
-    };
-
-    const validateInput = (value, type) => {
-        if (type === 'text') {
-            return value && value.trim() !== '';
-        } else if (type === 'number') {
-            const numValue = Number(value);
-            return !isNaN(numValue) && numValue > 0;
-        } else if (type === 'grade') {
-            return ['10', '11', '12'].includes(value);
-        } else if (type === 'campus') {
-            return ['Quận 5', 'Thủ Đức'].includes(value);
-        } else if (type === 'lessonCount') {
-            if (value === '' || value === null || value === undefined) return true;
-            const numValue = Number(value);
-            return !isNaN(numValue) && numValue > 0;
+    const getInputType = (header) => {
+        switch (header) {
+            case 'Tên lớp':
+                return 'text';
+            case 'Khối':
+                return 'grade';
+            case 'Sĩ số':
+                return 'number';
+            case 'Cơ sở':
+                return 'campus';
+            case 'Môn học':
+                return 'subject';
+            case 'Số tiết/tuần':
+            case 'Số tuần':
+                return 'number';
+            default:
+                return 'text';
         }
-        return true;
-    };
-
-    const validateAllData = () => {
-        for (let row of editingData) {
-            for (let [header, value] of Object.entries(row)) {
-                let type;
-                if (header === 'Tên lớp') {
-                    type = 'text';
-                } else if (header === 'Khối') {
-                    type = 'grade';
-                } else if (header === 'Sĩ số') {
-                    type = 'number';
-                } else if (header === 'Cơ sở') {
-                    type = 'campus';
-                } else {
-                    type = 'lessonCount';
-                }
-                if (!validateInput(value, type)) {
-                    return false;
-                }
-            }
-        }
-        return true;
     };
 
     const handleEdit = (rowIndex, field, value) => {
         const newData = [...editingData];
         newData[rowIndex][field] = value;
-        setEditingData(newData);
-    };
-
-    const handleHeaderEdit = (index, newValue) => {
-        if (fixedHeaders.includes(headers[index])) return;
-        const newHeaders = [...headers];
-        newHeaders[index] = newValue;
-        setHeaders(newHeaders);
-
-        const newData = editingData.map(row => {
-            const newRow = {...row};
-            delete Object.assign(newRow, {[newValue]: newRow[headers[index]]})[headers[index]];
-            return newRow;
-        });
         setEditingData(newData);
     };
 
@@ -211,6 +259,14 @@ const MultiClassModal = ({ isOpen, onClose, onClassesAdded }) => {
         toast.info('Các thay đổi đã được hủy');
     };
 
+    const clearData = () => {
+        setExcelData(null);
+        setEditingData(null);
+        setExcelFile(null);
+        setHeaders([]);
+        setIsEditing(false);
+    };
+
     return (
         <Modal
             isOpen={isOpen}
@@ -222,7 +278,11 @@ const MultiClassModal = ({ isOpen, onClose, onClassesAdded }) => {
             <h2 className={styles.modalTitle}>Tải lên file Excel</h2>
             <form onSubmit={(e) => { e.preventDefault(); }} className={styles.form}>
                 <div className={styles.formGroup}>
-                    <label htmlFor="excel-upload">Chọn file Excel: <span style={{color: "red"}}>(File tải lên phải có các cột (Tên lớp, Khối, Sĩ số, Cơ sở) và các cột tên lớp chính xác giống như file mẫu)</span></label>
+                    <label htmlFor="excel-upload">
+                        Chọn file Excel: <span style={{color: "red"}}>
+                            (File phải có đúng format như file mẫu)
+                        </span>
+                    </label>
                     <input
                         type="file"
                         id="excel-upload"
@@ -230,6 +290,7 @@ const MultiClassModal = ({ isOpen, onClose, onClassesAdded }) => {
                         onChange={handleFileUpload}
                     />
                 </div>
+
                 {editingData && (
                     <div className={styles.previewContainer}>
                         <div className={styles.previewHeader}>
@@ -255,46 +316,38 @@ const MultiClassModal = ({ isOpen, onClose, onClassesAdded }) => {
                             <table className={styles.previewTable}>
                                 <thead>
                                     <tr>
-                                        {headers.map((header, index) => (
-                                            <th key={index}>
-                                                {isEditing && !fixedHeaders.includes(header) ? (
-                                                    <input 
-                                                        type="text" 
-                                                        value={header} 
-                                                        onChange={(e) => handleHeaderEdit(index, e.target.value)}
-                                                    />
-                                                ) : header}
-                                            </th>
+                                        {headers_template.map((header, index) => (
+                                            <th key={index}>{header}</th>
                                         ))}
                                     </tr>
                                 </thead>
                                 <tbody>
                                     {editingData.map((row, rowIndex) => (
                                         <tr key={rowIndex}>
-                                            {headers.map((header, cellIndex) => {
-                                                let type;
-                                                if (header === 'Tên lớp') {
-                                                    type = 'text';
-                                                } else if (header === 'Khối') {
-                                                    type = 'grade';
-                                                } else if (header === 'Sĩ số') {
-                                                    type = 'number';
-                                                } else if (header === 'Cơ sở') {
-                                                    type = 'campus';
-                                                } else {
-                                                    type = 'lessonCount';
-                                                }
+                                            {headers_template.map((header, cellIndex) => {
+                                                const type = getInputType(header);
                                                 const isValid = validateInput(row[header], type);
                                                 return (
                                                     <td key={cellIndex} className={!isValid ? styles.invalidInput : ''}>
                                                         {isEditing ? (
-                                                            <input 
-                                                                type={type === 'number' || type === 'lessonCount' ? 'number' : 'text'}
-                                                                value={row[header] || ''}
-                                                                onChange={(e) => handleEdit(rowIndex, header, e.target.value)}
-                                                                min={type === 'number' || type === 'lessonCount' ? "1" : undefined}
-                                                            />
-                                                        ) : row[header] || '-'}
+                                                            type === 'campus' ? (
+                                                                <select
+                                                                    value={row[header] || ''}
+                                                                    onChange={(e) => handleEdit(rowIndex, header, e.target.value)}
+                                                                >
+                                                                    <option value="">Chọn cơ sở</option>
+                                                                    <option value="Quận 5">Quận 5</option>
+                                                                    <option value="Thủ Đức">Thủ Đức</option>
+                                                                </select>
+                                                            ) : (
+                                                                <input 
+                                                                    type={type === 'number' ? 'number' : 'text'}
+                                                                    value={row[header] || ''}
+                                                                    onChange={(e) => handleEdit(rowIndex, header, e.target.value)}
+                                                                    min={type === 'number' ? "1" : undefined}
+                                                                />
+                                                            )
+                                                        ) : row[header]}
                                                     </td>
                                                 );
                                             })}
@@ -305,12 +358,18 @@ const MultiClassModal = ({ isOpen, onClose, onClassesAdded }) => {
                         </div>
                     </div>
                 )}
+
                 <div className={styles.formActions}>
                     <button type="button" onClick={handleDownloadTemplate} className={styles.downloadButton}>
                         Tải xuống mẫu Excel
                     </button>
                     {editingData && (
-                        <button type="button" onClick={handleExcelUpload} className={styles.submitButton} disabled={isUploadingExcel || isEditing}>
+                        <button 
+                            type="button"
+                            onClick={handleExcelUpload} 
+                            className={styles.submitButton} 
+                            disabled={isUploadingExcel || isEditing}
+                        >
                             {isUploadingExcel ? (
                                 <Circles type="TailSpin" color="#FFF" height={20} width={20} />
                             ) : (

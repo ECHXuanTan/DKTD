@@ -23,7 +23,8 @@ const FilterPanel = ({ isSpecialized, onChange }) => {
 
 const AddSubjectModal = ({ isOpen, onClose, onAddSubject, subjects, currentClass }) => {
     const [selectedSubject, setSelectedSubject] = useState('');
-    const [lessonCount, setLessonCount] = useState('');
+    const [periodsPerWeek, setPeriodsPerWeek] = useState('3');
+    const [numberOfWeeks, setNumberOfWeeks] = useState('18');
     const [error, setError] = useState('');
     const [isSpecialized, setIsSpecialized] = useState(true);
 
@@ -31,22 +32,37 @@ const AddSubjectModal = ({ isOpen, onClose, onAddSubject, subjects, currentClass
         setSelectedSubject('');
     }, [isSpecialized]);
 
-    const handleLessonCountChange = (e) => {
+    const handlePeriodsChange = (e) => {
         const value = e.target.value;
         if (value === '' || (parseInt(value) > 0 && Number.isInteger(Number(value)))) {
-            setLessonCount(value);
+            setPeriodsPerWeek(value);
             setError('');
         } else {
-            setError('Số tiết phải lớn hơn 0');
+            setError('Số tiết/tuần phải lớn hơn 0');
+        }
+    };
+
+    const handleWeeksChange = (e) => {
+        const value = e.target.value;
+        if (value === '' || (parseInt(value) > 0 && Number.isInteger(Number(value)))) {
+            setNumberOfWeeks(value);
+            setError('');
+        } else {
+            setError('Số tuần phải lớn hơn 0');
         }
     };
 
     const handleSubmit = (e) => {
         e.preventDefault();
-        if (selectedSubject && lessonCount && parseInt(lessonCount) > 0) {
-            onAddSubject(selectedSubject, lessonCount, isSpecialized);
+        if (selectedSubject && periodsPerWeek && numberOfWeeks && 
+            parseInt(periodsPerWeek) > 0 && parseInt(numberOfWeeks) > 0) {
+            onAddSubject({
+                subjectId: selectedSubject,
+                periodsPerWeek: parseInt(periodsPerWeek),
+                numberOfWeeks: parseInt(numberOfWeeks)
+            });
         } else {
-            setError('Vui lòng chọn môn học và nhập số tiết lớn hơn 0');
+            setError('Vui lòng điền đầy đủ thông tin và đảm bảo các giá trị là số dương');
         }
     };
 
@@ -58,7 +74,7 @@ const AddSubjectModal = ({ isOpen, onClose, onAddSubject, subjects, currentClass
     );
 
     if (!currentClass) {
-        return null; // or return a loading state, or an error message
+        return null;
     }
 
     return (
@@ -91,19 +107,33 @@ const AddSubjectModal = ({ isOpen, onClose, onAddSubject, subjects, currentClass
                     </select>
                 </label>
                 <label>
-                    Số tiết học:
+                    Số tiết/tuần:
                     <input
                         type="number"
-                        value={lessonCount}
-                        onChange={handleLessonCountChange}
+                        value={periodsPerWeek}
+                        onChange={handlePeriodsChange}
                         min="1"
                         step="1"
                         required
                     />
                 </label>
+                <label>
+                    Số tuần:
+                    <input
+                        type="number"
+                        value={numberOfWeeks}
+                        onChange={handleWeeksChange}
+                        min="1"
+                        step="1"
+                        required
+                    />
+                </label>
+                <div>
+                    <p>Tổng số tiết: {periodsPerWeek && numberOfWeeks ? parseInt(periodsPerWeek) * parseInt(numberOfWeeks) : 0}</p>
+                </div>
                 {error && <p className={styles.errorMessage}>{error}</p>}
                 <div className={styles.buttonGroup}>
-                    <button type="submit" disabled={!selectedSubject || !lessonCount || !!error}>Thêm</button>
+                    <button type="submit" disabled={!selectedSubject || !periodsPerWeek || !numberOfWeeks || !!error}>Thêm</button>
                     <button type="button" onClick={onClose}>Hủy</button>
                 </div>
             </form>

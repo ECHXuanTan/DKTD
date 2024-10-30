@@ -1,0 +1,245 @@
+.modal {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background-color: white;
+    padding: 20px;
+    border-radius: 8px;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    z-index: 9999;
+    min-width: 500px;
+    height: 600px;
+    max-width: calc(100vw - 40px);
+    max-height: calc(100vh - 40px);
+  }
+  
+  .form {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+  }
+  
+  .modalTitle {
+    font-size: 1.5em;
+    color: #333;
+    text-align: center;
+    margin-bottom: 20px;
+    flex-shrink: 0;
+  }
+  
+  .formContent {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    gap: 15px;
+    min-height: 0;
+    overflow: hidden;
+  }
+  
+  .select {
+    width: 100%;
+    padding: 8px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    font-size: 0.9em;
+    flex-shrink: 0;
+  }
+  
+  .select:focus {
+    outline: none;
+    border-color: #007bff;
+    box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.25);
+  }
+  
+  .filterGroup {
+    display: flex;
+    gap: 10px;
+    flex-shrink: 0;
+  }
+  
+  .filterSelect,
+  .filterInput {
+    flex: 1;
+    padding: 8px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    font-size: 0.9em;
+  }
+  
+  .filterSelect:focus,
+  .filterInput:focus {
+    outline: none;
+    border-color: #007bff;
+    box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.25);
+  }
+  
+  .filterInput {
+    min-width: 0;
+  }
+  
+  .filterInput::placeholder {
+    color: #6c757d;
+  }
+  
+  .loadingContainer {
+    flex: 1;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+  }
+  
+  .tableContainer {
+    flex: 1;
+    overflow-y: auto;
+    min-height: 0;
+    border: 1px solid #dee2e6;
+    border-radius: 4px;
+  }
+  
+  .table {
+    width: 100%;
+    border-collapse: collapse;
+    background-color: white;
+  }
+  
+  .table th,
+  .table td {
+    padding: 12px;
+    text-align: left;
+    border-bottom: 1px solid #dee2e6;
+  }
+  
+  .table th {
+    background-color: #f8f9fa;
+    font-weight: 600;
+    position: sticky;
+    top: 0;
+    z-index: 1;
+  }
+  
+  .table tbody tr:last-child td {
+    border-bottom: none;
+  }
+  
+  .table tr:hover {
+    background-color: #f5f5f5;
+  }
+  
+  .lessonInput {
+    width: 80px;
+    padding: 6px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    text-align: center;
+  }
+  
+  .lessonInput:focus {
+    outline: none;
+    border-color: #007bff;
+    box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.25);
+  }
+  
+  .disabledRow {
+    background-color: #f5f5f5;
+    opacity: 0.7;
+  }
+  
+  .disabledInput {
+    background-color: #e9ecef;
+    cursor: not-allowed;
+    border-color: #dee2e6;
+  }
+  
+  .modalButtons {
+    display: flex;
+    justify-content: center;
+    gap: 10px;
+    padding-top: 15px;
+    margin-top: 15px;
+    border-top: 1px solid #dee2e6;
+    flex-shrink: 0;
+  }
+  
+  .cancelButton,
+  .submitButton {
+    min-width: 100px;
+    padding: 10px 20px;
+    border: none;
+    border-radius: 26px;
+    font-size: 0.9em;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background-color 0.2s ease;
+  }
+  
+  .cancelButton {
+    background-color: #6c757d;
+    color: white;
+  }
+  
+  .cancelButton:hover {
+    background-color: #5a6268;
+  }
+  
+  .submitButton {
+    background-color: #007bff;
+    color: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  
+  .submitButton:hover {
+    background-color: #0056b3;
+  }
+  
+  .submitButton:disabled {
+    background-color: #ccc;
+    cursor: not-allowed;
+  }
+  
+  .submitButton:disabled:hover {
+    background-color: #ccc;
+  }
+  
+  .noDataText {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #6c757d;
+    font-style: italic;
+    padding: 20px;
+  }
+  
+  /* Scrollbar Styles */
+  .tableContainer::-webkit-scrollbar {
+    width: 8px;
+  }
+  
+  .tableContainer::-webkit-scrollbar-track {
+    background: #f1f1f1;
+    border-radius: 4px;
+  }
+  
+  .tableContainer::-webkit-scrollbar-thumb {
+    background: #888;
+    border-radius: 4px;
+  }
+  
+  .tableContainer::-webkit-scrollbar-thumb:hover {
+    background: #555;
+  }
+  
+  /* Responsive Styles */
+  @media screen and (max-width: 576px) {
+    .modal {
+      min-width: unset;
+      width: 95vw;
+    }
+  
+    .filterGroup {
+      flex-direction: column;
+    }
+  }

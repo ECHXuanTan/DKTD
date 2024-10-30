@@ -176,7 +176,7 @@ const ExportPDFButton = ({ user, currentDepartment }) => {
         <Button 
             variant="contained" 
             onClick={exportToPDF}
-            style={{ marginRight: '10px', backgroundColor: '#d98236' }}
+            style={{backgroundColor: '#d98236', borderRadius: '26px', fontWeight: 'bold' }}
         >
             Xuất báo cáo
         </Button>

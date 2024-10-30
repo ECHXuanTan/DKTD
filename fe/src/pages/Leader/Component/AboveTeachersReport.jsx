@@ -192,7 +192,7 @@ const ExportAboveTeachersButton = ({ user, departmentId, departmentName }) => {
         <Button 
             variant="contained" 
             onClick={exportToPDF}
-            style={{ marginRight: '10px', backgroundColor: '#d98236' }}
+            style={{ marginRight: '10px', backgroundColor: '#d98236', borderRadius: '26px', fontWeight: 'bold' }}
         >
             Xuất báo cáo
         </Button>

@@ -216,7 +216,7 @@ const SingleClassReport = ({ user, classId }) => {
         <Button 
             variant="contained" 
             onClick={exportToPDF}
-            style={{ backgroundColor: '#d98236', color: 'white', padding: '4px 8px', fontSize: '13px', fontWeight: '600' }}
+            style={{ backgroundColor: '#d98236', color: 'white', padding: '4px 8px', fontSize: '13px', fontWeight: '600', borderRadius: '26px' }}
             disabled={loading || !classData}
         >
             {loading ? <CircularProgress size={24} color="inherit" /> : 'Xuất báo cáo'}

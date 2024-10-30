@@ -101,7 +101,7 @@ const Login = () => {
           <div className="login-box">
             <img src={logo} alt="Pho Thong Nang Khieu Logo" className="login-logo" />
             <h1 className="login-title">Đăng nhập</h1>
-            <p className="login-subtitle">Hệ thống khai báo số lượng tiết dạy</p>
+            <p className="login-subtitle"> Hệ thống khai báo và thống kê tiết dạy của giáo viên trường Phổ thông Năng khiếu</p>
             {errorMessage && (
               <p className="error-message">
                 {errorMessage.split('\n').map((line, index) => (

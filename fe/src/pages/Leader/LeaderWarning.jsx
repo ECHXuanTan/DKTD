@@ -34,7 +34,6 @@ const LeaderWarning = () => {
                 
                 if (userData) {
                     if (!userData || userData.user.role !== 0) {
-                        // Redirect based on user role
                         switch(userData.user.role) {
                           case 1:
                             navigate('/ministry-declare');
@@ -104,21 +103,21 @@ const LeaderWarning = () => {
                         />
                     )}
                 </Box>
-                <TableContainer component={Paper}>
-                    <Table className={styles.table}>
+                <TableContainer component={Paper} className={styles.tableContainer}>
+                    <Table stickyHeader className={styles.table}>
                         <TableHead>
                             <TableRow>
-                                <TableCell>STT</TableCell>
-                                <TableCell>Tên giáo viên</TableCell>
-                                <TableCell>Tiết/Tuần</TableCell>
-                                <TableCell>Số tuần dạy</TableCell>
-                                <TableCell>Số tiết cơ bản</TableCell>
-                                <TableCell>Tổng số tiết</TableCell>
-                                <TableCell>Tỉ lệ hoàn thành</TableCell>
-                                <TableCell>{isAboveThreshold ? "Số tiết dư" : "Số tiết thiếu"}</TableCell>
-                                <TableCell>Lớp</TableCell>
-                                <TableCell>Môn học</TableCell>
-                                <TableCell>Số tiết khai báo</TableCell>
+                                <TableCell className={styles.stickyHeader}>STT</TableCell>
+                                <TableCell className={styles.stickyHeader}>Tên giáo viên</TableCell>
+                                <TableCell className={styles.stickyHeader}>Tiết/Tuần</TableCell>
+                                <TableCell className={styles.stickyHeader}>Số tuần dạy</TableCell>
+                                <TableCell className={styles.stickyHeader}>Số tiết chuẩn</TableCell>
+                                <TableCell className={styles.stickyHeader}>Tổng số tiết</TableCell>
+                                <TableCell className={styles.stickyHeader}>Tỉ lệ hoàn thành</TableCell>
+                                <TableCell className={styles.stickyHeader}>{isAboveThreshold ? "Số tiết dư" : "Số tiết thiếu"}</TableCell>
+                                <TableCell className={styles.stickyHeader}>Lớp</TableCell>
+                                <TableCell className={styles.stickyHeader}>Môn học</TableCell>
+                                <TableCell className={styles.stickyHeader}>Số tiết khai báo</TableCell>
                             </TableRow>
                         </TableHead>
                         <TableBody>
@@ -195,14 +194,14 @@ const LeaderWarning = () => {
                     </Box>
                     {renderTeacherTable(
                         aboveTeachers,
-                        "Giáo viên vượt quá 25% số tiết cơ bản",
+                        "Giáo viên vượt quá 25% số tiết chuẩn",
                         aboveSearchQuery,
                         setAboveSearchQuery,
                         true
                     )}
                     {renderTeacherTable(
                         belowTeachers,
-                        "Giáo viên chưa đạt số tiết cơ bản",
+                        "Giáo viên chưa đạt số tiết chuẩn",
                         belowSearchQuery,
                         setBelowSearchQuery,
                         false

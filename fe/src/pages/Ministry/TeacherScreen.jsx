@@ -46,6 +46,16 @@ const TeacherScreen = () => {
     const [rowsPerPage, setRowsPerPage] = useState(25);
     const navigate = useNavigate();
 
+    const fetchTeachers = async () => {
+        try {
+            const teacherData = await getAllTeachers();
+            setTeachers(teacherData);
+        } catch (error) {
+            console.error('Error fetching teachers:', error);
+            toast.error('Có lỗi xảy ra khi tải danh sách giáo viên');
+        }
+    };
+
     useEffect(() => {
         const fetchUserAndData = async () => {
             try {
@@ -65,8 +75,7 @@ const TeacherScreen = () => {
                                 navigate('/login');
                         }
                     }
-                    const teacherData = await getAllTeachers();
-                    setTeachers(teacherData);
+                    await fetchTeachers();
                     const departmentData = await getDepartmentNames();
                     setDepartments(departmentData);
                     const subjectData = await getNonSpecializedSubjects();
@@ -107,28 +116,6 @@ const TeacherScreen = () => {
         setShowEditTeacherModal(true);
     };
 
-    const handleEditInputChange = (e) => {
-        const { name, value } = e.target;
-        setEditingTeacher(prevState => ({
-            ...prevState,
-            [name]: value
-        }));
-    };
-
-    const handleEditSubmit = async (e) => {
-        e.preventDefault();
-        try {
-            await updateTeacher(editingTeacher._id, editingTeacher);
-            setShowEditTeacherModal(false);
-            toast.success('Cập nhật giáo viên thành công!');
-            const updatedTeacherData = await getAllTeachers();
-            setTeachers(updatedTeacherData);
-        } catch (error) {
-            console.error('Error updating teacher:', error);
-            toast.error('Có lỗi xảy ra khi cập nhật giáo viên.');
-        }
-    };
-
     const handleDeleteConfirm = (teacher) => {
         setTeacherToDelete(teacher);
         setShowDeleteConfirmModal(true);
@@ -141,8 +128,7 @@ const TeacherScreen = () => {
                 setShowDeleteConfirmModal(false);
                 setTeacherToDelete(null);
                 toast.success('Xóa giáo viên thành công!');
-                const updatedTeacherData = await getAllTeachers();
-                setTeachers(updatedTeacherData);
+                await fetchTeachers();
             } catch (error) {
                 console.error('Error deleting teacher:', error);
                 if (error.response && error.response.data && error.response.data.message) {
@@ -158,19 +144,8 @@ const TeacherScreen = () => {
 
     const handleHomeroomAssignmentComplete = async () => {
         try {
-            const updatedTeacherData = await getAllTeachers();
-            setTeachers(updatedTeacherData);
+            await fetchTeachers();
             toast.success('Phân công chủ nhiệm thành công');
-        } catch (error) {
-            console.error('Error fetching updated teacher data:', error);
-            toast.error('Có lỗi xảy ra khi cập nhật danh sách giáo viên');
-        }
-    };
-
-    const updateTeacherList = async () => {
-        try {
-            const updatedTeacherData = await getAllTeachers();
-            setTeachers(updatedTeacherData);
         } catch (error) {
             console.error('Error fetching updated teacher data:', error);
             toast.error('Có lỗi xảy ra khi cập nhật danh sách giáo viên');
@@ -185,6 +160,7 @@ const TeacherScreen = () => {
         { field: 'department', label: 'Tổ chuyên môn', width: '15%' },
         { field: 'teachingSubjects', label: 'Môn giảng dạy', width: '15%' },
         { field: 'type', label: 'Hình thức GV', width: '10%' },
+        { field: 'homeroom', label: 'Lớp chủ nhiệm', width: '10%' },
         { field: 'lessonsPerWeek', label: 'Số tiết/tuần', width: '8%' },
         { field: 'teachingWeeks', label: 'Số tuần dạy', width: '8%' },
         { field: 'reducedLessonsPerWeek', label: 'Số tiết giảm một tuần', width: '10%' },
@@ -217,6 +193,7 @@ const TeacherScreen = () => {
             department: teacher.department ? teacher.department.name : '-',
             teachingSubjects: teacher.teachingSubjects ? teacher.teachingSubjects.name : '-',
             type: teacher.type,
+            homeroom: teacher.homeroom ? teacher.homeroom.class : '-',
             lessonsPerWeek: teacher.lessonsPerWeek || '-',
             teachingWeeks: teacher.teachingWeeks || '-',
             reducedLessonsPerWeek: teacher.reducedLessonsPerWeek || '-',
@@ -248,6 +225,7 @@ const TeacherScreen = () => {
                 department: null,
                 teachingSubjects: null,
                 type: null,
+                homeroom: null,
                 lessonsPerWeek: null,
                 teachingWeeks: null,
                 reducedLessonsPerWeek: teacher.homeroom.reducedLessonsPerWeek || '-',
@@ -349,8 +327,8 @@ const TeacherScreen = () => {
                                     <TableHead>
                                         <TableRow>
                                             {columns.map((column) => (
-                                                <TableCell 
-                                                    key={column.field} 
+                                                <TableCell
+                                                key={column.field} 
                                                     style={{ width: column.width, minWidth: column.width }}
                                                     className={column.sticky ? styles.stickyColumn : ''}
                                                 >
@@ -363,7 +341,7 @@ const TeacherScreen = () => {
                                         {rows.map((row) => (
                                             <TableRow key={row.id}>
                                                 {columns.map((column) => {
-                                                    if (row.isFirstRow || !['index', 'name', 'email', 'phone', 'department', 'teachingSubjects', 'type', 'lessonsPerWeek', 'teachingWeeks', 'actions'].includes(column.field)) {
+                                                    if (row.isFirstRow || !['index', 'name', 'email', 'phone', 'department', 'teachingSubjects', 'type', 'homeroom', 'lessonsPerWeek', 'teachingWeeks', 'actions'].includes(column.field)) {
                                                         return (
                                                             <TableCell 
                                                                 key={`${row.id}-${column.field}`}
@@ -406,29 +384,41 @@ const TeacherScreen = () => {
 
             <SingleTeacherModal
                 isOpen={showSingleTeacherModal}
-                onClose={() => setShowSingleTeacherModal(false)}
+                onClose={() => {
+                    setShowSingleTeacherModal(false);
+                    fetchTeachers();
+                }}
                 departments={departments}
                 nonSpecializedSubjects={nonSpecializedSubjects}
             />
 
             <MultiTeacherModal
                 isOpen={showMultiTeacherModal}
-                onClose={() => setShowMultiTeacherModal(false)}
-                onTeachersAdded={updateTeacherList}
+                onClose={() => {
+                    setShowMultiTeacherModal(false);
+                    fetchTeachers();
+                }}
+                onTeachersAdded={fetchTeachers}
             />
 
             <EditTeacherModal
                 isOpen={showEditTeacherModal}
-                onClose={() => setShowEditTeacherModal(false)}
+                onClose={() => {
+                    setShowEditTeacherModal(false);
+                    fetchTeachers();
+                }}
                 editingTeacher={editingTeacher}
                 departments={departments}
                 nonSpecializedSubjects={nonSpecializedSubjects}
-                onTeacherUpdated={updateTeacherList}
+                onTeacherUpdated={fetchTeachers}
             />
 
             <HomeroomAssignmentModal
                 isOpen={showHomeroomAssignmentModal}
-                onClose={() => setShowHomeroomAssignmentModal(false)}
+                onClose={() => {
+                    setShowHomeroomAssignmentModal(false);
+                    fetchTeachers();
+                }}
                 onAssignmentComplete={handleHomeroomAssignmentComplete}
             />
 
