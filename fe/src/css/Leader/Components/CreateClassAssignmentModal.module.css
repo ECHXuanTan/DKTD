@@ -1,0 +1,193 @@
+/* LeaderClassScreen.module.css */
+.dashboardLeader {
+    padding: 20px;
+    max-width: 1370px;
+    margin: 0 auto;
+    width: 95%;
+    min-height: 75vh;
+  }
+  
+  .loadingContainer {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+  }
+  
+  .tableWrapper {
+    display: flex;
+    flex-direction: column;
+    max-height: 900px;
+    position: relative;  /* Add this */
+  }
+  
+  .tableContainer {
+    flex: 1;
+    overflow-y: auto;
+    margin-bottom: 0;
+  }
+  
+  .table {
+    width: 100%;
+    border-collapse: collapse;
+  }
+  
+  .table th,
+  .table td {
+    border: 1px solid #ddd;
+    padding: 12px;
+    text-align: left;
+    vertical-align: top;
+  }
+  
+  .table th {
+    background-color: #f2f2f2;
+    font-weight: bold;
+    position: sticky;
+    top: 0;
+    z-index: 1;  /* Lowered z-index */
+  }
+  
+  .table tr:nth-child(even) {
+    background-color: #f9f9f9;
+  }
+  
+  .tableContainer::-webkit-scrollbar {
+    width: 10px;
+  }
+  
+  .tableContainer::-webkit-scrollbar-track {
+    background: #f1f1f1;
+  }
+  
+  .tableContainer::-webkit-scrollbar-thumb {
+    background: #888;
+    border-radius: 5px;
+  }
+  
+  .tableContainer::-webkit-scrollbar-thumb:hover {
+    background: #555;
+  }
+  
+  @media (max-width: 768px) {
+    .dashboardLeader {
+      padding: 10px;
+      width: 100%;
+    }
+  }
+  
+  /* CreateAssignmentModal.module.css */
+  .modal {
+    position: fixed;  /* Changed from absolute to fixed */
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background: white;
+    padding: 20px;
+    border-radius: 8px;
+    width: 90%;
+    max-width: 500px;
+    outline: none;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+    z-index: 1000;  /* Added higher z-index */
+  }
+  
+  .modalOverlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: rgba(0, 0, 0, 0.5);
+    z-index: 999;  /* Just below modal but above everything else */
+  }
+  
+  .form {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+  }
+  
+  .modalTitle {
+    margin: 0;
+    color: #333;
+    text-align: center;
+  }
+  
+  .formContent {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+  }
+  
+  .classInfo {
+    background-color: #f5f5f5;
+    padding: 10px;
+    border-radius: 4px;
+  }
+  
+  .classInfo p {
+    margin: 5px 0;
+  }
+  
+  .select {
+    width: 100%;
+    padding: 8px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+  }
+  
+  .inputGroup {
+    display: flex;
+    gap: 10px;
+  }
+  
+  .inputGroup > div {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+  }
+  
+  .input {
+    padding: 8px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    width: 100%;
+  }
+  
+  .totalLessons {
+    padding: 10px;
+    background-color: #e8f4fd;
+    border-radius: 4px;
+  }
+  
+  .modalButtons {
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+  }
+  
+  .cancelButton, 
+  .submitButton {
+    padding: 8px 16px;
+    border-radius: 4px;
+    border: none;
+    cursor: pointer;
+    font-weight: 500;
+  }
+  
+  .cancelButton {
+    background-color: #f5f5f5;
+    color: #333;
+  }
+  
+  .submitButton {
+    background-color: #1976d2;
+    color: white;
+  }
+  
+  .submitButton:disabled {
+    background-color: #ccc;
+    cursor: not-allowed;
+  }

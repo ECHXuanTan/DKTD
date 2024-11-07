@@ -349,22 +349,18 @@ statisticsRouter.get('/teacher-details', isAuth, async (req, res) => {
 
 statisticsRouter.get('/department-teachers', isAuth, async (req, res) => {
   try {
-    // Lấy thông tin user từ token
     const user = await User.findById(req.user._id).populate('teacher');
     if (!user || user.role !== 0) {
       return res.status(403).json({ message: 'Chỉ tổ trưởng mới có quyền truy cập thông tin này' });
     }
 
-    // Lấy thông tin teacher để xác định department
     const teacher = await Teacher.findOne({ email: user.email });
 
-    // Query tất cả giáo viên trong department
     const teachers = await Teacher.aggregate([
       {
         $match: { department: teacher.department }
       },
       {
-        // Lookup thông tin department
         $lookup: {
           from: 'departments',
           localField: 'department',
@@ -376,7 +372,6 @@ statisticsRouter.get('/department-teachers', isAuth, async (req, res) => {
         $unwind: '$departmentInfo'
       },
       {
-        // Lookup thông tin homeroom
         $lookup: {
           from: 'homerooms',
           localField: '_id',
@@ -391,7 +386,6 @@ statisticsRouter.get('/department-teachers', isAuth, async (req, res) => {
         }
       },
       {
-        // Lookup thông tin class cho homeroom
         $lookup: {
           from: 'classes',
           localField: 'homeroom.class',
@@ -406,7 +400,6 @@ statisticsRouter.get('/department-teachers', isAuth, async (req, res) => {
         }
       },
       {
-        // Thêm các trường được tính toán
         $addFields: {
           departmentName: '$departmentInfo.name',
           homeroomInfo: {
@@ -423,7 +416,6 @@ statisticsRouter.get('/department-teachers', isAuth, async (req, res) => {
               null
             ]
           },
-          // Tách tên thành các phần để sắp xếp
           nameParts: {
             $let: {
               vars: {
@@ -445,7 +437,6 @@ statisticsRouter.get('/department-teachers', isAuth, async (req, res) => {
         }
       },
       {
-        // Sắp xếp theo họ, tên đệm, tên
         $sort: {
           'nameParts.lastName': 1,
           'nameParts.middleName': 1,
@@ -453,7 +444,6 @@ statisticsRouter.get('/department-teachers', isAuth, async (req, res) => {
         }
       },
       {
-        // Project để loại bỏ các trường không cần thiết
         $project: {
           _id: 1,
           name: 1,
@@ -473,17 +463,20 @@ statisticsRouter.get('/department-teachers', isAuth, async (req, res) => {
       }
     ]);
 
-    // Xử lý chi tiết giảng dạy cho mỗi giáo viên
     const teachersData = await Promise.all(teachers.map(async (teacher) => {
       const assignments = await TeacherAssignment.find({ teacher: teacher._id })
         .populate('class', 'name grade')
-        .populate('subject', 'name');
+        .populate('subject', 'name')
+        .select('class subject completedLessons lessonsPerWeek numberOfWeeks'); // Thêm các trường mới
 
       const teachingDetails = assignments.map(assignment => ({
+        _id: assignment._id,
         className: assignment.class?.name,
         grade: assignment.class?.grade,
         subject: assignment.subject?.name,
-        completedLessons: assignment.completedLessons
+        completedLessons: assignment.completedLessons,
+        lessonsPerWeek: assignment.lessonsPerWeek,   // Thêm trường mới
+        numberOfWeeks: assignment.numberOfWeeks      // Thêm trường mới
       }));
 
       return {
@@ -848,30 +841,6 @@ statisticsRouter.get('/all-teachers-above-threshold', isAuth, isAdmin, async (re
   }
 });
 
-statisticsRouter.get('/department-teachers/:departmentId', isAuth, isAdmin, async (req, res) => {
-  try {
-    const { departmentId } = req.params;
-
-    const department = await Department.findById(departmentId);
-    if (!department) {
-      return res.status(404).json({ message: 'Không tìm thấy khoa' });
-    }
-
-    const teachers = await Teacher.find({ department: departmentId })
-      .select('name type lessonsPerWeek teachingWeeks basicTeachingLessons totalReducedLessons totalAssignment');
-    
-    const teachersData = await Promise.all(teachers.map(getTeacherDataWithReductions));
-
-    // Áp dụng sắp xếp theo tên tiếng Việt
-    const sortedTeachers = sortTeachersByName(teachersData);
-
-    res.status(200).json(sortedTeachers);
-  } catch (error) {
-    console.error('Error in getting department teachers:', error);
-    res.status(500).json({ message: 'Lỗi server', error: error.message });
-  }
-});
-
 statisticsRouter.get('/teacher-assignments/:teacherId', isAuth, async (req, res) => {
   try {
     const { teacherId } = req.params;
@@ -979,16 +948,36 @@ statisticsRouter.get('/teacher-assignments/:teacherId', isAuth, async (req, res)
 
 statisticsRouter.get('/all-classes', isAuth, async (req, res) => {
   try {
+    // Lấy danh sách GVCN
     const homeroomAssignments = await Homeroom.find()
       .select('teacher class')
       .populate('teacher', 'name')
       .populate('class', '_id')
       .lean();
 
+    // Tạo map GVCN
     const homeroomTeacherMap = homeroomAssignments.reduce((acc, assignment) => {
       if (assignment.teacher?.name && assignment.class?._id) {
         acc[assignment.class._id.toString()] = assignment.teacher.name;
       }
+      return acc;
+    }, {});
+
+    // Lấy tất cả assignments và tạo map
+    const allAssignments = await TeacherAssignment.find()
+      .populate('teacher', 'name')
+      .lean();
+
+    const assignmentsMap = allAssignments.reduce((acc, assignment) => {
+      const key = `${assignment.class}-${assignment.subject}`;
+      if (!acc[key]) {
+        acc[key] = [];
+      }
+      acc[key].push({
+        teacherId: assignment.teacher._id,
+        teacherName: assignment.teacher.name,
+        completedLessons: assignment.completedLessons
+      });
       return acc;
     }, {});
 
@@ -1004,23 +993,155 @@ statisticsRouter.get('/all-classes', isAuth, async (req, res) => {
       })
       .lean();
 
-    const classesWithExtraInfo = classes.map(classItem => ({
-      ...classItem,
-      homeroomTeacher: classItem._id ? homeroomTeacherMap[classItem._id.toString()] || null : null,
-      subjects: (classItem.subjects || []).concat(
-        homeroomTeacherMap[classItem._id.toString()] ? [{
+    const classesWithExtraInfo = classes.map(classItem => {
+      const hasHomeroom = homeroomTeacherMap[classItem._id.toString()];
+      
+      // Xử lý môn học thông thường và thêm assignments
+      const processedSubjects = (classItem.subjects || []).map(subject => ({
+        ...subject,
+        assignments: assignmentsMap[`${classItem._id}-${subject.subject._id}`] || []
+      }));
+
+      // Thêm môn CCSHL nếu lớp có GVCN
+      if (hasHomeroom) {
+        processedSubjects.push({
           subject: {
             name: "CCSHL"
           },
-          lessonCount: 72
-        }] : []
-      )
-    }));
+          lessonCount: 72,
+          periodsPerWeek: 2,
+          numberOfWeeks: 36,
+          assignments: [{
+            teacherName: homeroomTeacherMap[classItem._id.toString()],
+            completedLessons: 72
+          }]
+        });
+      }
 
-    res.status(200).json(classesWithExtraInfo);
+      return {
+        ...classItem,
+        homeroomTeacher: homeroomTeacherMap[classItem._id.toString()] || null,
+        subjects: processedSubjects
+      };
+    });
+
+    // Sắp xếp theo tên lớp
+    const sortedClasses = classesWithExtraInfo.sort((a, b) => 
+      a.name.localeCompare(b.name, 'vi')
+    );
+
+    res.status(200).json(sortedClasses);
   } catch (error) {
     console.error('Error in GET /all-classes:', error);
-    res.status(500).json({ message: "Lỗi khi lấy danh sách lớp học", error: error.message });
+    res.status(500).json({ 
+      message: "Lỗi khi lấy danh sách lớp học", 
+      error: error.message 
+    });
+  }
+});
+
+statisticsRouter.get('/department-classes', isAuth, async (req, res) => {
+  try {
+    // Lấy thông tin user từ token
+    const user = await User.findById(req.user._id).populate('teacher');
+    if (!user || user.role !== 0) {
+      return res.status(403).json({ message: 'Chỉ tổ trưởng mới có quyền truy cập thông tin này' });
+    }
+
+    // Lấy thông tin teacher để xác định department
+    const teacher = await Teacher.findOne({ email: user.email });
+    if (!teacher) {
+      return res.status(404).json({ message: 'Không tìm thấy thông tin giáo viên' });
+    }
+
+    // Lấy danh sách môn học thuộc department
+    const departmentSubjects = await Subject.find({ department: teacher.department })
+      .select('_id')
+      .lean();
+    
+    const subjectIds = departmentSubjects.map(subject => subject._id);
+
+    // Lấy danh sách GVCN
+    const homeroomAssignments = await Homeroom.find()
+      .select('teacher class')
+      .populate('teacher', 'name')
+      .populate('class', '_id')
+      .lean();
+
+    // Tạo map GVCN
+    const homeroomTeacherMap = homeroomAssignments.reduce((acc, assignment) => {
+      if (assignment.teacher?.name && assignment.class?._id) {
+        acc[assignment.class._id.toString()] = assignment.teacher.name;
+      }
+      return acc;
+    }, {});
+
+    // Lấy tất cả assignments và tạo map
+    const allAssignments = await TeacherAssignment.find({
+      subject: { $in: subjectIds }
+    })
+      .populate('teacher', 'name')
+      .lean();
+
+    const assignmentsMap = allAssignments.reduce((acc, assignment) => {
+      const key = `${assignment.class}-${assignment.subject}`;
+      if (!acc[key]) {
+        acc[key] = [];
+      }
+      acc[key].push({
+        id: assignment._id,
+        teacherId: assignment.teacher._id,
+        teacherName: assignment.teacher.name,
+        lessonsPerWeek: assignment.lessonsPerWeek,
+        numberOfWeeks: assignment.numberOfWeeks,
+        completedLessons: assignment.completedLessons
+      });
+      return acc;
+    }, {});
+
+    // Lấy các lớp có môn học thuộc department
+    const classes = await Class.find({
+      'subjects.subject': { $in: subjectIds }
+    })
+      .select('name grade subjects')
+      .populate({
+        path: 'subjects.subject',
+        select: 'name',
+        populate: {
+          path: 'department',
+          select: 'name'
+        }
+      })
+      .lean();
+
+    const classesWithExtraInfo = classes.map(classItem => {
+      // Lọc và chỉ giữ lại các môn thuộc department
+      const filteredSubjects = classItem.subjects
+        .filter(subject => subjectIds.some(id => id.equals(subject.subject._id)))
+        .map(subject => ({
+          ...subject,
+          assignments: assignmentsMap[`${classItem._id}-${subject.subject._id}`] || []
+        }));
+
+      return {
+        ...classItem,
+        homeroomTeacher: classItem._id ? homeroomTeacherMap[classItem._id.toString()] || null : null,
+        subjects: filteredSubjects
+      };
+    });
+
+    // Sắp xếp theo tên lớp
+    const sortedClasses = classesWithExtraInfo.sort((a, b) => 
+      a.name.localeCompare(b.name, 'vi')
+    );
+
+    res.status(200).json(sortedClasses);
+  } catch (error) {
+    console.error('Error in GET /department-classes:', error);
+    res.status(500).json({ 
+      message: "Lỗi khi lấy danh sách lớp học của tổ bộ môn", 
+      error: error.message 
+    });
   }
 });
 

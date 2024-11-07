@@ -233,3 +233,21 @@ export const getUnassignedHomerooms = async () => {
     throw error;
   }
 };
+
+export const getStaticClassByDepartment = async () => {
+  try {
+    const userToken = localStorage.getItem('userToken');
+    const response = await api.get(`api/statistics/department-classes`, 
+      {
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${userToken}`,
+        },
+      }
+    );
+    return response.data;
+  } catch (error) {
+    console.error('Error fetching class:', error);
+    throw error;
+  }
+};

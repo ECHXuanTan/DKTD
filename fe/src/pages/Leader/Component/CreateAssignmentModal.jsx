@@ -3,7 +3,7 @@ import { Circles } from 'react-loader-spinner';
 import { toast } from 'react-toastify';
 import Modal from 'react-modal';
 import { getClassesBySubject } from '../../../services/classServices';
-import { getClassSubjectInfo } from '../../../services/assignmentServices';
+import { getClassSubjectInfo, createAssignment } from '../../../services/assignmentServices';
 import styles from '../../../css/Leader/Components/CreateAssignmentModal.module.css';
 
 const CreateAssignmentModal = ({ 
@@ -21,8 +21,6 @@ const CreateAssignmentModal = ({
   const [filteredClasses, setFilteredClasses] = useState([]);
   const [classAssignments, setClassAssignments] = useState({});
   const [isLoading, setIsLoading] = useState(false);
-
-  // Thêm state cho số tiết/tuần và số tuần cho mỗi lớp
   const [weeklyLessons, setWeeklyLessons] = useState({});
   const [numberOfWeeks, setNumberOfWeeks] = useState({});
 
@@ -37,7 +35,6 @@ const CreateAssignmentModal = ({
   }, [selectedGrade, searchTerm, classes]);
 
   useEffect(() => {
-    // Tính toán lại completedLessons khi weeklyLessons hoặc numberOfWeeks thay đổi
     const newClassAssignments = {};
     Object.keys(weeklyLessons).forEach(classId => {
       const weekly = weeklyLessons[classId] || 0;
@@ -90,8 +87,7 @@ const CreateAssignmentModal = ({
       });
       
       setClasses(sortedClasses);
-      
-      // Khởi tạo state cho mỗi lớp
+
       const initialWeeklyLessons = {};
       const initialNumberOfWeeks = {};
       sortedClasses.forEach(cls => {
@@ -136,21 +132,27 @@ const CreateAssignmentModal = ({
 
     try {
       setIsLoading(true);
-      await onAssignmentCreate(assignments);
-      onClose();
-      setSelectedSubject('');
-      setSelectedGrade('all');
-      setSearchTerm('');
-      setClasses([]);
-      setFilteredClasses([]);
-      setWeeklyLessons({});
-      setNumberOfWeeks({});
-      setClassAssignments({});
+      await createAssignment(assignments);
+      await onAssignmentCreate(assignments); // Chỉ gọi callback, không toast
+      handleClose();
     } catch (error) {
       console.error('Error creating assignments:', error);
+      toast.error(error.response?.data?.message || 'Có lỗi xảy ra khi phân công tiết dạy');
     } finally {
       setIsLoading(false);
     }
+  };
+
+  const handleClose = () => {
+    setSelectedSubject('');
+    setSelectedGrade('all');
+    setSearchTerm('');
+    setClasses([]);
+    setFilteredClasses([]);
+    setWeeklyLessons({});
+    setNumberOfWeeks({});
+    setClassAssignments({});
+    onClose();
   };
 
   const handleWeeklyLessonsChange = (classId, value) => {
@@ -188,7 +190,7 @@ const CreateAssignmentModal = ({
   return (
     <Modal
       isOpen={isOpen}
-      onRequestClose={onClose}
+      onRequestClose={handleClose}
       className={styles.modal}
     >
       <form onSubmit={handleSubmit} className={styles.form}>
@@ -283,7 +285,7 @@ const CreateAssignmentModal = ({
         </div>
 
         <div className={styles.modalButtons}>
-          <button type="button" className={styles.cancelButton} onClick={onClose}>
+          <button type="button" className={styles.cancelButton} onClick={handleClose}>
             Hủy
           </button>
           <button 

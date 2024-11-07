@@ -231,6 +231,7 @@ const MinistryClassStatistics = () => {
                         page={page}
                         onPageChange={handleChangePage}
                         onRowsPerPageChange={handleChangeRowsPerPage}
+                        style={{overflow: 'unset'}}
                     />
                 </div>
             </Box>

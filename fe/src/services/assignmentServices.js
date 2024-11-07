@@ -115,3 +115,46 @@ export const getAllAssignmentTeachers = async (id) => {
     }
   };
   
+  export const batchEditAssignments = async (assignments) => {
+    try {
+      const userToken = localStorage.getItem('userToken');
+      const response = await api.put('api/assignment/batch-edit', 
+        {
+          assignments: assignments.map(assignment => ({
+            assignmentId: assignment.assignmentId,
+            lessonsPerWeek: assignment.lessonsPerWeek,
+            numberOfWeeks: assignment.numberOfWeeks
+          }))
+        },
+        {
+          headers: {
+            Authorization: `Bearer ${userToken}`,
+          },
+        }
+      );
+      return response.data;
+    } catch (error) {
+      console.error('Error batch editing assignments:', error);
+      throw error;
+    }
+  };
+  
+  export const batchDeleteAssignments = async (assignmentIds) => {
+    try {
+      const userToken = localStorage.getItem('userToken');
+      const response = await api.delete('api/assignment/batch-delete',
+        {
+          headers: {
+            Authorization: `Bearer ${userToken}`,
+          },
+          data: {
+            assignmentIds
+          }
+        }
+      );
+      return response.data;
+    } catch (error) {
+      console.error('Error batch deleting assignments:', error);
+      throw error;
+    }
+  };

@@ -88,6 +88,23 @@ export const getAllClasses = async () => {
   }
 };
 
+export const getDepartmentClasses = async () => {
+  try {
+    const userToken = localStorage.getItem('userToken');
+    const response = await api.get('api/statistics/department-classes', {
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${userToken}`,
+      },
+    });
+    return response.data;
+  } catch (error) {
+    console.error('Error getting department teachers:', error);
+    throw error;
+  }
+};
+
+
 export const getSubjectsAssignments = async () => {
   try {
     const userToken = localStorage.getItem('userToken');

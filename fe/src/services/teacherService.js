@@ -63,6 +63,22 @@ export const getDepartmentTeachers = async () => {
   }
 };
 
+export const getDepartmentTeacherNames = async () => {
+  try {
+    const userToken = localStorage.getItem('userToken');
+    const response = await api.get('api/teachers/department-teacher-names', {
+      headers: {
+        'Content-type': 'application/json',
+        Authorization: `Bearer ${userToken}`,
+      },
+    });
+    return response.data;
+  } catch (error) {
+    console.error('Error fetching department teachers:', error);
+    throw error;
+  }
+};
+
 export const createTeacher = async (teacherData) => {
   try {
     const userToken = localStorage.getItem('userToken');

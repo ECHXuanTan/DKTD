@@ -605,4 +605,144 @@ assignmentRouter.get('/by-subject/:subjectId', isAuth, isToTruong, async (req, r
   }
 });
 
+// Thêm endpoint chỉnh sửa nhiều assignments
+assignmentRouter.put('/batch-edit', isAuth, isToTruong, async (req, res) => {
+  const session = await mongoose.startSession();
+  session.startTransaction();
+
+  try {
+    const { assignments } = req.body; // array of {assignmentId, lessonsPerWeek, numberOfWeeks}
+    
+    if (!Array.isArray(assignments)) {
+      throw new Error('Dữ liệu không hợp lệ');
+    }
+
+    for (const { assignmentId, lessonsPerWeek, numberOfWeeks } of assignments) {
+      if (lessonsPerWeek < 0 || numberOfWeeks < 0) {
+        throw new Error('Số tiết một tuần và số tuần không thể là số âm');
+      }
+
+      const assignment = await TeacherAssignment.findById(assignmentId)
+        .populate('class')
+        .populate({
+          path: 'subject',
+          populate: { path: 'department' }
+        })
+        .populate({
+          path: 'teacher', 
+          populate: { path: 'department' }
+        })
+        .session(session);
+
+      if (!assignment) {
+        throw new Error(`Không tìm thấy khai báo giảng dạy với ID ${assignmentId}`);
+      }
+
+      const oldLessons = assignment.completedLessons;
+      const newLessons = lessonsPerWeek * numberOfWeeks;
+      const lessonDifference = newLessons - oldLessons;
+
+      const classSubject = assignment.class.subjects.find(
+        s => s.subject.toString() === assignment.subject._id.toString()
+      );
+
+      const existingAssignments = await TeacherAssignment.find({
+        class: assignment.class._id,
+        subject: assignment.subject._id,
+        _id: { $ne: assignmentId }
+      }).session(session);
+
+      const totalAssignedLessons = existingAssignments.reduce(
+        (sum, a) => sum + a.completedLessons,
+        0
+      );
+
+      if (totalAssignedLessons + newLessons > classSubject.lessonCount) {
+        throw new Error(
+          `Tổng số tiết (${totalAssignedLessons + newLessons}) vượt quá số tiết cho phép (${classSubject.lessonCount}) cho assignment ${assignmentId}`
+        );
+      }
+
+      assignment.lessonsPerWeek = lessonsPerWeek;
+      assignment.numberOfWeeks = numberOfWeeks;
+      assignment.completedLessons = newLessons;
+      await assignment.save({ session });
+
+      await Teacher.findByIdAndUpdate(
+        assignment.teacher._id,
+        { $inc: { totalAssignment: lessonDifference } },
+        { session }
+      );
+
+      await Department.findByIdAndUpdate(
+        assignment.subject.department._id,
+        { $inc: { declaredTeachingLessons: lessonDifference } },
+        { session }
+      );
+    }
+
+    await session.commitTransaction();
+    res.status(200).json({ message: "Cập nhật các khai báo giảng dạy thành công" });
+  } catch (error) {
+    await session.abortTransaction();
+    res.status(400).json({ message: error.message });
+  } finally {
+    session.endSession();
+  }
+});
+
+// Thêm endpoint xóa nhiều assignments
+assignmentRouter.delete('/batch-delete', isAuth, isToTruong, async (req, res) => {
+  const session = await mongoose.startSession();
+  session.startTransaction();
+
+  try {
+    const { assignmentIds } = req.body;
+
+    if (!Array.isArray(assignmentIds)) {
+      throw new Error('Dữ liệu không hợp lệ');
+    }
+
+    for (const assignmentId of assignmentIds) {
+      const assignment = await TeacherAssignment.findById(assignmentId)
+        .populate('class')
+        .populate({
+          path: 'subject',
+          populate: { path: 'department' }
+        })
+        .populate({
+          path: 'teacher',
+          populate: { path: 'department' }
+        })
+        .session(session);
+
+      if (!assignment) {
+        throw new Error(`Không tìm thấy khai báo giảng dạy với ID ${assignmentId}`);
+      }
+
+      await TeacherAssignment.findByIdAndDelete(assignmentId).session(session);
+
+      await Teacher.findByIdAndUpdate(
+        assignment.teacher._id,
+        { $inc: { totalAssignment: -assignment.completedLessons } },
+        { session }
+      );
+
+      await Department.findByIdAndUpdate(
+        assignment.subject.department._id,
+        { $inc: { declaredTeachingLessons: -assignment.completedLessons } },
+        { session }
+      );
+    }
+
+    await session.commitTransaction();
+    res.status(200).json({ message: "Xóa các khai báo giảng dạy thành công" });
+  } catch (error) {
+    await session.abortTransaction();
+    res.status(400).json({ message: error.message });
+  } finally {
+    session.endSession();
+  }
+});
+
 export default assignmentRouter;

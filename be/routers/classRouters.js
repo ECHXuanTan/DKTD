@@ -974,4 +974,86 @@ classRouter.post('/update-all-subjects-periods', isAuth, async (req, res) => {
   }
 });
 
+classRouter.post('/update-class-names', isAuth, async (req, res) => {
+  const session = await mongoose.startSession();
+  session.startTransaction();
+
+  try {
+    // Lấy tất cả các lớp và homeroom assignments
+    const classes = await Class.find().session(session);
+    const homeroomAssignments = await Homeroom.find()
+      .populate('teacher', 'name')
+      .session(session);
+
+    const homeroomMap = homeroomAssignments.reduce((acc, homeroom) => {
+      if (homeroom.class) {
+        acc[homeroom.class.toString()] = homeroom.teacher?.name || 'GVCN';
+      }
+      return acc;
+    }, {});
+
+    const updateOperations = await Promise.all(classes.map(async classItem => {
+      const oldName = classItem.name;
+      
+      // Xử lý tên lớp bằng cách xóa khoảng trắng sau số
+      let processedName = oldName.replace(/(\d+)\s+/, '$1');
+      
+      // Thêm prefix dựa trên campus
+      let newName;
+      if (classItem.campus === "Quận 5") {
+        newName = `Q5-${processedName}-GVCN`;
+      } else if (classItem.campus === "Thủ Đức") {
+        newName = `TĐ-${processedName}-GVCN`;
+      } else {
+        newName = processedName;
+      }
+
+      // Lưu lại dữ liệu cũ trước khi cập nhật
+      const dataBefore = classItem.toObject();
+
+      // Cập nhật tên lớp
+      classItem.name = newName;
+      await classItem.save({ session });
+
+      // Tạo bản ghi kết quả
+      const result = new Result({
+        action: 'UPDATE',
+        user: req.user._id,
+        entityType: 'Class',
+        entityId: classItem._id,
+        dataBefore,
+        dataAfter: classItem.toObject()
+      });
+      await result.save({ session });
+
+      return {
+        oldName,
+        newName,
+        id: classItem._id
+      };
+    }));
+
+    await session.commitTransaction();
+
+    res.status(200).json({
+      message: "Cập nhật tên lớp thành công",
+      updates: updateOperations.map(op => ({
+        id: op.id,
+        oldName: op.oldName,
+        newName: op.newName
+      }))
+    });
+
+  } catch (error) {
+    await session.abortTransaction();
+    console.error('Error in update class names:', error);
+    res.status(400).json({ 
+      message: error.message,
+      error: error.stack
+    });
+  } finally {
+    session.endSession();
+  }
+});
+
 export default classRouter;

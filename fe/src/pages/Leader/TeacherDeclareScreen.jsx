@@ -52,9 +52,6 @@ const TeacherDeclareScreen = () => {
                           case 1:
                             navigate('/ministry-declare');
                             break;
-                          case 0:
-                            navigate('/user-dashboard');
-                            break;
                           default:
                             navigate('/login');
                         }

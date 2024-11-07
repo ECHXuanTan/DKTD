@@ -169,6 +169,29 @@ teacherRoutes.get('/department-teachers', isAuth, async (req, res) => {
   }
 });
 
+teacherRoutes.get('/department-teacher-names', isAuth, async (req, res) => {
+  try {
+    const userEmail = req.user.email;
+    const currentTeacher = await Teacher.findOne({ email: userEmail });
+
+    if (!currentTeacher) {
+      return res.status(404).json({ message: 'Không tìm thấy thông tin giáo viên' });
+    }
+
+    let departmentTeachers = await Teacher.find({ department: currentTeacher.department._id }).select('name').lean();
+    departmentTeachers = sortTeachersByName(departmentTeachers);
+
+    res.json({
+      success: true,
+      data: departmentTeachers
+    });
+
+  } catch (error) {
+    console.error('Error fetching department teachers:', error);
+    res.status(500).json({ message: 'Lỗi server khi lấy danh sách giáo viên trong tổ bộ môn' });
+  }
+});
+
 teacherRoutes.get('/department-teacher-stats', isAuth, async (req, res) => {
   try {
     const userEmail = req.user.email;

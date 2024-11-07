@@ -83,15 +83,45 @@
     border-collapse: collapse;
 }
 
+.tableContainer {
+    max-height: 600px;
+    overflow-y: auto;
+    /* Thêm position và z-index để tạo stacking context mới */
+    position: relative;
+    z-index: 0;
+}
+
+
+.tableContainer::-webkit-scrollbar {
+    width: 8px;
+}
+
+.tableContainer::-webkit-scrollbar-track {
+    background: #f1f1f1;
+}
+
+.tableContainer::-webkit-scrollbar-thumb {
+    background: #888;
+    border-radius: 4px;
+}
+
+.tableContainer::-webkit-scrollbar-thumb:hover {
+    background: #555;
+}
+
 .tableHeader {
+    z-index: 1;
+    position: sticky;
+    top: 0;
     background-color: #5585b5;
     font-weight: bold;
     color: #2c3e50;
-    padding: 12px;
+    padding: 6px !important;
     text-align: left;
     border: 1px solid #ddd;
     color: white !important;
-    font-weight: 500 !important;
+    font-weight: 600 !important;
+    font-size: 15px !important;
 }
 
 .table td {
@@ -124,6 +154,101 @@
     color: white;
     --unstable_DataGrid-headWeight: 600;
   }
+
+  .actionButtons {
+    display: flex;
+    gap: 10px;
+    justify-content: center;
+}
+
+.editButton,
+.deleteButton,
+.addButton {
+    padding: 5px 10px;
+    border: none;
+    border-radius: 26px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    min-width: 32px;
+    height: 32px;
+}
+
+.editButton {
+    background-color: #28a745;
+}
+
+.editButton:hover {
+    background-color: #218838;
+}
+
+.deleteButton {
+    background-color: #dc3545;
+}
+
+.deleteButton:hover {
+    background-color: #c82333;
+}
+
+.addButton {
+    background-color: #007bff;
+}
+
+.addButton:hover {
+    background-color: #0056b3;
+}
+
+.editGroup {
+    display: flex;
+    gap: 5px;
+    align-items: center;
+    justify-content: center;
+}
+
+.editInput {
+    width: 60px;
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 0.9em;
+    text-align: center;
+}
+
+.editAction {
+    padding: 4px 8px;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    min-width: 28px;
+    height: 28px;
+}
+
+.editAction:first-of-type {
+    background-color: #28a745;
+}
+
+.editAction:last-of-type {
+    background-color: #dc3545;
+}
+
+.button:disabled,
+.editButton:disabled,
+.deleteButton:disabled,
+.editAction:disabled,
+.addButton:disabled {
+    background-color: #ccc;
+    cursor: not-allowed;
+}
+
+/* Custom widths for specific columns */
+.narrowColumn {
+    width: 80px;
+}
 
 @media (max-width: 768px) {
     .dashboardLeader {
