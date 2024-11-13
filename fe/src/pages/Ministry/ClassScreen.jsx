@@ -217,7 +217,7 @@ const ClassScreen = () => {
 
     const columns = [
         { field: 'index', label: 'STT', width: '5%', sticky: true },
-        { field: 'name', label: 'Tên lớp', width: '15%', sticky: true },
+        { field: 'name', label: 'Mã lớp', width: '15%', sticky: true },
         { field: 'size', label: 'Sĩ số', width: '6%', align: 'center' },
         { field: 'campus', label: 'Cơ sở', width: '8%' },
         { field: 'homeroomTeacher', label: 'Giáo viên chủ nhiệm', width: '15%' },

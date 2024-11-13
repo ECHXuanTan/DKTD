@@ -668,4 +668,49 @@ teacherRoutes.delete('/delete/:id', isAuth, async (req, res) => {
   }
 });
 
+teacherRoutes.post('/reset-assignments', isAuth, async (req, res) => {
+  try {
+    // Lấy danh sách giáo viên trước khi cập nhật để lưu vào Result
+    const teachersBefore = await Teacher.find().lean();
+    
+    // Cập nhật totalAssignment và declaredTeachingLessons về 0 cho tất cả giáo viên
+    const result = await Teacher.updateMany(
+      {}, // filter rỗng để cập nhật tất cả documents
+      { $set: { 
+          totalAssignment: 0,
+          declaredTeachingLessons: 0 
+        } 
+      }
+    );
+
+    // Lấy danh sách giáo viên sau khi cập nhật
+    const teachersAfter = await Teacher.find().lean();
+
+    // Ghi log cho mỗi giáo viên đã được cập nhật
+    await Promise.all(teachersAfter.map(async (teacherAfter) => {
+      const teacherBefore = teachersBefore.find(t => t._id.toString() === teacherAfter._id.toString());
+      
+      await Result.create({
+        action: 'UPDATE',
+        user: req.user._id,  
+        entityType: 'Teacher',
+        entityId: teacherAfter._id,
+        dataBefore: teacherBefore,
+        dataAfter: teacherAfter
+      });
+    }));
+
+    res.json({
+      message: 'Đã reset totalAssignment và declaredTeachingLessons của tất cả giáo viên về 0',
+      modifiedCount: result.modifiedCount
+    });
+  } catch (error) {
+    console.error('Error resetting teacher assignments:', error);
+    res.status(500).json({ 
+      message: 'Lỗi khi reset dữ liệu của giáo viên', 
+      error: error.message 
+    });
+  }
+});
+
 export default teacherRoutes;

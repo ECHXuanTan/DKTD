@@ -1,4 +1,3 @@
-/* LeaderDeclare.module.css */
 .dashboardLeader {
     padding: 20px;
     max-width: 1370px;
@@ -40,7 +39,6 @@
     border-radius: 8px;
     box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
     transition: transform 0.3s ease;
-    
 }
 
 .statBox:hover {
@@ -79,21 +77,21 @@
 }
 
 .table {
-    width: 100%;
-    border-collapse: collapse;
+    width: 1500px;
+    border-collapse: separate;
+    border-spacing: 0;
 }
 
 .tableContainer {
     max-height: 600px;
-    overflow-y: auto;
-    /* Thêm position và z-index để tạo stacking context mới */
+    overflow: auto;
     position: relative;
     z-index: 0;
 }
 
-
 .tableContainer::-webkit-scrollbar {
     width: 8px;
+    height: 8px;
 }
 
 .tableContainer::-webkit-scrollbar-track {
@@ -115,26 +113,51 @@
     top: 0;
     background-color: #5585b5;
     font-weight: bold;
-    color: #2c3e50;
+    color: white !important;
     padding: 6px !important;
     text-align: left;
     border: 1px solid #ddd;
-    color: white !important;
     font-weight: 600 !important;
     font-size: 15px !important;
+}
+
+.stickyColumn {
+    position: sticky;
+    background-color: white;
+    z-index: 2;
+}
+
+.stickyHeader {
+    z-index: 3;
+    background-color: #5585b5 !important;
+}
+
+.firstColumn {
+    left: 0;
+    width: 35px;
+}
+
+.secondColumn {
+    left: 60px;
+    width: 200px;
 }
 
 .table td {
     padding: 12px;
     text-align: left;
     border: 1px solid #ddd;
+    background-color: inherit;
 }
 
-.table tr:nth-child(even) {
+.evenRow td {
     background-color: #f9f9f9;
 }
 
-.table tr:hover {
+.oddRow td {
+    background-color: white;
+}
+
+.evenRow:hover td, .oddRow:hover td {
     background-color: #f5f5f5;
 }
 
@@ -153,9 +176,9 @@
     --DataGrid-containerBackground: #5585b5;
     color: white;
     --unstable_DataGrid-headWeight: 600;
-  }
+}
 
-  .actionButtons {
+.actionButtons {
     display: flex;
     gap: 10px;
     justify-content: center;
@@ -245,7 +268,6 @@
     cursor: not-allowed;
 }
 
-/* Custom widths for specific columns */
 .narrowColumn {
     width: 80px;
 }

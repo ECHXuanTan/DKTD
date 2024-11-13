@@ -9,6 +9,7 @@ const teacherSchema = new mongoose.Schema({
     teachingSubjects: { type: mongoose.Schema.Types.ObjectId, ref: 'Subject' },
     type: { type: String, required: true },
     totalAssignment: { type: Number, default: 0 },
+    declaredTeachingLessons: { type: Number, default: 0 },
     lessonsPerWeek: { type: Number, default: 0 },
     teachingWeeks: { type: Number, default: 0 },
     basicTeachingLessons: { type: Number, default: 0 },

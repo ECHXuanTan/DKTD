@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { Circles } from 'react-loader-spinner';
 import { toast } from 'react-toastify';
 import Modal from 'react-modal';
@@ -18,7 +18,6 @@ const CreateAssignmentModal = ({
   const [selectedGrade, setSelectedGrade] = useState('all');
   const [searchTerm, setSearchTerm] = useState('');
   const [classes, setClasses] = useState([]);
-  const [filteredClasses, setFilteredClasses] = useState([]);
   const [classAssignments, setClassAssignments] = useState({});
   const [isLoading, setIsLoading] = useState(false);
   const [weeklyLessons, setWeeklyLessons] = useState({});
@@ -30,8 +29,17 @@ const CreateAssignmentModal = ({
     }
   }, [selectedSubject]);
 
-  useEffect(() => {
-    filterClasses();
+  const filteredClasses = useMemo(() => {
+    let filtered = classes;
+    if (selectedGrade !== 'all') {
+      filtered = filtered.filter(cls => cls.grade === parseInt(selectedGrade));
+    }
+    if (searchTerm.trim()) {
+      filtered = filtered.filter(cls => 
+        cls.name.toLowerCase().includes(searchTerm.toLowerCase().trim())
+      );
+    }
+    return filtered;
   }, [selectedGrade, searchTerm, classes]);
 
   useEffect(() => {
@@ -44,23 +52,7 @@ const CreateAssignmentModal = ({
     setClassAssignments(newClassAssignments);
   }, [weeklyLessons, numberOfWeeks]);
 
-  const filterClasses = () => {
-    let filtered = classes;
-    
-    if (selectedGrade !== 'all') {
-      filtered = filtered.filter(cls => cls.grade === parseInt(selectedGrade));
-    }
-    
-    if (searchTerm.trim()) {
-      filtered = filtered.filter(cls => 
-        cls.name.toLowerCase().includes(searchTerm.toLowerCase().trim())
-      );
-    }
-    
-    setFilteredClasses(filtered);
-  };
-
-  const fetchClasses = async () => {
+  const fetchClasses = useCallback(async () => {
     try {
       setIsLoading(true);
       const classesData = await getClassesBySubject(selectedSubject);
@@ -106,7 +98,7 @@ const CreateAssignmentModal = ({
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [selectedSubject, existingAssignments, teacherId]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -114,26 +106,26 @@ const CreateAssignmentModal = ({
       toast.error('Vui lòng chọn môn học');
       return;
     }
-
+  
     const assignments = Object.entries(classAssignments)
       .filter(([_, value]) => value && parseInt(value) > 0)
       .map(([classId]) => ({
         classId,
         subjectId: selectedSubject,
-        teacherId,
+        teacherId,  
         lessonsPerWeek: parseInt(weeklyLessons[classId]),
         numberOfWeeks: parseInt(numberOfWeeks[classId])
       }));
-
+  
     if (assignments.length === 0) {
       toast.error('Vui lòng nhập số tiết cho ít nhất một lớp');
       return;
     }
-
+  
     try {
       setIsLoading(true);
-      await createAssignment(assignments);
-      await onAssignmentCreate(assignments); // Chỉ gọi callback, không toast
+      // Chỉ gọi callback, không gọi API trực tiếp
+      await onAssignmentCreate(assignments);
       handleClose();
     } catch (error) {
       console.error('Error creating assignments:', error);
@@ -148,7 +140,6 @@ const CreateAssignmentModal = ({
     setSelectedGrade('all');
     setSearchTerm('');
     setClasses([]);
-    setFilteredClasses([]);
     setWeeklyLessons({});
     setNumberOfWeeks({});
     setClassAssignments({});

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { Helmet } from 'react-helmet';
 import { Link } from 'react-router-dom';
 import { Circles } from 'react-loader-spinner';
@@ -22,6 +22,36 @@ import ExportPDFButton from './Component/ExportPDFButton.jsx';
 import CreateAssignmentModal from './Component/CreateAssignmentModal.jsx';
 import styles from '../../css/Leader/LeaderDeclare.module.css';
 
+const calculateCompletionPercentage = (declaredTeachingLessons, basicTeachingLessons) => {
+    if (basicTeachingLessons === 0) return 0;
+    const percentage = (declaredTeachingLessons / basicTeachingLessons) * 100;
+    return Math.min(percentage, 100).toFixed(2);
+};
+
+const calculateExcessLessons = (declaredTeachingLessons, basicTeachingLessons) => {
+    return Math.max(0, declaredTeachingLessons - basicTeachingLessons);
+};
+
+const useAssignments = (teacherId, initialAssignments = []) => {
+    const [assignments, setAssignments] = useState(initialAssignments);
+    const [loading, setLoading] = useState(false);
+
+    const updateAssignments = useCallback(async () => {
+        if (!teacherId) return;
+        setLoading(true);
+        try {
+            const newAssignments = await getAllAssignmentTeachers(teacherId);
+            setAssignments(newAssignments);
+        } catch (error) {
+            console.error('Error fetching assignments:', error);
+        } finally {
+            setLoading(false);
+        }
+    }, [teacherId]);
+
+    return { assignments, loading, updateAssignments };
+};
+
 const LeaderDashboard = () => {
     const [user, setUser] = useState(null);
     const [teacher, setTeacher] = useState(null);
@@ -44,90 +74,72 @@ const LeaderDashboard = () => {
     const [editValues, setEditValues] = useState({});
     const [maxLessons, setMaxLessons] = useState({});
 
-    useEffect(() => {
-        const fetchUserAndTeachers = async () => {
-            try {
-                setInitialLoading(true);
-                const userData = await getUser();
-                setUser(userData);
-                
-                if (userData) {
-                    if (!userData || userData.user.role !== 0) {
-                        return;
-                    }
-                    const teachersData = await getDepartmentTeachers();
-                    if (Array.isArray(teachersData) && teachersData.length > 0) {
-                        setTeachers(teachersData);
-                        
-                        const assignmentsMap = {};
-                        for (const teacher of teachersData) {
-                            const assignments = await getAllAssignmentTeachers(teacher._id);
-                            assignmentsMap[teacher._id] = assignments;
-                        }
-                        setTeacherAssignments(assignmentsMap);
+    const fetchInitialData = useCallback(async () => {
+        try {
+            setInitialLoading(true);
+            const [userData, teacherData, teachersData] = await Promise.all([
+                getUser(),
+                getTeacherByEmail(),
+                getDepartmentTeachers()
+            ]);
 
-                        setCurrentDepartment(teachersData[0].departmentName);
-                        const teacherData = await getTeacherByEmail();
-                        setTeacher(teacherData);
-                        const subjectsData = await getSubjectsByDepartment(teacherData.department._id);
-                        setSubjects(subjectsData);
-                        const aboveTeachers = await getAboveTeachers(teacherData.department._id);
-                        const belowTeachers = await getBelowTeachers(teacherData.department._id);
-                        setAboveThresholdCount(aboveTeachers.length);
-                        setBelowThresholdCount(belowTeachers.length);
-                    }
-                }
-            } catch (error) {
-                console.error('Error fetching data:', error);
-                toast.error('Đã xảy ra lỗi khi tải dữ liệu. Vui lòng thử lại sau.');
-            } finally {
-                setInitialLoading(false);
+            if (!userData || userData.user.role !== 0) return;
+
+            setUser(userData);
+            setTeacher(teacherData);
+            setTeachers(teachersData);
+
+            if (Array.isArray(teachersData) && teachersData.length > 0) {
+                setCurrentDepartment(teachersData[0].departmentName);
+                
+                const assignmentsPromises = teachersData.map(teacher => 
+                    getAllAssignmentTeachers(teacher._id)
+                );
+                const assignmentsResults = await Promise.all(assignmentsPromises);
+                const assignmentsMap = {};
+                teachersData.forEach((teacher, index) => {
+                    assignmentsMap[teacher._id] = assignmentsResults[index];
+                });
+                setTeacherAssignments(assignmentsMap);
+
+                const [subjectsData, aboveTeachers, belowTeachers] = await Promise.all([
+                    getSubjectsByDepartment(teacherData.department._id),
+                    getAboveTeachers(teacherData.department._id),
+                    getBelowTeachers(teacherData.department._id)
+                ]);
+
+                setSubjects(subjectsData);
+                setAboveThresholdCount(aboveTeachers.length);
+                setBelowThresholdCount(belowTeachers.length);
             }
-        };
-    
-        fetchUserAndTeachers();
+        } catch (error) {
+            console.error('Error fetching data:', error);
+            toast.error('Đã xảy ra lỗi khi tải dữ liệu. Vui lòng thử lại sau.');
+        } finally {
+            setInitialLoading(false);
+        }
     }, []);
 
     useEffect(() => {
-        const pollAssignments = setInterval(async () => {
-            try {
-                if (teacher && !actionLoading) {
-                    const teachersData = await getDepartmentTeachers();
-                    if (Array.isArray(teachersData) && teachersData.length > 0) {
-                        setTeachers(teachersData);
-                        
-                        const assignmentsMap = {};
-                        for (const teacher of teachersData) {
-                            const assignments = await getAllAssignmentTeachers(teacher._id);
-                            assignmentsMap[teacher._id] = assignments;
-                        }
-                        setTeacherAssignments(assignmentsMap);
+        fetchInitialData();
+    }, [fetchInitialData]);
 
-                        const aboveTeachers = await getAboveTeachers(teacher.department._id);
-                        const belowTeachers = await getBelowTeachers(teacher.department._id);
-                        setAboveThresholdCount(aboveTeachers.length);
-                        setBelowThresholdCount(belowTeachers.length);
-                    }
-                }
-            } catch (error) {
-                console.error('Error polling assignments:', error);
-            }
-        }, 5000);
-
-        return () => clearInterval(pollAssignments);
-    }, [teacher, actionLoading]);
-
-    const handleStartEdit = async (teacherId) => {
+    const handleStartEdit = useCallback(async (teacherId) => {
         try {
             setActionLoading(true);
             setLoadingTeacherId(teacherId);
             const assignments = teacherAssignments[teacherId] || [];
+            
+            const infoPromises = assignments.map(assignment => 
+                getClassSubjectInfo(assignment.classId, assignment.subjectId, teacherId)
+            );
+            const classInfos = await Promise.all(infoPromises);
+            
             const initialValues = {};
             const maxLessonsData = {};
             
-            for (const assignment of assignments) {
-                const info = await getClassSubjectInfo(assignment.classId, assignment.subjectId, teacherId);
-                
+            assignments.forEach((assignment, index) => {
+                const info = classInfos[index];
                 const maxAllowed = info.isSpecialClass 
                     ? info.remainingLessons + assignment.completedLessons
                     : info.remainingLessons + assignment.completedLessons;
@@ -135,7 +147,7 @@ const LeaderDashboard = () => {
                 maxLessonsData[`${assignment.className}-${assignment.subjectName}`] = maxAllowed;
                 initialValues[`${assignment.className}-${assignment.subjectName}-lessonsPerWeek`] = assignment.lessonsPerWeek;
                 initialValues[`${assignment.className}-${assignment.subjectName}-numberOfWeeks`] = assignment.numberOfWeeks;
-            }
+            });
 
             setMaxLessons(maxLessonsData);
             setEditValues(initialValues);
@@ -149,9 +161,9 @@ const LeaderDashboard = () => {
             setActionLoading(false);
             setLoadingTeacherId(null);
         }
-    };
+    }, [teacherAssignments]);
 
-    const handleSaveEdit = async (teacherId) => {
+    const handleSaveEdit = useCallback(async (teacherId) => {
         try {
             setActionLoading(true);
             setLoadingTeacherId(teacherId);
@@ -178,10 +190,12 @@ const LeaderDashboard = () => {
 
             await batchEditAssignments(updatedAssignments);
             
-            const teachersData = await getDepartmentTeachers();
+            const [teachersData, newAssignments] = await Promise.all([
+                getDepartmentTeachers(),
+                getAllAssignmentTeachers(teacherId)
+            ]);
+
             setTeachers(teachersData);
-            
-            const newAssignments = await getAllAssignmentTeachers(teacherId);
             setTeacherAssignments(prev => ({
                 ...prev,
                 [teacherId]: newAssignments
@@ -197,31 +211,37 @@ const LeaderDashboard = () => {
             setActionLoading(false);
             setLoadingTeacherId(null);
         }
-    };
+    }, [teacherAssignments, editValues, maxLessons]);
 
-    const handleStartDelete = (teacherId) => {
-        setDeletingTeacherId(teacherId);
-        setSelectedAssignments([]);
-        setEditingTeacherId(null);
-        setEditValues({});
-    };
+    const handleDeleteSelected = useCallback(async () => {
+        if (selectedAssignments.length === 0) {
+            toast.warning('Vui lòng chọn ít nhất một phân công để xóa');
+            return;
+        }
 
-    const handleDeleteSelected = async () => {
         try {
-            if (selectedAssignments.length === 0) {
-                toast.warning('Vui lòng chọn ít nhất một phân công để xóa');
-                return;
-            }
-
             setActionLoading(true);
             setLoadingTeacherId(deletingTeacherId);
-            await batchDeleteAssignments(selectedAssignments);
-            
-            const teachersData = await getDepartmentTeachers();
-            setTeachers(teachersData);
 
+            const assignmentsToDelete = selectedAssignments.map(assignmentId => {
+                const assignment = teacherAssignments[deletingTeacherId].find(
+                    a => a.id === assignmentId
+                );
+                return {
+                    id: assignmentId,
+                    completedLessons: assignment.completedLessons
+                };
+            });
+
+            await batchDeleteAssignments(assignmentsToDelete);
+            
+            const [teachersData, newAssignments] = await Promise.all([
+                getDepartmentTeachers(),
+                getAllAssignmentTeachers(deletingTeacherId)
+            ]);
+
+            setTeachers(teachersData);
             if (deletingTeacherId) {
-                const newAssignments = await getAllAssignmentTeachers(deletingTeacherId);
                 setTeacherAssignments(prev => ({
                     ...prev,
                     [deletingTeacherId]: newAssignments
@@ -237,62 +257,80 @@ const LeaderDashboard = () => {
             setActionLoading(false);
             setLoadingTeacherId(null);
         }
-    };
+    }, [deletingTeacherId, selectedAssignments, teacherAssignments]);
 
-    const handleCheckAssignment = (assignmentId) => {
-        setSelectedAssignments(prev =>
-            prev.includes(assignmentId) 
-            ? prev.filter(id => id !== assignmentId)
-            : [...prev, assignmentId]
-        );
-    };
-
-    const handleCreateAssignment = async (assignments) => {
+    const handleCreateAssignment = useCallback(async (assignments) => {
         try {
+            setActionLoading(true);
+            // Thêm loading state cho teacher đang được xử lý
+            setLoadingTeacherId(selectedTeacherId);
+    
+            // Thực hiện tạo assignment
             await createAssignment(assignments);
-            toast.success('Phân công tiết dạy thành công');
             
-            const teachersData = await getDepartmentTeachers();
+            // Fetch lại data sau khi tạo thành công
+            const [teachersData, newAssignments] = await Promise.all([
+                getDepartmentTeachers(),
+                selectedTeacherId ? getAllAssignmentTeachers(selectedTeacherId) : Promise.resolve(null)
+            ]);
+    
+            // Cập nhật state
             setTeachers(teachersData);
-
-            if (selectedTeacherId) {
-                const newAssignments = await getAllAssignmentTeachers(selectedTeacherId);
+            if (selectedTeacherId && newAssignments) {
                 setTeacherAssignments(prev => ({
                     ...prev,
                     [selectedTeacherId]: newAssignments
                 }));
             }
             
+            // Reset states và đóng modal
             setShowModal(false);
+            setSelectedTeacherId(null);
+            setSelectedTeacherAssignments([]);
+            
+            toast.success('Phân công tiết dạy thành công');
         } catch (error) {
             toast.error(error.response?.data?.message || 'Có lỗi xảy ra khi phân công tiết dạy');
+        } finally {
+            setActionLoading(false);
+            setLoadingTeacherId(null);
         }
-    };
+    }, [selectedTeacherId]);
 
-    const handleOpenAssignmentModal = (teacherId) => {
+    const handleStartDelete = useCallback((teacherId) => {
+        setDeletingTeacherId(teacherId);
+        setSelectedAssignments([]);
+        setEditingTeacherId(null);
+        setEditValues({});
+    }, []);
+
+    const handleOpenAssignmentModal = useCallback((teacherId) => {
         const assignments = teacherAssignments[teacherId] || [];
         setSelectedTeacherId(teacherId);
         setSelectedTeacherAssignments(assignments);
         setShowModal(true);
-    };
+    }, [teacherAssignments]);
 
-    const handleSearchChange = (event) => {
-        setSearchQuery(event.target.value);
-    };
+    const handleCheckAssignment = useCallback((assignmentId) => {
+        setSelectedAssignments(prev =>
+            prev.includes(assignmentId) 
+            ? prev.filter(id => id !== assignmentId)
+            : [...prev, assignmentId]
+        );
+    }, []);
 
-    const calculateCompletionPercentage = (totalAssignment, basicTeachingLessons) => {
-        if (basicTeachingLessons === 0) return 0;
-        const percentage = (totalAssignment / basicTeachingLessons) * 100;
-        return Math.min(percentage, 100).toFixed(2);
-    };
-
-    const calculateExcessLessons = (totalAssignment, basicTeachingLessons) => {
-        return Math.max(0, totalAssignment - basicTeachingLessons);
-    };
-
-    const filteredTeachers = teachers.filter((teacher) =>
-        teacher.name.toLowerCase().includes(searchQuery.toLowerCase())
+    const filteredTeachers = useMemo(() => 
+        teachers.filter((teacher) =>
+            teacher.name.toLowerCase().includes(searchQuery.toLowerCase())
+        ),
+        [teachers, searchQuery]
     );
+
+    const handleSearchChange = useCallback((event) => {
+        setSearchQuery(event.target.value);
+    }, []);
+
+
 
     if (initialLoading) {
         return (
@@ -373,246 +411,253 @@ const LeaderDashboard = () => {
                         </Box>
                     </Box>
                     <TableContainer component={Paper} className={styles.tableContainer}>
-                        <Table className={styles.table}>
-                            <TableHead>
-                                <TableRow>
-                                    <TableCell className={styles.tableHeader} style={{width:'30px'}}>STT</TableCell>
-                                    <TableCell className={styles.tableHeader}>Tên giáo viên</TableCell>
-                                    <TableCell className={styles.tableHeader} style={{width:'50px', textAlign: 'center'}}>Số tiết chuẩn</TableCell>
-                                    <TableCell className={styles.tableHeader} style={{width:'110px'}}>Tổng số tiết được phân công</TableCell>
-                                    <TableCell className={styles.tableHeader} style={{width:'50px', textAlign: 'center'}}>Tỉ lệ hoàn thành</TableCell>
-                                    <TableCell className={styles.tableHeader} style={{width:'50px', textAlign: 'center'}}>Số tiết dư</TableCell>
-                                    <TableCell className={styles.tableHeader}>Mã lớp</TableCell>
-                                    <TableCell className={styles.tableHeader}>Môn học</TableCell>
-                                    {editingTeacherId && <TableCell className={styles.tableHeader} style={{width:'50px', textAlign: 'center'}}>Số tiết tối đa</TableCell>}
-                                    <TableCell className={styles.tableHeader} style={{width:'50px', textAlign: 'center'}}>Tiết/Tuần</TableCell>
-                                    <TableCell className={styles.tableHeader} style={{width:'50px', textAlign: 'center'}}>Số tuần</TableCell>
-                                    <TableCell className={styles.tableHeader} style={{width:'50px', textAlign: 'center'}}>Số tiết khai báo</TableCell>
-                                    {deletingTeacherId && <TableCell className={styles.tableHeader}>Chọn</TableCell>}
-                                    <TableCell className={styles.tableHeader} style={{width:'150px', textAlign: 'center'}}>Thao tác</TableCell>
-                                </TableRow>
-                            </TableHead>
-                            <TableBody>
-                                {filteredTeachers.map((teacher, index) => {
-                                    const assignments = teacherAssignments[teacher._id] || [];
-                                    const rowSpan = Math.max(assignments.length || 1, 1);
-                                    const isEditing = editingTeacherId === teacher._id;
-                                    const isDeleting = deletingTeacherId === teacher._id;
-                                    
-                                    return (
-                                        <React.Fragment key={teacher._id}>
-                                            {assignments.length > 0 ? (
-                                                assignments.map((assignment, idx) => (
-                                                    <TableRow key={assignment.id} className={index % 2 === 0 ? styles.evenRow : styles.oddRow}>
-                                                        {idx === 0 && (
-                                                            <>
-                                                                <TableCell rowSpan={rowSpan}>{index + 1}</TableCell>
-                                                                <TableCell rowSpan={rowSpan}>{teacher.name}</TableCell>
-                                                                <TableCell rowSpan={rowSpan} style={{textAlign: 'center'}}>{teacher.basicTeachingLessons}</TableCell>
-                                                                <TableCell rowSpan={rowSpan} style={{textAlign: 'center'}}>{teacher.totalAssignment || "Chưa khai báo"}</TableCell>
-                                                                <TableCell rowSpan={rowSpan} style={{textAlign: 'center'}}>{`${calculateCompletionPercentage(teacher.totalAssignment, teacher.basicTeachingLessons)}%`}</TableCell>
-                                                                <TableCell rowSpan={rowSpan} style={{textAlign: 'center'}}>{calculateExcessLessons(teacher.totalAssignment, teacher.basicTeachingLessons)}</TableCell>
-                                                            </>
-                                                        )}
-                                                        <TableCell>{assignment.className}</TableCell>
-                                                        <TableCell>{assignment.subjectName}</TableCell>
-                                                        {editingTeacherId && (
-                                                            <TableCell style={{textAlign: 'center'}}>
-                                                                {isEditing ? maxLessons[`${assignment.className}-${assignment.subjectName}`] : ''}
-                                                            </TableCell>
-                                                        )}
+                    <Table className={styles.table}>
+                        <TableHead>
+                            <TableRow>
+                                <TableCell className={`${styles.tableHeader} ${styles.stickyColumn} ${styles.stickyHeader} ${styles.firstColumn}`}>STT</TableCell>
+                                <TableCell className={`${styles.tableHeader} ${styles.stickyColumn} ${styles.stickyHeader} ${styles.secondColumn}`}>Tên giáo viên</TableCell>
+                                <TableCell className={styles.tableHeader} style={{width:'50px', textAlign: 'center'}}>Số tiết chuẩn</TableCell>
+                                <TableCell className={styles.tableHeader} style={{width:'110px', textAlign: 'center'}}>Tổng số tiết được phân công</TableCell>
+                                <TableCell className={styles.tableHeader} style={{width:'110px', textAlign: 'center'}}>Tổng số tiết hoàn thành</TableCell>
+                                <TableCell className={styles.tableHeader} style={{width:'50px', textAlign: 'center'}}>Tỉ lệ hoàn thành</TableCell>
+                                <TableCell className={styles.tableHeader} style={{width:'50px', textAlign: 'center'}}>Số tiết dư</TableCell>
+                                <TableCell className={styles.tableHeader}>Mã lớp</TableCell>
+                                <TableCell className={styles.tableHeader}>Môn học</TableCell>
+                                {editingTeacherId && <TableCell className={styles.tableHeader} style={{width:'50px', textAlign: 'center'}}>Số tiết tối đa</TableCell>}
+                                <TableCell className={styles.tableHeader} style={{width:'50px', textAlign: 'center'}}>Tiết/Tuần</TableCell>
+                                <TableCell className={styles.tableHeader} style={{width:'50px', textAlign: 'center'}}>Số tuần</TableCell>
+                                <TableCell className={styles.tableHeader} style={{width:'50px', textAlign: 'center'}}>Số tiết khai báo</TableCell>
+                                {deletingTeacherId && <TableCell className={styles.tableHeader}>Chọn</TableCell>}
+                                <TableCell className={styles.tableHeader} style={{width:'150px', textAlign: 'center'}}>Thao tác</TableCell>
+                            </TableRow>
+                        </TableHead>
+                        <TableBody>
+                            {filteredTeachers.map((teacher, index) => {
+                                const assignments = teacherAssignments[teacher._id] || [];
+                                const rowSpan = Math.max(assignments.length || 1, 1);
+                                const isEditing = editingTeacherId === teacher._id;
+                                const isDeleting = deletingTeacherId === teacher._id;
+                                
+                                return (
+                                    <React.Fragment key={teacher._id}>
+                                        {assignments.length > 0 ? (
+                                            assignments.map((assignment, idx) => (
+                                                <TableRow key={assignment.id} className={index % 2 === 0 ? styles.evenRow : styles.oddRow}>
+                                                    {idx === 0 && (
+                                                        <>
+                                                            <TableCell rowSpan={rowSpan} className={`${styles.stickyColumn} ${styles.firstColumn}`}>{index + 1}</TableCell>
+                                                            <TableCell rowSpan={rowSpan} className={`${styles.stickyColumn} ${styles.secondColumn}`}>{teacher.name}</TableCell>
+                                                            <TableCell rowSpan={rowSpan} style={{textAlign: 'center'}}>{teacher.basicTeachingLessons}</TableCell>
+                                                            <TableCell rowSpan={rowSpan} style={{textAlign: 'center'}}>{teacher.totalAssignment || "Chưa khai báo"}</TableCell>
+                                                            <TableCell rowSpan={rowSpan} style={{textAlign: 'center'}}>{teacher.declaredTeachingLessons || "Chưa khai báo"}</TableCell>
+                                                            <TableCell rowSpan={rowSpan} style={{textAlign: 'center'}}>{`${calculateCompletionPercentage(teacher.declaredTeachingLessons, teacher.basicTeachingLessons)}%`}</TableCell>
+                                                            <TableCell rowSpan={rowSpan} style={{textAlign: 'center'}}>{calculateExcessLessons(teacher.declaredTeachingLessons, teacher.basicTeachingLessons)}</TableCell>
+                                                        </>
+                                                    )}
+                                                    <TableCell>{assignment.className}</TableCell>
+                                                    <TableCell>{assignment.subjectName}</TableCell>
+                                                    {editingTeacherId && (
                                                         <TableCell style={{textAlign: 'center'}}>
-                                                            {isEditing ? (
-                                                                <TextField
-                                                                    type="number"
-                                                                    className={styles.editInput}
-                                                                    value={editValues[`${assignment.className}-${assignment.subjectName}-lessonsPerWeek`]}
-                                                                    onChange={(e) => {
-                                                                        const value = e.target.value;
-                                                                        const numberOfWeeks = parseInt(editValues[`${assignment.className}-${assignment.subjectName}-numberOfWeeks`]) || 0;
-                                                                        const maxAllowedLessons = maxLessons[`${assignment.className}-${assignment.subjectName}`];
-                                                                        
-                                                                        if (value === '' || (parseInt(value) >= 0 && parseInt(value) * numberOfWeeks <= maxAllowedLessons)) {
-                                                                            setEditValues(prev => ({
-                                                                                ...prev,
-                                                                                [`${assignment.className}-${assignment.subjectName}-lessonsPerWeek`]: value
-                                                                            }));
-                                                                        }
-                                                                    }}
-                                                                    size="small"
-                                                                />
-                                                            ) : assignment.lessonsPerWeek}
+                                                            {isEditing ? maxLessons[`${assignment.className}-${assignment.subjectName}`] : ''}
                                                         </TableCell>
-                                                        <TableCell style={{textAlign: 'center'}}>
-                                                            {isEditing ? (
-                                                                <TextField
-                                                                    style={{textAlign: 'center'}}
-                                                                    type="number"
-                                                                    className={styles.editInput}
-                                                                    value={editValues[`${assignment.className}-${assignment.subjectName}-numberOfWeeks`]}
-                                                                    onChange={(e) => {
-                                                                        const value = e.target.value;
-                                                                        const lessonsPerWeek = parseInt(editValues[`${assignment.className}-${assignment.subjectName}-lessonsPerWeek`]) || 0;
-                                                                        const maxAllowedLessons = maxLessons[`${assignment.className}-${assignment.subjectName}`];
-                                                                        
-                                                                        if (value === '' || (parseInt(value) >= 0 && lessonsPerWeek * parseInt(value) <= maxAllowedLessons)) {
-                                                                            setEditValues(prev => ({
-                                                                                ...prev,
-                                                                                [`${assignment.className}-${assignment.subjectName}-numberOfWeeks`]: value
-                                                                            }));
-                                                                        }
-                                                                    }}
-                                                                    size="small"
-                                                                />
-                                                            ) : assignment.numberOfWeeks}
-                                                        </TableCell>
-                                                        <TableCell style={{textAlign: 'center'}}>{assignment.completedLessons}</TableCell>
-                                                        {deletingTeacherId && (
-                                                            <TableCell style={{textAlign: 'center'}}>
-                                                                {isDeleting && (
-                                                                    <Checkbox
-                                                                        checked={selectedAssignments.includes(assignment.id)}
-                                                                        onChange={() => handleCheckAssignment(assignment.id)}
-                                                                        disabled={actionLoading && loadingTeacherId === teacher._id}
-                                                                    />
-                                                                )}
-                                                            </TableCell>
-                                                        )}
-                                                        {idx === 0 && (
-                                                            <TableCell rowSpan={rowSpan}>
-                                                                <div className={styles.actionButtons}>
-                                                                    {isEditing ? (
-                                                                        <div className={styles.buttonsContainer}>
-                                                                            <IconButton
-                                                                                className={styles.actionIcon}
-                                                                                onClick={() => handleSaveEdit(teacher._id)}
-                                                                                disabled={actionLoading && loadingTeacherId === teacher._id}
-                                                                            >
-                                                                                {actionLoading && loadingTeacherId === teacher._id ? (
-                                                                                    <div style={{ width: 24, height: 24 }}>
-                                                                                        <Circles color="#1976d2" height={24} width={24} />
-                                                                                    </div>
-                                                                                ) : (
-                                                                                    <SaveIcon style={{ color: "#4caf50" }}/>
-                                                                                )}
-                                                                            </IconButton>
-                                                                            <IconButton
-                                                                                className={styles.actionIcon}
-                                                                                onClick={() => {
-                                                                                    setEditingTeacherId(null);
-                                                                                    setEditValues({});
-                                                                                    setMaxLessons({});
-                                                                                }}
-                                                                                disabled={actionLoading && loadingTeacherId === teacher._id}
-                                                                            >
-                                                                                <CancelIcon style={{ color: "#f44336" }}/>
-                                                                            </IconButton>
-                                                                        </div>
-                                                                    ) : isDeleting ? (
-                                                                        <div className={styles.buttonsContainer}>
-                                                                            <IconButton
-                                                                                className={`${styles.actionIcon} ${styles.deleteIcon}`}
-                                                                                onClick={handleDeleteSelected}
-                                                                                disabled={actionLoading && loadingTeacherId === teacher._id}
-                                                                            >
-                                                                                {actionLoading && loadingTeacherId === teacher._id ? (
-                                                                                    <div style={{ width: 24, height: 24 }}>
-                                                                                        <Circles color="#d32f2f" height={24} width={24} />
-                                                                                    </div>
-                                                                                ) : (
-                                                                                    <DeleteIcon style={{ color: "#f44336" }}/>
-                                                                                )}
-                                                                            </IconButton>
-                                                                            <IconButton
-                                                                                className={styles.actionIcon}
-                                                                                onClick={() => setDeletingTeacherId(null)}
-                                                                                disabled={actionLoading && loadingTeacherId === teacher._id}
-                                                                            >
-                                                                                <CancelIcon style={{ color: "#f44336" }}/>
-                                                                            </IconButton>
-                                                                        </div>
-                                                                    ) : (
-                                                                        <div className={styles.buttonsContainer}>
-                                                                            <IconButton
-                                                                                className={styles.actionIcon}
-                                                                                onClick={() => handleStartEdit(teacher._id)}
-                                                                                disabled={actionLoading && loadingTeacherId === teacher._id}
-                                                                            >
-                                                                                {actionLoading && loadingTeacherId === teacher._id ? (
-                                                                                    <div style={{ width: 24, height: 24 }}>
-                                                                                        <Circles color="#1976d2" height={24} width={24} />
-                                                                                    </div>
-                                                                                ) : (
-                                                                                    <EditIcon style={{ color: "#4caf50" }}/>
-                                                                                )}
-                                                                            </IconButton>
-                                                                            <IconButton
-                                                                                className={`${styles.actionIcon} ${styles.deleteIcon}`}
-                                                                                onClick={() => handleStartDelete(teacher._id)}
-                                                                                disabled={actionLoading}
-                                                                            >
-                                                                                <DeleteIcon style={{ color: "#f44336" }}/>
-                                                                            </IconButton>
-                                                                            <IconButton
-                                                                                className={styles.actionIcon}
-                                                                                onClick={() => handleOpenAssignmentModal(teacher._id)}
-                                                                                disabled={actionLoading}
-                                                                            >
-                                                                                <AddCircleIcon style={{ color: "#113f67" }}/>
-                                                                            </IconButton>
-                                                                        </div>
-                                                                    )}
-                                                                </div>
-                                                            </TableCell>
-                                                        )}
-                                                    </TableRow>
-                                                ))
-                                            ) : (
-                                                <TableRow className={index % 2 === 0 ? styles.evenRow : styles.oddRow}>
-                                                    <TableCell>{index + 1}</TableCell>
-                                                    <TableCell>{teacher.name}</TableCell>
-                                                    <TableCell style={{textAlign: 'center'}}>{teacher.basicTeachingLessons}</TableCell>
-                                                    <TableCell style={{textAlign: 'center'}}>Chưa khai báo</TableCell>
-                                                    <TableCell style={{textAlign: 'center'}}>0%</TableCell>
-                                                    <TableCell style={{textAlign: 'center'}}>0</TableCell>
-                                                    <TableCell>-</TableCell>
-                                                    <TableCell>-</TableCell>
-                                                    {editingTeacherId && <TableCell></TableCell>}
-                                                    <TableCell>-</TableCell>
-                                                    <TableCell>-</TableCell>
-                                                    <TableCell>-</TableCell>
-                                                    {deletingTeacherId && <TableCell></TableCell>}
-                                                    <TableCell>
-                                                        <div className={styles.actionButtons}>
-                                                            <div className={styles.buttonsContainer}>
-                                                                <IconButton
-                                                                    className={styles.actionIcon}
-                                                                    onClick={() => handleOpenAssignmentModal(teacher._id)}
-                                                                    disabled={actionLoading}
-                                                                >
-                                                                    <AddCircleIcon style={{ color: "#113f67" }}/>
-                                                                </IconButton>
-                                                                </div>
-                                                        </div>
+                                                    )}
+                                                    <TableCell style={{textAlign: 'center'}}>
+                                                        {isEditing ? (
+                                                            <TextField
+                                                                type="number"
+                                                                className={styles.editInput}
+                                                                value={editValues[`${assignment.className}-${assignment.subjectName}-lessonsPerWeek`]}
+                                                                onChange={(e) => {
+                                                                    const value = e.target.value;
+                                                                    const numberOfWeeks = parseInt(editValues[`${assignment.className}-${assignment.subjectName}-numberOfWeeks`]) || 0;
+                                                                    const maxAllowedLessons = maxLessons[`${assignment.className}-${assignment.subjectName}`];
+                                                                    
+                                                                    if (value === '' || (parseInt(value) >= 0 && parseInt(value) * numberOfWeeks <= maxAllowedLessons)) {
+                                                                        setEditValues(prev => ({
+                                                                            ...prev,
+                                                                            [`${assignment.className}-${assignment.subjectName}-lessonsPerWeek`]: value
+                                                                        }));
+                                                                    }
+                                                                }}
+                                                                size="small"
+                                                            />
+                                                        ) : assignment.lessonsPerWeek}
                                                     </TableCell>
+                                                    <TableCell style={{textAlign: 'center'}}>
+                                                        {isEditing ? (
+                                                            <TextField
+                                                                type="number"
+                                                                className={styles.editInput}
+                                                                value={editValues[`${assignment.className}-${assignment.subjectName}-numberOfWeeks`]}
+                                                                onChange={(e) => {
+                                                                    const value = e.target.value;
+                                                                    const lessonsPerWeek = parseInt(editValues[`${assignment.className}-${assignment.subjectName}-lessonsPerWeek`]) || 0;
+                                                                    const maxAllowedLessons = maxLessons[`${assignment.className}-${assignment.subjectName}`];
+                                                                    
+                                                                    if (value === '' || (parseInt(value) >= 0 && lessonsPerWeek * parseInt(value) <= maxAllowedLessons)) {
+                                                                        setEditValues(prev => ({
+                                                                            ...prev,
+                                                                            [`${assignment.className}-${assignment.subjectName}-numberOfWeeks`]: value
+                                                                        }));
+                                                                    }
+                                                                }}
+                                                                size="small"
+                                                            />
+                                                        ) : assignment.numberOfWeeks}
+                                                    </TableCell>
+                                                    <TableCell style={{textAlign: 'center'}}>{assignment.completedLessons}</TableCell>
+                                                    {deletingTeacherId && (
+                                                        <TableCell style={{textAlign: 'center'}}>
+                                                            {isDeleting && (
+                                                                <Checkbox
+                                                                    checked={selectedAssignments.includes(assignment.id)}
+                                                                    onChange={() => handleCheckAssignment(assignment.id)}
+                                                                    disabled={actionLoading && loadingTeacherId === teacher._id}
+                                                                />
+                                                            )}
+                                                        </TableCell>
+                                                    )}
+                                                    {idx === 0 && (
+                                                        <TableCell rowSpan={rowSpan}>
+                                                            <div className={styles.actionButtons}>
+                                                                {isEditing ? (
+                                                                    <div className={styles.buttonsContainer}>
+                                                                        <IconButton
+                                                                            className={styles.actionIcon}
+                                                                            onClick={() => handleSaveEdit(teacher._id)}
+                                                                            disabled={actionLoading && loadingTeacherId === teacher._id}
+                                                                        >
+                                                                            {actionLoading && loadingTeacherId === teacher._id ? (
+                                                                                <div style={{ width: 24, height: 24 }}>
+                                                                                    <Circles color="#1976d2" height={24} width={24} />
+                                                                                </div>
+                                                                            ) : (
+                                                                                <SaveIcon style={{ color: "#4caf50" }}/>
+                                                                            )}
+                                                                        </IconButton>
+                                                                        <IconButton
+                                                                            className={styles.actionIcon}
+                                                                            onClick={() => {
+                                                                                setEditingTeacherId(null);
+                                                                                setEditValues({});
+                                                                                setMaxLessons({});
+                                                                            }}
+                                                                            disabled={actionLoading && loadingTeacherId === teacher._id}
+                                                                        >
+                                                                            <CancelIcon style={{ color: "#f44336" }}/>
+                                                                        </IconButton>
+                                                                    </div>
+                                                                ) : isDeleting ? (
+                                                                    <div className={styles.buttonsContainer}>
+                                                                        <IconButton
+                                                                            className={`${styles.actionIcon} ${styles.deleteIcon}`}
+                                                                            onClick={handleDeleteSelected}
+                                                                            disabled={actionLoading && loadingTeacherId === teacher._id}
+                                                                        >
+                                                                            {actionLoading && loadingTeacherId === teacher._id ? (
+                                                                                <div style={{ width: 24, height: 24 }}>
+                                                                                    <Circles color="#d32f2f" height={24} width={24} />
+                                                                                </div>
+                                                                            ) : (
+                                                                                <DeleteIcon style={{ color: "#f44336" }}/>
+                                                                            )}
+                                                                        </IconButton>
+                                                                        <IconButton
+                                                                            className={styles.actionIcon}
+                                                                            onClick={() => setDeletingTeacherId(null)}
+                                                                            disabled={actionLoading && loadingTeacherId === teacher._id}
+                                                                        >
+                                                                            <CancelIcon style={{ color: "#f44336" }}/>
+                                                                        </IconButton>
+                                                                    </div>
+                                                                ) : (
+                                                                    <div className={styles.buttonsContainer}>
+                                                                        <IconButton
+                                                                            className={styles.actionIcon}
+                                                                            onClick={() => handleStartEdit(teacher._id)}
+                                                                            disabled={actionLoading && loadingTeacherId === teacher._id}
+                                                                        >
+                                                                            {actionLoading && loadingTeacherId === teacher._id ? (
+                                                                                <div style={{ width: 24, height: 24 }}>
+                                                                                    <Circles color="#1976d2" height={24} width={24} />
+                                                                                </div>
+                                                                            ) : (
+                                                                                <EditIcon style={{ color: "#4caf50" }}/>
+                                                                            )}
+                                                                        </IconButton>
+                                                                        <IconButton
+                                                                            className={`${styles.actionIcon} ${styles.deleteIcon}`}
+                                                                            onClick={() => handleStartDelete(teacher._id)}
+                                                                            disabled={actionLoading}
+                                                                        >
+                                                                            <DeleteIcon style={{ color: "#f44336" }}/>
+                                                                        </IconButton>
+                                                                        <IconButton
+                                                                            className={styles.actionIcon}
+                                                                            onClick={() => handleOpenAssignmentModal(teacher._id)}
+                                                                            disabled={actionLoading}
+                                                                        >
+                                                                            <AddCircleIcon style={{ color: "#113f67" }}/>
+                                                                        </IconButton>
+                                                                    </div>
+                                                                )}
+                                                            </div>
+                                                        </TableCell>
+                                                    )}
                                                 </TableRow>
-                                            )}
-                                        </React.Fragment>
-                                    );
-                                })}
-                            </TableBody>
-                        </Table>
-                    </TableContainer>
+                                            ))
+                                        ) : (
+                                            <TableRow className={index % 2 === 0 ? styles.evenRow : styles.oddRow}>
+                                                <TableCell className={`${styles.stickyColumn} ${styles.firstColumn}`}>{index + 1}</TableCell>
+                                                <TableCell className={`${styles.stickyColumn} ${styles.secondColumn}`}>{teacher.name}</TableCell>
+                                                <TableCell style={{textAlign: 'center'}}>{teacher.basicTeachingLessons}</TableCell>
+                                                <TableCell style={{textAlign: 'center'}}>Chưa khai báo</TableCell>
+                                                <TableCell style={{textAlign: 'center'}}>Chưa khai báo</TableCell>
+                                                <TableCell style={{textAlign: 'center'}}>0%</TableCell>
+                                                <TableCell style={{textAlign: 'center'}}>0</TableCell>
+                                                <TableCell>-</TableCell>
+                                                <TableCell>-</TableCell>
+                                                {editingTeacherId && <TableCell></TableCell>}
+                                                <TableCell>-</TableCell>
+                                                <TableCell>-</TableCell>
+                                                <TableCell>-</TableCell>
+                                                {deletingTeacherId && <TableCell></TableCell>}
+                                                <TableCell>
+                                                    <div className={styles.actionButtons}>
+                                                        <div className={styles.buttonsContainer}>
+                                                            <IconButton
+                                                                className={styles.actionIcon}
+                                                                onClick={() => handleOpenAssignmentModal(teacher._id)}
+                                                                disabled={actionLoading}
+                                                            >
+                                                                <AddCircleIcon style={{ color: "#113f67" }}/>
+                                                            </IconButton>
+                                                        </div>
+                                                    </div>
+                                                </TableCell>
+                                            </TableRow>
+                                        )}
+                                    </React.Fragment>
+                                );
+                            })}
+                        </TableBody>
+                    </Table>
+                </TableContainer>
                 </Box>
             </div>
 
             <CreateAssignmentModal
                 isOpen={showModal}
-                onClose={() => setShowModal(false)}
+                onClose={() => {
+                    setShowModal(false);
+                    setSelectedTeacherId(null);
+                    setSelectedTeacherAssignments([]);
+                }}
                 subjects={subjects}
                 teacherId={selectedTeacherId}
                 onAssignmentCreate={handleCreateAssignment}
                 existingAssignments={selectedTeacherAssignments}
+                isLoading={actionLoading && loadingTeacherId === selectedTeacherId}
             />
 
             <Footer/>
@@ -621,4 +666,4 @@ const LeaderDashboard = () => {
     );
 };
 
-export default LeaderDashboard;
+export default React.memo(LeaderDashboard);

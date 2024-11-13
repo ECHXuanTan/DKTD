@@ -139,7 +139,7 @@ export const getAllAssignmentTeachers = async (id) => {
     }
   };
   
-  export const batchDeleteAssignments = async (assignmentIds) => {
+  export const batchDeleteAssignments = async (assignments) => {
     try {
       const userToken = localStorage.getItem('userToken');
       const response = await api.delete('api/assignment/batch-delete',
@@ -148,7 +148,10 @@ export const getAllAssignmentTeachers = async (id) => {
             Authorization: `Bearer ${userToken}`,
           },
           data: {
-            assignmentIds
+            assignments: assignments.map(assignment => ({
+              assignmentId: assignment.id,
+              completedLessons: assignment.completedLessons
+            }))
           }
         }
       );

@@ -456,6 +456,7 @@ statisticsRouter.get('/department-teachers', isAuth, async (req, res) => {
           departmentName: 1,
           teachingSubjects: 1,
           homeroomInfo: 1,
+          declaredTeachingLessons: 1,
           reducedLessonsPerWeek: 1,
           reducedWeeks: 1,
           reductionReason: 1
@@ -466,8 +467,11 @@ statisticsRouter.get('/department-teachers', isAuth, async (req, res) => {
     const teachersData = await Promise.all(teachers.map(async (teacher) => {
       const assignments = await TeacherAssignment.find({ teacher: teacher._id })
         .populate('class', 'name grade')
-        .populate('subject', 'name')
-        .select('class subject completedLessons lessonsPerWeek numberOfWeeks'); // Thêm các trường mới
+        .populate({
+          path: 'subject',
+          select: 'name isSpecialized'
+        })
+        .select('class subject completedLessons lessonsPerWeek numberOfWeeks');
 
       const teachingDetails = assignments.map(assignment => ({
         _id: assignment._id,
@@ -475,8 +479,11 @@ statisticsRouter.get('/department-teachers', isAuth, async (req, res) => {
         grade: assignment.class?.grade,
         subject: assignment.subject?.name,
         completedLessons: assignment.completedLessons,
-        lessonsPerWeek: assignment.lessonsPerWeek,   // Thêm trường mới
-        numberOfWeeks: assignment.numberOfWeeks      // Thêm trường mới
+        lessonsPerWeek: assignment.lessonsPerWeek,
+        numberOfWeeks: assignment.numberOfWeeks,
+        declaredLessons: assignment.subject?.isSpecialized ? 
+          assignment.completedLessons * 3 : 
+          assignment.completedLessons
       }));
 
       return {
