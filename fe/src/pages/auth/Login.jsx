@@ -8,7 +8,8 @@ import '../../css/Login.css';
 import { authService } from '../../services/authServices';
 import { getUser } from '../../services/authServices';
 
-const clientID = "772775577887-mid4fgus3v3k22i6r30me6dpgkv1e8j8.apps.googleusercontent.com";
+
+const clientID = process.env.REACT_APP_GOOGLE_CLIENT_ID;
 
 const Login = () => {
   const [errorMessage, setErrorMessage] = useState('');

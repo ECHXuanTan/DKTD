@@ -15,6 +15,9 @@ import CancelIcon from '@mui/icons-material/Cancel';
 
 Modal.setAppElement('#root');
 
+const REDUCTION_COLUMNS = ['Số tiết giảm 1 tuần', 'Số tuần giảm', 'Nội dung giảm'];
+const MAX_REDUCTIONS = 3;
+
 const MultiTeacherModal = ({ isOpen, onClose, onTeachersAdded }) => {
     const [excelFile, setExcelFile] = useState(null);
     const [excelData, setExcelData] = useState(null);
@@ -45,18 +48,72 @@ const MultiTeacherModal = ({ isOpen, onClose, onTeachersAdded }) => {
         fetchDepartmentsAndSubjects();
     }, []);
 
-    const handleDownloadTemplate = () => {
-        const data = [
-            ['Họ và tên', 'Email', 'Số điện thoại', 'Tổ chuyên môn', 'Môn học giảng dạy', 'Hình thức giáo viên', 'Số tiết dạy một tuần', 'Số tuần dạy', 'Số tiết giảm 1 tuần', 'Số tuần giảm', 'Nội dung giảm'],
-            ['Nguyễn Văn A', 'nguyenvana@example.com', '0923456789', 'Tổ Vật lý', 'Vật lý', 'Cơ hữu', '20', '15', '2', '18', 'PTN Lý'],
-            ['Trần Thị B', 'tranthib@example.com', '0987654321', 'Tổ Tiếng Anh', 'Tiếng Anh',  'Thỉnh giảng', '', '', '', '', ''],
+    const generateTemplateHeaders = () => {
+        const baseHeaders = [
+            'Họ và tên',
+            'Email',
+            'Số điện thoại',
+            'Tổ chuyên môn',
+            'Môn học giảng dạy',
+            'Hình thức giáo viên',
+            'Số tiết dạy một tuần',
+            'Số tuần dạy'
         ];
+
+        for (let i = 1; i <= MAX_REDUCTIONS; i++) {
+            REDUCTION_COLUMNS.forEach(col => {
+                baseHeaders.push(`${col} ${i}`);
+            });
+        }
+
+        return baseHeaders;
+    };
+
+    const handleDownloadTemplate = () => {
+        const headers = generateTemplateHeaders();
+        const data = [headers];
+
+        const sampleData1 = [
+            'Nguyễn Văn A',
+            'nguyenvana@example.com',
+            '0923456789',
+            'Tổ Vật lý',
+            'Vật lý',
+            'Cơ hữu',
+            '20',
+            '15',
+            // Giảm trừ 1
+            '2', '18', 'PTN Lý',
+            // Giảm trừ 2
+            '3', '15', 'NCKH',
+            // Giảm trừ 3 để trống
+            '', '', ''
+        ];
+
+        const sampleData2 = [
+            'Trần Thị B',
+            'tranthib@example.com',
+            '0987654321',
+            'Tổ Tiếng Anh',
+            'Tiếng Anh',
+            'Thỉnh giảng',
+            '',
+            '',
+            // Không có giảm trừ
+            '', '', '',
+            '', '', '',
+            '', '', ''
+        ];
+
+        data.push(sampleData1, sampleData2);
 
         const ws = utils.aoa_to_sheet(data);
         const wb = utils.book_new();
         utils.book_append_sheet(wb, ws, "Template");
 
-        const departmentNames = departments.filter(dept => dept.name !== "Tổ Giáo vụ – Đào tạo").map(dept => dept.name);
+        const departmentNames = departments
+            .filter(dept => dept.name !== "Tổ Giáo vụ – Đào tạo")
+            .map(dept => dept.name);
         const subjectNames = subjects.map(subject => subject.name);
         const teacherTypes = ['Cơ hữu', 'Thỉnh giảng'];
 
@@ -67,8 +124,100 @@ const MultiTeacherModal = ({ isOpen, onClose, onTeachersAdded }) => {
         ];
 
         const excelBuffer = write(wb, { bookType: 'xlsx', type: 'array' });
-        const dataBlob = new Blob([excelBuffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet;charset=UTF-8' });
+        const dataBlob = new Blob([excelBuffer], { 
+            type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet;charset=UTF-8' 
+        });
         FileSaver.saveAs(dataBlob, 'teacher_template.xlsx');
+    };
+
+    const processReductionData = (row) => {
+        const reductions = [];
+        
+        for (let i = 1; i <= MAX_REDUCTIONS; i++) {
+            const lessonsPerWeek = row[`Số tiết giảm 1 tuần ${i}`];
+            const weeks = row[`Số tuần giảm ${i}`];
+            const reason = row[`Nội dung giảm ${i}`];
+
+            if (lessonsPerWeek || weeks || reason) {
+                if (!lessonsPerWeek || !weeks || !reason) {
+                    throw new Error(`Nhóm giảm trừ ${i} thiếu thông tin. Vui lòng điền đầy đủ số tiết, số tuần và nội dung giảm.`);
+                }
+
+                const numLessons = Number(lessonsPerWeek);
+                const numWeeks = Number(weeks);
+                if (isNaN(numLessons) || numLessons <= 0) {
+                    throw new Error(`Số tiết giảm 1 tuần của nhóm ${i} phải là số dương`);
+                }
+                if (isNaN(numWeeks) || numWeeks <= 0) {
+                    throw new Error(`Số tuần giảm của nhóm ${i} phải là số dương`);
+                }
+
+                reductions.push({
+                    reducedLessonsPerWeek: numLessons,
+                    reducedWeeks: numWeeks,
+                    reductionReason: reason.trim(),
+                    reducedLessons: numLessons * numWeeks
+                });
+            }
+        }
+
+        return reductions;
+    };
+
+    const validateReductions = (row) => {
+        try {
+            const reductions = processReductionData(row);
+            return { isValid: true, reductions };
+        } catch (error) {
+            return { isValid: false, error: error.message };
+        }
+    };
+
+    const validateInput = (value, header, row) => {
+        if (header === 'Họ và tên') {
+            return value && value.trim() !== '' && !/\d/.test(value);
+        } else if (header === 'Email') {
+            return value && value.trim() !== '';
+        } else if (header === 'Tổ chuyên môn') {
+            return departments.some(dept => dept.name === value && dept.name !== "Tổ Giáo vụ – Đào tạo");
+        } else if (header === 'Môn học giảng dạy') {
+            return subjects.some(subject => subject.name === value);
+        } else if (header === 'Hình thức giáo viên') {
+            return ['Cơ hữu', 'Thỉnh giảng'].includes(value);
+        } else if (['Số tiết dạy một tuần', 'Số tuần dạy'].includes(header)) {
+            const numValue = Number(value);
+            if (row['Hình thức giáo viên'] === 'Cơ hữu') {
+                return !isNaN(numValue) && numValue > 0;
+            }
+            return !isNaN(numValue) && numValue >= 0;
+        } else if (header === 'Số điện thoại') {
+            return value === '' || /^[0-9]{10}$/.test(value);
+        }
+        return true;
+    };
+
+    const processTeacherData = (row) => {
+        const reductionResult = validateReductions(row);
+        if (!reductionResult.isValid) {
+            throw new Error(reductionResult.error);
+        }
+
+        return {
+            name: row['Họ và tên'],
+            email: row['Email'],
+            phone: row['Số điện thoại'],
+            department: departments.find(dept => dept.name === row['Tổ chuyên môn'])._id,
+            teachingSubjects: subjects.find(subj => subj.name === row['Môn học giảng dạy'])._id,
+            type: row['Hình thức giáo viên'],
+            ...(row['Hình thức giáo viên'] === 'Cơ hữu' && {
+                lessonsPerWeek: Number(row['Số tiết dạy một tuần']),
+                teachingWeeks: Number(row['Số tuần dạy']),
+                reductions: reductionResult.reductions,
+                totalReducedLessons: reductionResult.reductions.reduce(
+                    (total, red) => total + (red.reducedLessonsPerWeek * red.reducedWeeks), 0
+                )
+            })
+        };
     };
 
     const handleFileUpload = (event) => {
@@ -117,59 +266,48 @@ const MultiTeacherModal = ({ isOpen, onClose, onTeachersAdded }) => {
             return;
         }
     
-        if (!validateAllData()) {
-            toast.error('Vui lòng kiểm tra lại dữ liệu. Đảm bảo tất cả các trường đều hợp lệ.');
-            return;
-        }
-    
         setIsUploadingExcel(true);
+        const processedTeachers = [];
+        const errors = [];
+    
         try {
-            const formattedData = editingData.map(row => ({
-                'Tên': row['Họ và tên'],
-                'Email': row['Email'],
-                'Số điện thoại': row['Số điện thoại'],
-                'Tổ chuyên môn': row['Tổ chuyên môn'],
-                'Môn học giảng dạy': row['Môn học giảng dạy'],
-                'Hình thức giáo viên': row['Hình thức giáo viên'],
-                'Số tiết dạy một tuần': row['Số tiết dạy một tuần'],
-                'Số tuần dạy': row['Số tuần dạy'],
-                'Số tiết giảm 1 tuần': row['Số tiết giảm 1 tuần'],
-                'Số tuần giảm': row['Số tuần giảm'],
-                'Nội dung giảm': row['Nội dung giảm']
-            }));
+            for (const row of editingData) {
+                try {
+                    for (const [header, value] of Object.entries(row)) {
+                        if (!validateInput(value, header, row)) {
+                            throw new Error(`Dữ liệu không hợp lệ ở trường "${header}"`);
+                        }
+                    }
     
-            const response = await createManyTeachers(formattedData);
-            
-            let successCount = 0;
-            let errorMessages = [];
-    
-            if (response.invalidTeachers && response.invalidTeachers.length > 0) {
-                errorMessages = response.invalidTeachers.map(item => 
-                    `${item.name}: ${item.errors.join(', ')}`
-                );
+                    const teacherData = processTeacherData(row);
+                    processedTeachers.push(teacherData);
+                } catch (error) {
+                    errors.push({
+                        name: row['Họ và tên'] || 'Unknown',
+                        error: error.message
+                    });
+                }
             }
     
-            if (response.createdTeachers) {
-                successCount = response.createdTeachers.length;
+            if (errors.length > 0) {
+                const errorMessages = errors.map(err => `${err.name}: ${err.error}`).join('\n');
+                toast.error(`Có lỗi với một số giáo viên:\n${errorMessages}`);
+                return;
             }
     
-            if (response.errors) {
-                errorMessages = errorMessages.concat(response.errors.map(err => 
-                    `${err.email || 'Unknown'}: ${err.message}`
-                ));
-            }
-    
-            clearData();
-            onClose();
-
-            if (successCount > 0) {
-                toast.success(`Đã tạo thành công ${successCount} giáo viên`);
+            const response = await createManyTeachers(processedTeachers);
+            if (response.createdTeachers.length > 0) {
+                clearData();
+                onClose();
+                toast.success(`Đã tạo thành công ${response.createdTeachers.length} giáo viên`);
                 onTeachersAdded();
             }
     
-            if (errorMessages.length > 0) {
-                const errorMessage = `Có ${errorMessages.length} giáo viên không hợp lệ:\n${errorMessages.join('\n')}`;
-                toast.error(errorMessage);
+            if (response.invalidTeachers && response.invalidTeachers.length > 0) {
+                const invalidMessages = response.invalidTeachers
+                    .map(t => `${t.name}: ${t.errors.join(', ')}`)
+                    .join('\n');
+                toast.error(`Có ${response.invalidTeachers.length} giáo viên không hợp lệ:\n${invalidMessages}`);
             }
         } catch (error) {
             console.error('Error creating teachers:', error);
@@ -187,58 +325,6 @@ const MultiTeacherModal = ({ isOpen, onClose, onTeachersAdded }) => {
         setIsEditing(false);
     };
 
-    const validateInput = (value, header, row) => {
-        if (header === 'Họ và tên') {
-            return value && value.trim() !== '' && !/\d/.test(value);
-        } else if (header === 'Email') {
-            return value && value.trim() !== '';
-        } else if (header === 'Tổ chuyên môn') {
-            return departments.some(dept => dept.name === value && dept.name !== "Tổ Giáo vụ – Đào tạo");
-        } else if (header === 'Môn học giảng dạy') {
-            return subjects.some(subject => subject.name === value);
-        } else if (header === 'Hình thức giáo viên') {
-            return ['Cơ hữu', 'Thỉnh giảng'].includes(value);
-        } else if (['Số tiết dạy một tuần', 'Số tuần dạy'].includes(header)) {
-            const numValue = Number(value);
-            if (row['Hình thức giáo viên'] === 'Cơ hữu') {
-                return !isNaN(numValue) && numValue > 0;
-            }
-            return !isNaN(numValue) && numValue >= 0;
-        } else if (['Số tiết giảm 1 tuần', 'Số tuần giảm', 'Nội dung giảm'].includes(header)) {
-            const reductionFields = ['Số tiết giảm 1 tuần', 'Số tuần giảm', 'Nội dung giảm'];
-            const hasReductionData = reductionFields.some(field => row[field] !== '');
-            if (hasReductionData) {
-                return reductionFields.every(field => {
-                    if (['Số tiết giảm 1 tuần', 'Số tuần giảm'].includes(field)) {
-                        const numValue = Number(row[field]);
-                        return !isNaN(numValue) && numValue > 0;
-                    }
-                    return row[field] !== '';
-                });
-            }
-            return true;
-        } else if (header === 'Số điện thoại') {
-            return value === '' || /^[0-9]{10}$/.test(value);
-        }
-
-        return true;
-    };
-
-    const validateAllData = () => {
-        for (let row of editingData) {
-            for (let [header, value] of Object.entries(row)) {
-                if (!validateInput(value, header, row)) {
-                    return false;
-                }
-            }
-            if (row['Hình thức giáo viên'] === 'Cơ hữu' && 
-                (row['Số tiết dạy một tuần'] === '' || row['Số tuần dạy'] === '')) {
-                return false;
-            }
-        }
-        return true;
-    };
-
     const handleEdit = (rowIndex, field, value) => {
         const newData = [...editingData];
         newData[rowIndex][field] = value;
@@ -246,13 +332,9 @@ const MultiTeacherModal = ({ isOpen, onClose, onTeachersAdded }) => {
     };
 
     const handleSaveChanges = () => {
-        if (validateAllData()) {
-            setExcelData(editingData);
-            setIsEditing(false);
-            toast.success('Các thay đổi đã được lưu');
-        } else {
-            toast.error('Vui lòng kiểm tra lại dữ liệu. Đảm bảo tất cả các trường đều hợp lệ.');
-        }
+        setExcelData(editingData);
+        setIsEditing(false);
+        toast.success('Các thay đổi đã được lưu');
     };
 
     const handleCancelChanges = () => {
@@ -304,7 +386,7 @@ const MultiTeacherModal = ({ isOpen, onClose, onTeachersAdded }) => {
                         <div className={styles.tableWrapper}>
                             <table className={styles.previewTable}>
                                 <thead>
-                                <tr>
+                                    <tr>
                                         {headers.map((header, index) => (
                                             <th key={index} className={header === 'Họ và tên' || header === 'Email' ? styles.wideColumn : ''}>{header}</th>
                                         ))}
@@ -352,7 +434,7 @@ const MultiTeacherModal = ({ isOpen, onClose, onTeachersAdded }) => {
                                                                 </select>
                                                             ) : (
                                                                 <input 
-                                                                    type={['Số tiết dạy một tuần', 'Số tuần dạy', 'Số tiết giảm 1 tuần', 'Số tuần giảm'].includes(header) ? 'number' : 'text'}
+                                                                    type={['Số tiết dạy một tuần', 'Số tuần dạy', 'Số tiết giảm 1 tuần', 'Số tuần giảm'].some(prefix => header.startsWith(prefix)) ? 'number' : 'text'}
                                                                     value={row[header] || ''}
                                                                     onChange={(e) => handleEdit(rowIndex, header, e.target.value)}
                                                                     className={!isValid ? styles.invalidInput : ''}

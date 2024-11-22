@@ -14,6 +14,7 @@ import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import styles from '../../css/Ministry/MinistryTeacherStatic.module.css';
 import ExportAllTeachersButton from './Component/AllTeachersReport.jsx';
 import ExportTeachersExcel from './Component/Statistics/ExportTeachersExcel.jsx';
+
 const MinistryTeacherStatic = () => { 
     const [user, setUser] = useState(null);
     const [teachers, setTeachers] = useState([]);

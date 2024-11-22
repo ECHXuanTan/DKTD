@@ -77,9 +77,10 @@
 }
 
 .table {
-    width: 1500px;
+    width: 2000px;
     border-collapse: separate;
     border-spacing: 0;
+    table-layout: fixed;
 }
 
 .tableContainer {
@@ -121,6 +122,52 @@
     font-size: 15px !important;
 }
 
+.headerFirstColumn {
+    left: 0 !important;
+    z-index: 4 !important;
+}
+
+.headerSecondColumn {
+    left: 50px !important;
+    z-index: 4 !important;
+}
+
+.fixedWidth {
+    width: 100px !important;
+}
+
+.fixedWidth2 {
+    width: 160px !important;
+}
+
+.mediumWidth {
+    width: 150px !important;
+    min-width: 150px !important;
+    max-width: 150px !important;
+}
+
+.actionColumn {
+    width: 150px !important;
+    min-width: 150px !important;
+    max-width: 150px !important;
+}
+
+.firstColumn {
+    left: 0;
+    width: 50px !important;
+    min-width: 50px !important;
+    max-width: 50px !important;
+    z-index: 3;
+}
+
+.secondColumn {
+    left: 50px;
+    width: 200px !important;
+    min-width: 200px !important;
+    max-width: 200px !important;
+    z-index: 3;
+}
+
 .stickyColumn {
     position: sticky;
     background-color: white;
@@ -132,21 +179,29 @@
     background-color: #5585b5 !important;
 }
 
-.firstColumn {
-    left: 0;
-    width: 35px;
-}
-
-.secondColumn {
-    left: 60px;
-    width: 200px;
-}
-
 .table td {
     padding: 12px;
     text-align: left;
     border: 1px solid #ddd;
     background-color: inherit;
+}
+
+.table td:not(:nth-child(5)) {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.reductionContent {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.reductionItem {
+    padding: 2px 0;
+    white-space: normal;
+    word-break: break-word;
 }
 
 .evenRow td {
@@ -184,92 +239,45 @@
     justify-content: center;
 }
 
-.editButton,
-.deleteButton,
-.addButton {
-    padding: 5px 10px;
-    border: none;
-    border-radius: 26px;
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    color: white;
-    min-width: 32px;
-    height: 32px;
-}
-
-.editButton {
-    background-color: #28a745;
-}
-
-.editButton:hover {
-    background-color: #218838;
-}
-
-.deleteButton {
-    background-color: #dc3545;
-}
-
-.deleteButton:hover {
-    background-color: #c82333;
-}
-
-.addButton {
-    background-color: #007bff;
-}
-
-.addButton:hover {
-    background-color: #0056b3;
-}
-
-.editGroup {
+.buttonsContainer {
     display: flex;
     gap: 5px;
-    align-items: center;
     justify-content: center;
+}
+
+.actionIcon {
+    padding: 8px !important;
+    border-radius: 4px !important;
+}
+
+.actionIcon:hover {
+    background-color: rgba(0, 0, 0, 0.04) !important;
+}
+
+.deleteIcon:hover {
+    background-color: rgba(244, 67, 54, 0.04) !important;
 }
 
 .editInput {
-    width: 60px;
-    padding: 4px 8px;
-    border-radius: 4px;
-    font-size: 0.9em;
+    width: 60px !important;
+}
+
+.editInput input {
     text-align: center;
+    padding: 4px 8px !important;
 }
 
-.editAction {
-    padding: 4px 8px;
-    border: none;
-    border-radius: 4px;
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    color: white;
-    min-width: 28px;
-    height: 28px;
+.reductionCell {
+    padding: 0 !important;
 }
 
-.editAction:first-of-type {
-    background-color: #28a745;
+.reductionRow {
+    padding: 12px;
+    border-bottom: 1px solid #ddd;
 }
 
-.editAction:last-of-type {
-    background-color: #dc3545;
-}
-
-.button:disabled,
-.editButton:disabled,
-.deleteButton:disabled,
-.editAction:disabled,
-.addButton:disabled {
-    background-color: #ccc;
-    cursor: not-allowed;
-}
-
-.narrowColumn {
-    width: 80px;
+.reductionRow:last-child {
+    border-bottom: none;
 }
 
 @media (max-width: 768px) {

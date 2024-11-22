@@ -129,61 +129,58 @@ export const deleteTeacher = async (id) => {
 export const createManyTeachers = async (teachersData) => {
   try {
     const userToken = localStorage.getItem('userToken');
-
     console.log("Dữ liệu giáo viên nhận được:", teachersData);
 
-    // Lấy danh sách khoa từ server
-    const departmentsResponse = await api.get('api/departments/names', {
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${userToken}`,
-      },
-    });
-    const departments = departmentsResponse.data;
+    // Validate department and subject IDs exist
+    const [departmentsResponse, subjectsResponse] = await Promise.all([
+      api.get('api/departments/names', {
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${userToken}`,
+        },
+      }),
+      api.get('api/subjects', {
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${userToken}`,
+        },
+      }),
+    ]);
 
-    // Lấy danh sách môn học từ server
-    const subjectsResponse = await api.get('api/subjects', {
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${userToken}`,
-      },
-    });
+    const departments = departmentsResponse.data;
     const subjects = subjectsResponse.data;
 
     const validatedTeachers = [];
     const invalidTeachers = [];
 
     for (const teacherData of teachersData) {
-      const validationResult = validateTeacherData(teacherData);
-      
-      // Kiểm tra sự tồn tại của Tổ chuyên môn
-      const departmentObj = departments.find(dept => dept.name === teacherData['Tổ chuyên môn']);
-      if (!departmentObj) {
-        validationResult.errors.push("Không tìm thấy Tổ chuyên môn");
-      }
+      const validationResult = validateTeacherData(teacherData, departments, subjects);
 
-      // Kiểm tra sự tồn tại của Môn học giảng dạy
-      const subjectObj = subjects.find(subj => subj.name === teacherData['Môn học giảng dạy']);
-      if (!subjectObj) {
-        validationResult.errors.push("Không tìm thấy Môn học giảng dạy");
-      }
+      if (validationResult.isValid) {
+        // Process teacher data
+        const processedTeacher = {
+          name: teacherData.name,
+          email: teacherData.email,
+          phone: teacherData.phone || undefined,
+          position: 'Giáo viên',
+          department: teacherData.department,
+          teachingSubjects: teacherData.teachingSubjects,
+          type: teacherData.type,
+          ...(teacherData.type === 'Cơ hữu' && {
+            lessonsPerWeek: teacherData.lessonsPerWeek,
+            teachingWeeks: teacherData.teachingWeeks,
+            basicTeachingLessons: teacherData.lessonsPerWeek * teacherData.teachingWeeks,
+            reductions: teacherData.reductions,
+            totalReducedLessons: teacherData.totalReducedLessons
+          })
+        };
 
-      if (validationResult.errors.length === 0) {
-        validatedTeachers.push({
-          name: teacherData['Tên'] || teacherData['Họ và tên'],
-          email: teacherData['Email'],
-          phone: teacherData['Số điện thoại'] || undefined, // Chỉ thêm nếu có
-          department: departmentObj._id,
-          teachingSubjects: subjectObj._id,
-          type: teacherData['Hình thức giáo viên'],
-          lessonsPerWeek: teacherData['Hình thức giáo viên'] === 'Cơ hữu' ? parseInt(teacherData['Số tiết dạy một tuần']) : 0,
-          teachingWeeks: teacherData['Hình thức giáo viên'] === 'Cơ hữu' ? parseInt(teacherData['Số tuần dạy']) : 0,
-          reducedLessonsPerWeek: teacherData['Hình thức giáo viên'] === 'Cơ hữu' ? parseInt(teacherData['Số tiết giảm 1 tuần'] || 0) : 0,
-          reducedWeeks: teacherData['Hình thức giáo viên'] === 'Cơ hữu' ? parseInt(teacherData['Số tuần giảm'] || 0) : 0,
-          reductionReason: teacherData['Hình thức giáo viên'] === 'Cơ hữu' ? teacherData['Nội dung giảm'] : ''
-        });
+        validatedTeachers.push(processedTeacher);
       } else {
-        invalidTeachers.push({ name: validationResult.name, errors: validationResult.errors });
+        invalidTeachers.push({
+          name: teacherData.name || 'Unknown',
+          errors: validationResult.errors
+        });
       }
     }
 
@@ -191,19 +188,18 @@ export const createManyTeachers = async (teachersData) => {
     console.log("Giáo viên không hợp lệ:", invalidTeachers);
 
     if (validatedTeachers.length === 0) {
-      console.error("Không có dữ liệu hợp lệ để tạo giáo viên");
       throw new Error("Không có dữ liệu hợp lệ để tạo giáo viên");
     }
 
-    console.log("Đang gửi yêu cầu tạo giáo viên đến server");
-    const response = await api.post('api/teachers/create-many', { teachers: validatedTeachers }, {
-      headers: {
-        'Content-type': 'application/json',
-        Authorization: `Bearer ${userToken}`,
-      },
-    });
-
-    console.log("Phản hồi từ server:", response.data);
+    const response = await api.post('api/teachers/create-many', 
+      { teachers: validatedTeachers }, 
+      {
+        headers: {
+          'Content-type': 'application/json',
+          Authorization: `Bearer ${userToken}`,
+        },
+      }
+    );
 
     return {
       ...response.data,
@@ -215,44 +211,88 @@ export const createManyTeachers = async (teachersData) => {
   }
 };
 
-const validateTeacherData = (teacherData) => {
+const validateTeacherData = (teacherData, departments, subjects) => {
   const errors = [];
-  const name = teacherData['Tên'] || teacherData['Họ và tên'];
 
-  if (!name || name.trim() === '') {
-    errors.push('Tên là bắt buộc');
+  // Validate required fields
+  if (!teacherData.name || teacherData.name.trim() === '') {
+    errors.push('Họ và tên là bắt buộc');
   }
 
-  if (!teacherData['Email'] || !/\S+@\S+\.\S+/.test(teacherData['Email'])) {
+  if (!teacherData.email || !/\S+@\S+\.\S+/.test(teacherData.email)) {
     errors.push('Email không hợp lệ');
   }
 
-  if (teacherData['Số điện thoại'] && !/^[0-9]{10}$/.test(teacherData['Số điện thoại'])) {
+  if (teacherData.phone && !/^[0-9]{10}$/.test(teacherData.phone)) {
     errors.push('Số điện thoại không hợp lệ');
   }
 
-  if (!teacherData['Tổ chuyên môn'] || teacherData['Tổ chuyên môn'].trim() === '') {
+  // Validate department
+  if (!teacherData.department) {
     errors.push('Tổ chuyên môn là bắt buộc');
+  } else {
+    const departmentExists = departments.some(dept => dept._id === teacherData.department);
+    if (!departmentExists) {
+      errors.push('Không tìm thấy Tổ chuyên môn');
+    }
   }
 
-  if (!teacherData['Môn học giảng dạy'] || teacherData['Môn học giảng dạy'].trim() === '') {
+  // Validate teaching subjects
+  if (!teacherData.teachingSubjects) {
     errors.push('Môn học giảng dạy là bắt buộc');
+  } else {
+    const subjectExists = subjects.some(subj => subj._id === teacherData.teachingSubjects);
+    if (!subjectExists) {
+      errors.push('Không tìm thấy Môn học giảng dạy');
+    }
   }
 
-  if (!teacherData['Hình thức giáo viên'] || !['Cơ hữu', 'Thỉnh giảng'].includes(teacherData['Hình thức giáo viên'])) {
+  // Validate teacher type and related fields
+  if (!teacherData.type || !['Cơ hữu', 'Thỉnh giảng'].includes(teacherData.type)) {
     errors.push('Hình thức giáo viên không hợp lệ');
   }
 
-  if (teacherData['Hình thức giáo viên'] === 'Cơ hữu') {
-    if (!teacherData['Số tiết dạy một tuần'] || isNaN(teacherData['Số tiết dạy một tuần'])) {
-      errors.push('Số tiết dạy một tuần là bắt buộc cho giáo viên cơ hữu');
+  if (teacherData.type === 'Cơ hữu') {
+    // Validate teaching load
+    if (!teacherData.lessonsPerWeek || teacherData.lessonsPerWeek <= 0) {
+      errors.push('Số tiết dạy một tuần phải lớn hơn 0');
     }
-    if (!teacherData['Số tuần dạy'] || isNaN(teacherData['Số tuần dạy'])) {
-      errors.push('Số tuần dạy là bắt buộc cho giáo viên cơ hữu');
+    if (!teacherData.teachingWeeks || teacherData.teachingWeeks <= 0) {
+      errors.push('Số tuần dạy phải lớn hơn 0');
+    }
+
+    // Validate reductions
+    if (teacherData.reductions && Array.isArray(teacherData.reductions)) {
+      teacherData.reductions.forEach((reduction, index) => {
+        if (!reduction.reducedLessonsPerWeek || reduction.reducedLessonsPerWeek <= 0) {
+          errors.push(`Số tiết giảm 1 tuần của giảm trừ ${index + 1} phải lớn hơn 0`);
+        }
+        if (!reduction.reducedWeeks || reduction.reducedWeeks <= 0) {
+          errors.push(`Số tuần giảm của giảm trừ ${index + 1} phải lớn hơn 0`);
+        }
+        if (!reduction.reductionReason || reduction.reductionReason.trim() === '') {
+          errors.push(`Nội dung giảm của giảm trừ ${index + 1} là bắt buộc`);
+        }
+        // Verify reducedLessons calculation
+        if (reduction.reducedLessons !== reduction.reducedLessonsPerWeek * reduction.reducedWeeks) {
+          errors.push(`Tổng số tiết giảm của giảm trừ ${index + 1} không chính xác`);
+        }
+      });
+
+      // Verify total reduced lessons
+      const calculatedTotal = teacherData.reductions.reduce((sum, reduction) => 
+        sum + reduction.reducedLessons, 0
+      );
+      if (teacherData.totalReducedLessons !== calculatedTotal) {
+        errors.push('Tổng số tiết giảm không khớp với chi tiết giảm trừ');
+      }
     }
   }
 
-  return { name, errors };
+  return {
+    isValid: errors.length === 0,
+    errors
+  };
 };
 
 export const getTeachersWithoutHomeroom = async () => {

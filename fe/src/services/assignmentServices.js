@@ -39,8 +39,7 @@ export const getAllAssignmentTeachers = async (id) => {
             classId: assignment.classId,
             subjectId: assignment.subjectId,
             teacherId: assignment.teacherId,
-            lessonsPerWeek: assignment.lessonsPerWeek,
-            numberOfWeeks: assignment.numberOfWeeks
+            completedLessons: assignment.completedLessons // Thêm field này
           }))
         },
         {
@@ -52,6 +51,25 @@ export const getAllAssignmentTeachers = async (id) => {
       return response.data;
     } catch (error) {
       console.error('Error creating assignments:', error);
+      throw error;
+    }
+  };
+
+  export const createBulkAssignments = async (assignments) => {
+    try {
+      const userToken = localStorage.getItem('userToken');
+      const response = await api.post('/api/assignment/bulk-assign', 
+        { assignments },
+        {
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${userToken}`,
+          },
+        }
+      );
+      return response.data;
+    } catch (error) {
+      console.error('Error creating bulk assignments:', error);
       throw error;
     }
   };

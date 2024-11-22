@@ -3,7 +3,7 @@ import api from '../api';
 export const getDepartmentTeachers = async () => {
   try {
     const userToken = localStorage.getItem('userToken');
-    const response = await api.get('api/statistics/department-teachers', {
+    const response = await api.get(`api/statistics/department-teachers`, {
       headers: {
         'Content-Type': 'application/json',
         Authorization: `Bearer ${userToken}`,
@@ -12,6 +12,22 @@ export const getDepartmentTeachers = async () => {
     return response.data;
   } catch (error) {
     console.error('Error getting department teachers:', error);
+    throw error;
+  }
+};
+
+export const getExportDepartmentTeachers = async (departmentId) => {
+  try {
+    const userToken = localStorage.getItem('userToken');
+    const response = await api.get(`api/statistics/export-department-teachers/${departmentId}`, {
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${userToken}`,
+      },
+    });
+    return response.data;
+  } catch (error) {
+    console.error('Error getting export department teachers:', error);
     throw error;
   }
 };
@@ -28,6 +44,46 @@ export const getAllTeachers = async () => {
     return response.data;
   } catch (error) {
     console.error('Error getting department teachers:', error);
+    throw error;
+  }
+};
+
+export const getTeachersAboveThresholdCount = async (department = null) => {
+  try {
+    const userToken = localStorage.getItem('userToken');
+    let url = 'api/statistics/teachers-above-threshold-count';
+    if (department) {
+      url += `?departmentId=${encodeURIComponent(department)}`;
+    }
+    const response = await api.get(url, {
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${userToken}`,
+      },
+    });
+    return response.data.count;
+  } catch (error) {
+    console.error('Error getting teachers above threshold count:', error);
+    throw error;
+  }
+};
+
+export const getTeachersBelowBasicCount = async (department = null) => {
+  try {
+    const userToken = localStorage.getItem('userToken');
+    let url = 'api/statistics/teachers-below-basic-count';
+    if (department) {
+      url += `?departmentId=${encodeURIComponent(department)}`;
+    }
+    const response = await api.get(url, {
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${userToken}`,
+      },
+    });
+    return response.data.count;
+  } catch (error) {
+    console.error('Error getting teachers below basic count:', error);
     throw error;
   }
 };
@@ -104,6 +160,21 @@ export const getDepartmentClasses = async () => {
   }
 };
 
+export const getDepartmentClassesRemainingLessons = async () => {
+  try {
+    const userToken = localStorage.getItem('userToken');
+    const response = await api.get('api/statistics/department-classes-remaining-lessons', {
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${userToken}`,
+      },
+    });
+    return response.data;
+  } catch (error) {
+    console.error('Error getting remaining lessons:', error);
+    throw error;
+  }
+};
 
 export const getSubjectsAssignments = async () => {
   try {
@@ -241,6 +312,22 @@ export const getTeacherDetails = async () => {
   try {
     const userToken = localStorage.getItem('userToken');
     const response = await api.get('api/statistics/teacher-details', {
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${userToken}`,
+      },
+    });
+    return response.data;
+  } catch (error) {
+    console.error('Error getting teacher details:', error);
+    throw error;
+  }
+};
+
+export const exportDepartmentTeachers = async () => {
+  try {
+    const userToken = localStorage.getItem('userToken');
+    const response = await api.get('api/statistics/export-department-teachers', {
       headers: {
         'Content-Type': 'application/json',
         Authorization: `Bearer ${userToken}`,

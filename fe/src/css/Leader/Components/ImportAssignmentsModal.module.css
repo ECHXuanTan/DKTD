@@ -1,0 +1,250 @@
+.modal {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background: white;
+    padding: 24px;
+    border-radius: 8px;
+    width: 90%;
+    max-width: 600px;
+    outline: none;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+    z-index: 1000;
+    max-height: 90vh;
+    overflow-y: auto;
+  }
+  
+  .modalOverlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: rgba(0, 0, 0, 0.5);
+    z-index: 999;
+  }
+  
+  .form {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+  }
+  
+  .modalTitle {
+    margin: 0;
+    color: #333;
+    text-align: center;
+    font-size: 24px;
+    font-weight: 600;
+  }
+  
+  .formContent {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+  }
+  
+  .fileInput {
+    border: 2px dashed #ddd;
+    padding: 20px;
+    border-radius: 8px;
+    text-align: center;
+    cursor: pointer;
+    transition: border-color 0.3s ease;
+  }
+  
+  .fileInput:hover {
+    border-color: #1976d2;
+  }
+  
+  .fileInput:focus {
+    outline: none;
+    border-color: #1976d2;
+  }
+  
+  .errorList {
+    background-color: #fff3f3;
+    padding: 16px 20px;
+    border-radius: 8px;
+    border: 1px solid #ffcdd2;
+  }
+  
+  .errorList h3 {
+    color: #d32f2f;
+    margin: 0 0 12px 0;
+    font-size: 16px;
+    font-weight: 600;
+  }
+  
+  .errorItem {
+    color: #d32f2f;
+    margin-bottom: 8px;
+    font-size: 14px;
+    line-height: 1.5;
+  }
+  
+  .errorItem:last-child {
+    margin-bottom: 0;
+  }
+  
+  .summary {
+    background-color: #e3f2fd;
+    padding: 16px 20px;
+    border-radius: 8px;
+    border: 1px solid #bbdefb;
+  }
+  
+  .summary p {
+    color: #1976d2;
+    margin: 0;
+    font-size: 14px;
+    line-height: 1.5;
+    font-weight: 500;
+  }
+  
+  .modalButtons {
+    display: flex;
+    justify-content: flex-end;
+    gap: 12px;
+    margin-top: 12px;
+  }
+  
+  .cancelButton,
+  .submitButton {
+    padding: 10px 24px;
+    border-radius: 26px;
+    border: none;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s ease;
+  }
+  
+  .cancelButton {
+    background-color: #c52e2e;
+    color: white;
+  }
+  
+  .cancelButton:hover {
+    background-color: #b52626;
+  }
+  
+  .submitButton {
+    background-color: #1976d2;
+    color: white;
+    min-width: 120px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  
+  .submitButton:hover:not(:disabled) {
+    background-color: #1565c0;
+  }
+  
+  .submitButton:disabled {
+    background-color: #ccc;
+    cursor: not-allowed;
+  }
+  
+  .templateLink {
+    color: #1976d2;
+    text-decoration: none;
+    font-size: 14px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    width: fit-content;
+  }
+  
+  .templateLink:hover {
+    text-decoration: underline;
+  }
+  
+  .instructions {
+    background-color: #f5f5f5;
+    padding: 16px 20px;
+    border-radius: 8px;
+    margin-bottom: 16px;
+  }
+  
+  .instructions h3 {
+    font-size: 16px;
+    font-weight: 600;
+    margin: 0 0 12px 0;
+    color: #333;
+  }
+  
+  .instructions ul {
+    margin: 0;
+    padding-left: 20px;
+  }
+  
+  .instructions li {
+    font-size: 14px;
+    line-height: 1.5;
+    color: #555;
+    margin-bottom: 8px;
+  }
+  
+  .instructions li:last-child {
+    margin-bottom: 0;
+  }
+  
+  .dropZone {
+    border: 2px dashed #ddd;
+    padding: 40px 20px;
+    border-radius: 8px;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    background-color: #fafafa;
+  }
+  
+  .dropZone.dragActive {
+    border-color: #1976d2;
+    background-color: #e3f2fd;
+  }
+  
+  .dropZoneText {
+    font-size: 16px;
+    color: #666;
+    margin: 0;
+  }
+  
+  .dropZoneIcon {
+    font-size: 32px;
+    color: #999;
+    margin-bottom: 12px;
+  }
+  
+  .fileInfo {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    background-color: #f5f5f5;
+    padding: 12px 16px;
+    border-radius: 6px;
+    margin-top: 16px;
+  }
+  
+  .fileName {
+    flex: 1;
+    font-size: 14px;
+    color: #333;
+    margin: 0;
+  }
+  
+  .removeFile {
+    background: none;
+    border: none;
+    color: #d32f2f;
+    cursor: pointer;
+    padding: 4px;
+    border-radius: 4px;
+  }
+  
+  .removeFile:hover {
+    background-color: #ffebee;
+  }

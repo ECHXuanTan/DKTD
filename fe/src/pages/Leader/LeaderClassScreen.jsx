@@ -9,7 +9,7 @@ import { getDepartmentClasses } from '../../services/statisticsServices';
 import { batchEditAssignments, batchDeleteAssignments } from '../../services/assignmentServices';
 import { toast, ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
-import { Box, Typography, TextField, Select, MenuItem, InputAdornment, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Paper, TablePagination, IconButton, Checkbox } from '@mui/material';
+import { Box, Typography, TextField, Select, MenuItem, InputAdornment, Button, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Paper, TablePagination, IconButton, Checkbox } from '@mui/material';
 import SearchIcon from '@mui/icons-material/Search';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import AddCircleIcon from '@mui/icons-material/AddCircle';
@@ -17,8 +17,11 @@ import EditIcon from '@mui/icons-material/Edit';
 import DeleteIcon from '@mui/icons-material/Delete';
 import SaveIcon from '@mui/icons-material/Save';
 import CancelIcon from '@mui/icons-material/Cancel';
+import CloudUploadIcon from '@mui/icons-material/CloudUpload';
 import styles from '../../css/Leader/LeaderClassScreen.module.css';
 import CreateClassAssignmentModal from './Component/CreateClassAssignmentModal.jsx';
+import ExportDepartmentTeachersExcel from './Component/Class/ExportDepartmentTeachersExcel.jsx';
+import ImportAssignmentsModal from './Component/Class/ImportAssignmentsModal.jsx';
 
 const LeaderClassScreen = () => {
     const [user, setUser] = useState(null);
@@ -29,6 +32,7 @@ const LeaderClassScreen = () => {
     const [page, setPage] = useState(0);
     const [rowsPerPage, setRowsPerPage] = useState(25);
     const [isModalOpen, setIsModalOpen] = useState(false);
+    const [isImportModalOpen, setIsImportModalOpen] = useState(false);
     const [selectedClass, setSelectedClass] = useState(null);
     const [editingClass, setEditingClass] = useState(null);
     const [editingSubject, setEditingSubject] = useState(null);
@@ -313,6 +317,16 @@ const LeaderClassScreen = () => {
                             }}
                         />
                         <Box display="flex" alignItems="center">
+                            <Button
+                                variant="contained"
+                                color="primary"
+                                onClick={() => setIsImportModalOpen(true)}
+                                startIcon={<CloudUploadIcon />}
+                                style={{ marginRight: '10px' }}
+                            >
+                                Tải lên Excel
+                            </Button>
+                            <ExportDepartmentTeachersExcel />
                             <Select
                                 value={gradeFilter}
                                 onChange={handleGradeFilterChange}
@@ -339,8 +353,6 @@ const LeaderClassScreen = () => {
                                     <TableCell style={{width: '80px', textAlign: 'center'}}>Số tiết còn lại</TableCell>
                                     <TableCell>Giáo viên</TableCell>
                                     {editingClass && <TableCell style={{width: '50px', textAlign: 'center'}}>Số tiết tối đa</TableCell>}
-                                    <TableCell style={{width: '80px', textAlign: 'center'}}>Số tiết/tuần</TableCell>
-                                    <TableCell style={{width: '60px', textAlign: 'center'}}>Số tuần</TableCell>
                                     <TableCell style={{width: '70px', textAlign: 'center'}}>Số tiết khai báo</TableCell>
                                     {deletingClass && <TableCell align="center">Chọn</TableCell>}
                                     <TableCell align="center" style={{width: '130px', textAlign: 'center'}}>Thao tác</TableCell>
@@ -352,18 +364,13 @@ const LeaderClassScreen = () => {
                                         sum + ((subject.assignments?.length || 0) || 1), 0) || 1;
                                     return (classItem.subjects || []).flatMap((subject, subjectIndex) => {
                                         const subjectRowSpan = subject.assignments?.length || 1;
-                                        const totalDeclaredLessons = calculateTotalDeclaredLessons(subject, editValues);
+                                        const totalDeclaredLessons = subject.assignments?.reduce((sum, a) => sum + a.completedLessons, 0) || 0;
                                         const remainingLessons = subject.lessonCount - totalDeclaredLessons;
                                         const isEditing = editingClass === classItem._id && editingSubject === subject.subject._id;
                                         const isDeleting = deletingClass === classItem._id;
 
                                         return (subject.assignments?.length > 0 ? (
                                             (subject.assignments || []).map((assignment, assignmentIndex) => {
-                                                const maxLessons = calculateMaxLessons(subject, editValues, assignment);
-                                                const currentDeclaredLessons = editValues[`${assignment.teacherName}-lessonsPerWeek`] && editValues[`${assignment.teacherName}-numberOfWeeks`]
-                                                    ? editValues[`${assignment.teacherName}-lessonsPerWeek`] * editValues[`${assignment.teacherName}-numberOfWeeks`]
-                                                    : assignment.lessonsPerWeek * assignment.numberOfWeeks;
-
                                                 return (
                                                     <TableRow key={`${classItem._id}-${subject.subject.name}-${assignmentIndex}`}>
                                                         {subjectIndex === 0 && assignmentIndex === 0 && (
@@ -383,7 +390,7 @@ const LeaderClassScreen = () => {
                                                         <TableCell>{assignment.teacherName}</TableCell>
                                                         {editingClass && (
                                                             <TableCell style={{textAlign: 'center'}}>
-                                                                {isEditing ? maxLessons : ''}
+                                                                {isEditing ? remainingLessons + assignment.completedLessons : ''}
                                                             </TableCell>
                                                         )}
                                                         <TableCell style={{textAlign: 'center'}}>
@@ -392,47 +399,25 @@ const LeaderClassScreen = () => {
                                                                     <TextField
                                                                         type="number"
                                                                         className={styles.editInput}
-                                                                        value={editValues[`${assignment.teacherName}-lessonsPerWeek`] || ''}
-                                                                        onChange={(e) => handleInputChange(
-                                                                            assignment.teacherName,
-                                                                            'lessonsPerWeek',
-                                                                            e.target.value,
-                                                                            subject,
-                                                                            assignment
-                                                                        )}
+                                                                        value={editValues[`${assignment.teacherName}-completedLessons`] || ''}
+                                                                        onChange={(e) => {
+                                                                            const value = e.target.value;
+                                                                            const numValue = parseInt(value);
+                                                                            const maxLessons = remainingLessons + assignment.completedLessons;
+                                                                            
+                                                                            if (value === '' || (numValue >= 0 && numValue <= maxLessons)) {
+                                                                                setEditValues(prev => ({
+                                                                                    ...prev,
+                                                                                    [`${assignment.teacherName}-completedLessons`]: value
+                                                                                }));
+                                                                            }
+                                                                        }}
                                                                         size="small"
-                                                                        inputProps={{ min: 1 }}
+                                                                        inputProps={{ min: 1, max: remainingLessons + assignment.completedLessons }}
                                                                     />
-                                                                    <Typography variant="caption" display="block" color="textSecondary">
-                                                                        Max: {getMaxInputValue(assignment.teacherName, 'lessonsPerWeek', subject, assignment)}
-                                                                    </Typography>
                                                                 </Box>
-                                                            ) : assignment.lessonsPerWeek}
+                                                            ) : assignment.completedLessons}
                                                         </TableCell>
-                                                        <TableCell style={{textAlign: 'center'}}>
-                                                            {isEditing ? (
-                                                                <Box>
-                                                                    <TextField
-                                                                        type="number"
-                                                                        className={styles.editInput}
-                                                                        value={editValues[`${assignment.teacherName}-numberOfWeeks`] || ''}
-                                                                        onChange={(e) => handleInputChange(
-                                                                            assignment.teacherName,
-                                                                            'numberOfWeeks',
-                                                                            e.target.value,
-                                                                            subject,
-                                                                            assignment
-                                                                        )}
-                                                                        size="small"
-                                                                        inputProps={{ min: 1 }}
-                                                                    />
-                                                                    <Typography variant="caption" display="block" color="textSecondary">
-                                                                        Max: {getMaxInputValue(assignment.teacherName, 'numberOfWeeks', subject, assignment)}
-                                                                    </Typography>
-                                                                </Box>
-                                                            ) : assignment.numberOfWeeks}
-                                                        </TableCell>
-                                                        <TableCell style={{textAlign: 'center'}}>{currentDeclaredLessons}</TableCell>
                                                         {deletingClass && (
                                                             <TableCell align="center">
                                                                 {isDeleting && (
@@ -470,7 +455,7 @@ const LeaderClassScreen = () => {
                                                                             }}
                                                                             disabled={actionLoading && loadingClassId === classItem._id}
                                                                         >
-                                                                            <CancelIcon style={{ color: "#f44336" }} />
+                                                                            <CancelIcon style={{ color: "#ccc" }} />
                                                                         </IconButton>
                                                                     </div>
                                                                 ) : isDeleting ? (
@@ -493,7 +478,7 @@ const LeaderClassScreen = () => {
                                                                             onClick={() => setDeletingClass(null)}
                                                                             disabled={actionLoading && loadingClassId === classItem._id}
                                                                         >
-                                                                            <CancelIcon style={{ color: "#f44336" }} />
+                                                                            <CancelIcon style={{ color: "#ccc" }} />
                                                                         </IconButton>
                                                                     </div>
                                                                 ) : (
@@ -547,11 +532,9 @@ const LeaderClassScreen = () => {
                                                 <TableCell>Chưa phân công</TableCell>
                                                 {editingClass && <TableCell></TableCell>}
                                                 <TableCell style={{textAlign: 'center'}}>0</TableCell>
-                                                <TableCell style={{textAlign: 'center'}}>0</TableCell>
-                                                <TableCell style={{textAlign: 'center'}}>0</TableCell>
                                                 {deletingClass && <TableCell></TableCell>}
                                                 {subjectIndex === 0 && (
-                                                    <TableCell rowSpan={rowSpan} align="center">
+                                                    <TableCell rowSpan={rowSpan} align="center" style={{textAlign: 'center'}}>
                                                         <IconButton
                                                             className={styles.actionIcon}
                                                             onClick={() => handleOpenModal(classItem, subject)}
@@ -598,6 +581,17 @@ const LeaderClassScreen = () => {
                     }}
                 />
             )}
+            <ImportAssignmentsModal
+                isOpen={isImportModalOpen}
+                onClose={() => setIsImportModalOpen(false)}
+                onAssignmentCreate={async () => {
+                    const classesData = await getDepartmentClasses();
+                    if (Array.isArray(classesData) && classesData.length > 0) {
+                    const sortedClasses = classesData.sort((a, b) => a.name.localeCompare(b.name));
+                    setClasses(sortedClasses);
+                    }
+                }}
+            />
             <Footer />
             <ToastContainer />
         </>

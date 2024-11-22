@@ -34,7 +34,8 @@ const corsOptions = {
     const allowedOrigins = [
       process.env.FRONTEND_URL,
       'http://localhost:3000',
-      'https://khaibao-client.onrender.com'
+      'https://khaibao-client.onrender.com',
+      'http://10.1.6.17:3000'
       // Thêm các domain khác ở đây
     ].filter(Boolean);
 

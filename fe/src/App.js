@@ -50,7 +50,7 @@ const App = () => {
         <Route path="/leader-declare" element={<LeaderDeclare />} />
         <Route path="/declare-teacher/:id" element={<TeacherDeclareScreen />} />
         <Route path="/leader/class-statistics" element={<LeaderClassScreen />} />
-        <Route path="/leader/warning" element={<LeaderWarning />} />
+        {/* <Route path="/leader/warning" element={<LeaderWarning />} /> */}
       </Routes>
     </Router>
   );

@@ -14,6 +14,7 @@ const EditTeacherModal = ({
     onTeacherUpdated
 }) => {
     const [teacher, setTeacher] = useState(editingTeacher);
+    const [reductions, setReductions] = useState([]);
     const [basicTeachingLessons, setBasicTeachingLessons] = useState(0);
     const [totalReducedLessons, setTotalReducedLessons] = useState(0);
     const [phoneError, setPhoneError] = useState('');
@@ -24,11 +25,18 @@ const EditTeacherModal = ({
             setTeacher(editingTeacher);
             const lessonsPerWeek = parseInt(editingTeacher.lessonsPerWeek) || 0;
             const teachingWeeks = parseInt(editingTeacher.teachingWeeks) || 0;
-            const reducedLessonsPerWeek = parseInt(editingTeacher.reducedLessonsPerWeek) || 0;
-            const reducedWeeks = parseInt(editingTeacher.reducedWeeks) || 0;
-
             setBasicTeachingLessons(lessonsPerWeek * teachingWeeks);
-            setTotalReducedLessons(reducedLessonsPerWeek * reducedWeeks);
+            
+            // Initialize reductions from teacher data
+            setReductions(editingTeacher.reductions || []);
+            
+            // Calculate total reduced lessons
+            const total = (editingTeacher.reductions || []).reduce(
+                (sum, reduction) => sum + (reduction.reducedLessons || 0), 
+                0
+            );
+            setTotalReducedLessons(total);
+            
             setIsHomeroom(!!editingTeacher.homeroom);
         }
     }, [isOpen, editingTeacher]);
@@ -39,14 +47,12 @@ const EditTeacherModal = ({
         return phoneRegex.test(phone);
     };
 
-    const validateReducedLessons = () => {
-        const { reducedLessonsPerWeek, reducedWeeks, reductionReason } = teacher;
-        const isAnyFilled = reducedLessonsPerWeek || reducedWeeks || reductionReason;
-        const isAllFilled = reducedLessonsPerWeek && reducedWeeks && reductionReason;
-        
-        if (isAnyFilled && !isAllFilled) {
-            toast.error('Vui lòng điền đầy đủ thông tin giảm tiết (Số tiết giảm một tuần, Số tuần giảm, và Nội dung giảm tiết)');
-            return false;
+    const validateReductions = () => {
+        for (const reduction of reductions) {
+            if (!reduction.reducedLessonsPerWeek || !reduction.reducedWeeks || !reduction.reductionReason) {
+                toast.error('Vui lòng điền đầy đủ thông tin cho tất cả các giảm trừ');
+                return false;
+            }
         }
         return true;
     };
@@ -68,11 +74,58 @@ const EditTeacherModal = ({
             const newTeachingWeeks = name === 'teachingWeeks' ? parseInt(value) || 0 : parseInt(teacher.teachingWeeks) || 0;
             setBasicTeachingLessons(newLessonsPerWeek * newTeachingWeeks);
         }
-        if (name === 'reducedLessonsPerWeek' || name === 'reducedWeeks') {
-            const newReducedLessonsPerWeek = name === 'reducedLessonsPerWeek' ? parseInt(value) || 0 : parseInt(teacher.reducedLessonsPerWeek) || 0;
-            const newReducedWeeks = name === 'reducedWeeks' ? parseInt(value) || 0 : parseInt(teacher.reducedWeeks) || 0;
-            setTotalReducedLessons(newReducedLessonsPerWeek * newReducedWeeks);
+    };
+
+    const handleReductionChange = (index, field, value) => {
+        const newReductions = [...reductions];
+        newReductions[index] = {
+            ...newReductions[index],
+            [field]: value
+        };
+
+        // Recalculate reducedLessons for this reduction
+        if (field === 'reducedLessonsPerWeek' || field === 'reducedWeeks') {
+            const lessonsPerWeek = parseInt(newReductions[index].reducedLessonsPerWeek) || 0;
+            const weeks = parseInt(newReductions[index].reducedWeeks) || 0;
+            newReductions[index].reducedLessons = lessonsPerWeek * weeks;
         }
+
+        setReductions(newReductions);
+
+        // Update total reduced lessons
+        const total = newReductions.reduce(
+            (sum, reduction) => sum + (reduction.reducedLessons || 0), 
+            0
+        );
+        setTotalReducedLessons(total);
+    };
+
+    const addReduction = () => {
+        if (reductions.length < 3) {
+            setReductions([
+                ...reductions,
+                {
+                    reducedLessonsPerWeek: 0,
+                    reducedWeeks: 0,
+                    reductionReason: '',
+                    reducedLessons: 0
+                }
+            ]);
+        } else {
+            toast.warning('Không thể thêm quá 3 giảm trừ');
+        }
+    };
+
+    const removeReduction = (index) => {
+        const newReductions = reductions.filter((_, i) => i !== index);
+        setReductions(newReductions);
+        
+        // Update total reduced lessons
+        const total = newReductions.reduce(
+            (sum, reduction) => sum + (reduction.reducedLessons || 0), 
+            0
+        );
+        setTotalReducedLessons(total);
     };
 
     const handleSubmit = async (e) => {
@@ -81,11 +134,17 @@ const EditTeacherModal = ({
             setPhoneError('Số điện thoại không hợp lệ');
             return;
         }
-        if (!validateReducedLessons()) {
+        if (!validateReductions()) {
             return;
         }
+
         try {
-            await updateTeacher(teacher._id, teacher);
+            const updatedTeacherData = {
+                ...teacher,
+                reductions: reductions
+            };
+
+            await updateTeacher(teacher._id, updatedTeacherData);
             
             if (!isHomeroom && teacher.homeroom) {
                 await deleteHomeroom(teacher._id);
@@ -129,6 +188,7 @@ const EditTeacherModal = ({
                         />
                     </div>
                 </div>
+                
                 <div className={styles.formRow}>
                     <div className={styles.formGroup}>
                         <label htmlFor="email">Email:</label>
@@ -153,9 +213,10 @@ const EditTeacherModal = ({
                         {phoneError && <span className={styles.error}>{phoneError}</span>}
                     </div>
                 </div>
+
                 <div className={styles.formRow}>
                     <div className={styles.formGroup}>
-                        <label htmlFor="department">Khoa:</label>
+                        <label htmlFor="department">Tổ chuyên môn:</label>
                         <select
                             id="department"
                             name="department"
@@ -163,7 +224,7 @@ const EditTeacherModal = ({
                             onChange={handleInputChange}
                             required
                         >
-                            <option value="">Chọn khoa</option>
+                            <option value="">Chọn tổ chuyên môn</option>
                             {departments.map((dept) => (
                                 <option key={dept._id} value={dept._id}>
                                     {dept.name}
@@ -203,6 +264,7 @@ const EditTeacherModal = ({
                         </select>
                     </div>
                 </div>
+
                 {teacher.type === 'Cơ hữu' && (
                     <>
                         <div className={styles.formRow}>
@@ -215,6 +277,7 @@ const EditTeacherModal = ({
                                     value={teacher.lessonsPerWeek || ''}
                                     onChange={handleInputChange}
                                     required
+                                    min="0"
                                 />
                             </div>
                             <div className={styles.formGroup}>
@@ -226,64 +289,97 @@ const EditTeacherModal = ({
                                     value={teacher.teachingWeeks || ''}
                                     onChange={handleInputChange}
                                     required
+                                    min="0"
                                 />
                             </div>
                             <div className={styles.formGroup}>
-                                <label htmlFor="basicTeachingLessons">Số tiết chuẩn:</label>
+                                <label>Số tiết chuẩn:</label>
                                 <input
                                     type="number"
-                                    id="basicTeachingLessons"
-                                    name="basicTeachingLessons"
                                     value={basicTeachingLessons}
                                     readOnly
                                 />
                             </div>
                         </div>
-                        <div className={styles.formRow}>
-                            <div className={styles.formGroup}>
-                                <label htmlFor="reducedLessonsPerWeek">Số tiết giảm một tuần:</label>
-                                <input
-                                    type="number"
-                                    id="reducedLessonsPerWeek"
-                                    name="reducedLessonsPerWeek"
-                                    value={teacher.reducedLessonsPerWeek || ''}
-                                    onChange={handleInputChange}
-                                />
+
+                        <div className={styles.reductionsSection}>
+                            <div className={styles.sectionHeader}>
+                                <h3>Danh sách giảm trừ</h3>
+                                <button 
+                                    type="button" 
+                                    onClick={addReduction} 
+                                    className={styles.addButton}
+                                    disabled={reductions.length >= 3}
+                                >
+                                    Thêm giảm trừ
+                                </button>
                             </div>
-                            <div className={styles.formGroup}>
-                                <label htmlFor="reducedWeeks">Số tuần giảm:</label>
+
+                            {reductions.map((reduction, index) => (
+                                <div key={index} className={styles.reductionItem}>
+                                    <div className={styles.formRow}>
+                                        <div className={styles.formGroup}>
+                                            <label>Số tiết giảm một tuần:</label>
+                                            <input
+                                                type="number"
+                                                value={reduction.reducedLessonsPerWeek || ''}
+                                                onChange={(e) => handleReductionChange(index, 'reducedLessonsPerWeek', e.target.value)}
+                                                required
+                                                min="0"
+                                            />
+                                        </div>
+                                        <div className={styles.formGroup}>
+                                            <label>Số tuần giảm:</label>
+                                            <input
+                                                type="number"
+                                                value={reduction.reducedWeeks || ''}
+                                                onChange={(e) => handleReductionChange(index, 'reducedWeeks', e.target.value)}
+                                                required
+                                                min="0"
+                                            />
+                                        </div>
+                                        <div className={styles.formGroup}>
+                                            <label>Tổng số tiết giảm:</label>
+                                            <input
+                                                type="number"
+                                                value={reduction.reducedLessons || 0}
+                                                readOnly
+                                            />
+                                        </div>
+                                    </div>
+                                    <div className={styles.formRow}>
+                                        <div className={styles.formGroup}>
+                                            <label>Nội dung giảm:</label>
+                                            <input
+                                                type="text"
+                                                value={reduction.reductionReason || ''}
+                                                onChange={(e) => handleReductionChange(index, 'reductionReason', e.target.value)}
+                                                required
+                                            />
+                                        </div>
+                                        <button 
+                                            type="button" 
+                                            onClick={() => removeReduction(index)}
+                                            className={styles.removeButton}
+                                        >
+                                            Xóa giảm trừ
+                                        </button>
+                                    </div>
+                                </div>
+                            ))}
+
+                            <div className={styles.totalReduction}>
+                                <label>Tổng số tiết giảm:</label>
                                 <input
                                     type="number"
-                                    id="reducedWeeks"
-                                    name="reducedWeeks"
-                                    value={teacher.reducedWeeks || ''}
-                                    onChange={handleInputChange}
-                                />
-                            </div>
-                            <div className={styles.formGroup}>
-                                <label htmlFor="totalReducedLessons">Tổng số tiết giảm:</label>
-                                <input
-                                    type="number"
-                                    id="totalReducedLessons"
-                                    name="totalReducedLessons"
                                     value={totalReducedLessons}
                                     readOnly
                                 />
                             </div>
                         </div>
-                        <div className={styles.formRow}>
-                            <div className={styles.formGroup}>
-                                <label htmlFor="reductionReason">Nội dung giảm tiết:</label>
-                                <textarea
-                                    id="reductionReason"
-                                    name="reductionReason"
-                                    value={teacher.reductionReason || ''}
-                                    onChange={handleInputChange}
-                                />
-                            </div>
-                        </div>
                     </>
                 )}
+
                 {teacher.homeroom && (
                     <div className={styles.formRow}>
                         <div className={styles.formGroup}>
@@ -299,13 +395,42 @@ const EditTeacherModal = ({
                         {isHomeroom && (
                             <div className={styles.formGroup}>
                                 <label>Lớp chủ nhiệm: {teacher.homeroom.class}</label>
+                                <div className={styles.homeroomInfo}>
+                                    <label>Số tiết giảm/tuần:</label>
+                                    <input
+                                        type="number"
+                                        value={teacher.homeroom.reducedLessonsPerWeek || 0}
+                                        readOnly
+                                    />
+                                    <label>Số tuần giảm:</label>
+                                    <input
+                                        type="number"
+                                        value={teacher.homeroom.reducedWeeks || 0}
+                                        readOnly
+                                    />
+                                    <label>Tổng số tiết giảm GVCN:</label>
+                                    <input
+                                        type="number"
+                                        value={teacher.homeroom.totalReducedLessons || 0}
+                                        readOnly
+                                    />
+                                </div>
                             </div>
                         )}
                     </div>
                 )}
+
                 <div className={styles.formActions}>
-                    <button type="submit" className={styles.submitButton}>Cập Nhật Giáo Viên</button>
-                    <button type="button" onClick={onClose} className={styles.cancelButton}>Hủy</button>
+                    <button type="submit" className={styles.submitButton}>
+                        Cập Nhật
+                    </button>
+                    <button 
+                        type="button" 
+                        onClick={onClose} 
+                        className={styles.cancelButton}
+                    >
+                        Hủy
+                    </button>
                 </div>
             </form>
         </Modal>

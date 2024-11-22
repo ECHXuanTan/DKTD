@@ -1,0 +1,154 @@
+.previewContainer {
+  margin-top: 20px;
+  background-color: #fff;
+  border-radius: 8px;
+  padding: 16px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.previewHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+}
+
+.previewTitle {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+  color: #333;
+}
+
+.previewActions {
+  display: flex;
+  gap: 8px;
+}
+
+.actionButton {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 6px 12px;
+  border: none;
+  border-radius: 4px;
+  background-color: #1976d2;
+  color: white;
+  font-size: 14px;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.actionButton:hover {
+  background-color: #1565c0;
+}
+
+.cancelButton {
+  background-color: #666;
+}
+
+.cancelButton:hover {
+  background-color: #555;
+}
+
+.tableWrapper {
+  overflow-x: auto;
+  max-width: 100%;
+  border: 1px solid #e0e0e0;
+  border-radius: 4px;
+}
+
+.previewTable {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+  min-width: 600px;
+}
+
+.previewTable th,
+.previewTable td {
+  padding: 8px;
+  text-align: left;
+  border-bottom: 1px solid #e0e0e0;
+}
+
+.previewTable th {
+  background-color: #f5f5f5;
+  font-weight: 600;
+  color: #333;
+  white-space: nowrap;
+}
+
+.numberHeader,
+.numberCell {
+  width: 80px;
+}
+
+.teacherCell {
+  min-width: 200px;
+}
+
+.previewTable tr:last-child td {
+  border-bottom: none;
+}
+
+.previewTable tr:hover td {
+  background-color: #f8f9fa;
+}
+
+.indexHeader,
+.indexCell {
+  width: 60px;
+  text-align: center !important;
+  background-color: #f5f5f5;
+  font-weight: 600;
+}
+
+.moreRows {
+  margin-top: 12px;
+  text-align: center;
+  color: #666;
+  font-size: 14px;
+  font-style: italic;
+}
+
+.editableCell {
+  padding: 4px !important;
+}
+
+.select {
+  width: 100%;
+  padding: 6px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  outline: none;
+  background-color: white;
+  font-size: 14px;
+}
+
+.select:hover {
+  border-color: #aaa;
+}
+
+.select:focus {
+  border-color: #1976d2;
+  box-shadow: 0 0 0 2px rgba(25, 118, 210, 0.2);
+}
+
+.input {
+  width: 100%;
+  padding: 6px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  outline: none;
+  font-size: 14px;
+}
+
+.input:hover {
+  border-color: #aaa;
+}
+
+.input:focus {
+  border-color: #1976d2;
+  box-shadow: 0 0 0 2px rgba(25, 118, 210, 0.2);
+}

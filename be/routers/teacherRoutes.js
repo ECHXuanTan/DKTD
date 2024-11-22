@@ -316,17 +316,17 @@ teacherRoutes.post('/create', isAuth, async (req, res) => {
       type, 
       lessonsPerWeek, 
       teachingWeeks,
-      reducedLessonsPerWeek,
-      reducedWeeks,
-      reductionReason,
+      reductions, // Mảng các reduction thay vì các trường riêng lẻ
       teachingSubjects
     } = req.body;
 
+    // Kiểm tra email tồn tại
     const existingTeacher = await Teacher.findOne({ email });
     if (existingTeacher) {
       return res.status(400).json({ message: 'Email đã được sử dụng' });
     }
 
+    // Kiểm tra số điện thoại
     const phoneValue = phone && phone.trim() !== '' ? phone : undefined;
     if (phoneValue) {
       const existingPhoneNumber = await Teacher.findOne({ phone: phoneValue });
@@ -339,15 +339,35 @@ teacherRoutes.post('/create', isAuth, async (req, res) => {
     let basicTeachingLessons = 0;
     let totalReducedLessons = 0;
 
+    // Tính toán cho giáo viên cơ hữu
     if (type === 'Cơ hữu') {
       if (!lessonsPerWeek || !teachingWeeks) {
-        return res.status(400).json({ message: 'Số tiết dạy một tuần và số tuần dạy là bắt buộc cho giáo viên cơ hữu' });
+        return res.status(400).json({ 
+          message: 'Số tiết dạy một tuần và số tuần dạy là bắt buộc cho giáo viên cơ hữu' 
+        });
       }
       basicTeachingLessons = lessonsPerWeek * teachingWeeks;
-      totalReducedLessons = reducedLessonsPerWeek * reducedWeeks;
+
+      // Tính tổng số tiết giảm từ mảng reductions nếu có
+      if (reductions && reductions.length > 0) {
+        // Kiểm tra tính hợp lệ của mỗi reduction
+        for (const reduction of reductions) {
+          if (!reduction.reducedLessonsPerWeek || !reduction.reducedWeeks || !reduction.reductionReason) {
+            return res.status(400).json({ 
+              message: 'Thông tin giảm trừ không hợp lệ. Vui lòng kiểm tra lại số tiết, số tuần và lý do giảm trừ' 
+            });
+          }
+          // Tính lại reducedLessons cho mỗi reduction để đảm bảo tính chính xác
+          reduction.reducedLessons = reduction.reducedLessonsPerWeek * reduction.reducedWeeks;
+        }
+        // Tính tổng số tiết giảm từ tất cả các reduction
+        totalReducedLessons = reductions.reduce((total, reduction) => 
+          total + reduction.reducedLessons, 0
+        );
+      }
     }
 
-    const newTeacher = new Teacher({
+    const teacherData = {
       email,
       name,
       ...(phoneValue && { phone: phoneValue }),
@@ -359,13 +379,14 @@ teacherRoutes.post('/create', isAuth, async (req, res) => {
         lessonsPerWeek, 
         teachingWeeks, 
         basicTeachingLessons,
-        reducedLessonsPerWeek,
-        reducedWeeks,
-        totalReducedLessons,
-        reductionReason
+        ...(reductions && reductions.length > 0 && {
+          reductions,
+          totalReducedLessons
+        })
       })
-    });
+    };
 
+    const newTeacher = new Teacher(teacherData);
     const savedTeacher = await newTeacher.save();
 
     await Result.create({
@@ -381,6 +402,7 @@ teacherRoutes.post('/create', isAuth, async (req, res) => {
       teacher: savedTeacher
     });
   } catch (error) {
+    console.error('Error creating teacher:', error);
     res.status(500).json({ message: 'Lỗi server', error: error.message });
   }
 });
@@ -397,78 +419,93 @@ teacherRoutes.post('/create-many', isAuth, async (req, res) => {
     const errors = [];
 
     for (const teacherData of teachers) {
-      const { 
-        email, 
-        name, 
-        phone, 
-        position,
-        department, 
-        teachingSubjects,
-        type, 
-        lessonsPerWeek, 
-        teachingWeeks,
-        reducedLessonsPerWeek,
-        reducedWeeks,
-        reductionReason,
-      } = teacherData;
+      try {
+        const { 
+          email, 
+          name, 
+          phone, 
+          department, 
+          teachingSubjects,
+          type, 
+          lessonsPerWeek, 
+          teachingWeeks,
+          reductions
+        } = teacherData;
 
-      const existingTeacher = await Teacher.findOne({ email });
-      if (existingTeacher) {
-        errors.push({ email, message: 'Email đã được sử dụng' });
-        continue;
-      }
-
-      if (phone) {
-        const existingPhoneNumber = await Teacher.findOne({ phone });
-        if (existingPhoneNumber) {
-          errors.push({ email, message: 'Số điện thoại đã được sử dụng' });
+        const existingTeacher = await Teacher.findOne({ email });
+        if (existingTeacher) {
+          errors.push({ email, message: 'Email đã được sử dụng' });
           continue;
         }
-      }
 
-      let basicTeachingLessons = 0;
-      let totalReducedLessons = 0;
-
-      if (type === 'Cơ hữu') {
-        if (!lessonsPerWeek || !teachingWeeks) {
-          errors.push({ email, message: 'Số tiết dạy một tuần và số tuần dạy là bắt buộc cho giáo viên cơ hữu' });
-          continue;
+        if (phone) {
+          const existingPhoneNumber = await Teacher.findOne({ phone });
+          if (existingPhoneNumber) {
+            errors.push({ email, message: 'Số điện thoại đã được sử dụng' });
+            continue;
+          }
         }
-        basicTeachingLessons = lessonsPerWeek * teachingWeeks;
-        if (reducedLessonsPerWeek && reducedWeeks) {
-          totalReducedLessons = reducedLessonsPerWeek * reducedWeeks;
+
+        let basicTeachingLessons = 0;
+        let totalReducedLessons = 0;
+
+        if (type === 'Cơ hữu') {
+          if (!lessonsPerWeek || !teachingWeeks) {
+            errors.push({ email, message: 'Số tiết dạy một tuần và số tuần dạy là bắt buộc cho giáo viên cơ hữu' });
+            continue;
+          }
+          basicTeachingLessons = lessonsPerWeek * teachingWeeks;
+
+          if (reductions && reductions.length > 0) {
+            for (const reduction of reductions) {
+              if (!reduction.reducedLessonsPerWeek || !reduction.reducedWeeks || !reduction.reductionReason) {
+                errors.push({ email, message: 'Thông tin giảm trừ không đầy đủ' });
+                continue;
+              }
+              
+              reduction.reducedLessons = reduction.reducedLessonsPerWeek * reduction.reducedWeeks;
+              totalReducedLessons += reduction.reducedLessons;
+            }
+          }
         }
+
+        const newTeacher = new Teacher({
+          email,
+          name,
+          ...(phone && { phone }),
+          position: 'Giáo viên',
+          department,
+          teachingSubjects,
+          type,
+          totalAssignment: 0,
+          ...(type === 'Cơ hữu' && { 
+            lessonsPerWeek, 
+            teachingWeeks, 
+            basicTeachingLessons,
+            ...(reductions && reductions.length > 0 && {
+              reductions,
+              totalReducedLessons
+            })
+          })
+        });
+
+        const savedTeacher = await newTeacher.save();
+
+        await Result.create({
+          action: 'CREATE',
+          user: req.user._id,
+          entityType: 'Teacher',
+          entityId: savedTeacher._id,
+          dataAfter: savedTeacher.toObject()
+        });
+
+        createdTeachers.push(savedTeacher);
+      } catch (error) {
+        errors.push({ 
+          email: teacherData.email, 
+          message: error.message || 'Lỗi khi tạo giáo viên' 
+        });
       }
-
-      const newTeacher = new Teacher({
-        email,
-        name,
-        ...(phone && { phone }), // Chỉ thêm phone nếu nó được cung cấp
-        position: position || 'Giáo viên',
-        department,
-        teachingSubjects,
-        type,
-        totalAssignment: 0,
-        lessonsPerWeek, 
-        teachingWeeks, 
-        basicTeachingLessons,
-        reducedLessonsPerWeek,
-        reducedWeeks,
-        totalReducedLessons,
-        reductionReason,
-      });
-
-      const savedTeacher = await newTeacher.save();
-
-      await Result.create({
-        action: 'CREATE',
-        user: req.user._id,
-        entityType: 'Teacher',
-        entityId: savedTeacher._id,
-        dataAfter: savedTeacher.toObject()
-      });
-
-      createdTeachers.push(savedTeacher);
     }
 
     res.status(201).json({
@@ -568,9 +605,7 @@ teacherRoutes.put('/update/:id', isAuth, async (req, res) => {
       type,
       lessonsPerWeek,
       teachingWeeks,
-      reducedLessonsPerWeek,
-      reducedWeeks,
-      reductionReason,
+      reductions
     } = req.body;
 
     const teacher = await Teacher.findById(id);
@@ -581,6 +616,7 @@ teacherRoutes.put('/update/:id', isAuth, async (req, res) => {
 
     const teacherBefore = JSON.parse(JSON.stringify(teacher.toObject()));
 
+    // Cập nhật thông tin cơ bản
     teacher.name = name || teacher.name;
     teacher.email = email || teacher.email;
     teacher.phone = phone || teacher.phone;
@@ -593,18 +629,34 @@ teacherRoutes.put('/update/:id', isAuth, async (req, res) => {
       teacher.lessonsPerWeek = lessonsPerWeek !== undefined ? lessonsPerWeek : teacher.lessonsPerWeek;
       teacher.teachingWeeks = teachingWeeks !== undefined ? teachingWeeks : teacher.teachingWeeks;
       teacher.basicTeachingLessons = teacher.lessonsPerWeek * teacher.teachingWeeks;
-      teacher.reducedLessonsPerWeek = reducedLessonsPerWeek !== undefined ? reducedLessonsPerWeek : teacher.reducedLessonsPerWeek;
-      teacher.reducedWeeks = reducedWeeks !== undefined ? reducedWeeks : teacher.reducedWeeks;
-      teacher.totalReducedLessons = teacher.reducedLessonsPerWeek * teacher.reducedWeeks;
-      teacher.reductionReason = reductionReason || teacher.reductionReason;
+
+      // Xử lý reductions mới
+      if (reductions && Array.isArray(reductions)) {
+        // Validate và tính toán reductions
+        const validatedReductions = reductions.map(reduction => ({
+          reducedLessonsPerWeek: parseInt(reduction.reducedLessonsPerWeek),
+          reducedWeeks: parseInt(reduction.reducedWeeks),
+          reductionReason: reduction.reductionReason,
+          reducedLessons: parseInt(reduction.reducedLessonsPerWeek) * parseInt(reduction.reducedWeeks)
+        }));
+
+        teacher.reductions = validatedReductions;
+        teacher.totalReducedLessons = validatedReductions.reduce(
+          (total, reduction) => total + reduction.reducedLessons, 
+          0
+        );
+      } else {
+        // Nếu không có reductions mới, reset về mảng rỗng
+        teacher.reductions = [];
+        teacher.totalReducedLessons = 0;
+      }
     } else if (type === 'Thỉnh giảng') {
+      // Reset tất cả các trường liên quan đến giảng dạy và giảm trừ
       teacher.lessonsPerWeek = 0;
       teacher.teachingWeeks = 0;
       teacher.basicTeachingLessons = 0;
-      teacher.reducedLessonsPerWeek = 0;
-      teacher.reducedWeeks = 0;
+      teacher.reductions = [];
       teacher.totalReducedLessons = 0;
-      teacher.reductionReason = '';
     }
 
     const updatedTeacher = await teacher.save();
@@ -710,6 +762,65 @@ teacherRoutes.post('/reset-assignments', isAuth, async (req, res) => {
       message: 'Lỗi khi reset dữ liệu của giáo viên', 
       error: error.message 
     });
+  }
+});
+
+teacherRoutes.post('/convert-old-reductions', isAuth, async (req, res) => {
+  try {
+    const updates = await Teacher.updateMany(
+      {
+        $and: [
+          { reductions: { $exists: true, $size: 0 } },
+          { $or: [
+            { reducedLessonsPerWeek: { $exists: true, $ne: null } },
+            { reducedWeeks: { $exists: true, $ne: null } },
+            { reductionReason: { $exists: true, $ne: null } }
+          ]}
+        ]
+      },
+      [
+        {
+          $set: {
+            reductions: {
+              $cond: {
+                if: {
+                  $and: [
+                    { $gt: ["$reducedLessonsPerWeek", 0] },
+                    { $gt: ["$reducedWeeks", 0] },
+                    { $ne: ["$reductionReason", ""] }
+                  ]
+                },
+                then: [{
+                  reducedLessonsPerWeek: "$reducedLessonsPerWeek",
+                  reducedWeeks: "$reducedWeeks",
+                  reductionReason: "$reductionReason",
+                  reducedLessons: { $multiply: ["$reducedLessonsPerWeek", "$reducedWeeks"] }
+                }],
+                else: []
+              }
+            },
+            totalReducedLessons: {
+              $multiply: [
+                { $ifNull: ["$reducedLessonsPerWeek", 0] },
+                { $ifNull: ["$reducedWeeks", 0] }
+              ]
+            },
+            reducedLessonsPerWeek: "$$REMOVE",
+            reducedWeeks: "$$REMOVE",
+            reductionReason: "$$REMOVE"
+          }
+        }
+      ]
+    );
+
+    res.json({
+      success: true,
+      message: 'Đã chuyển đổi dữ liệu giảm trừ thành công',
+      modifiedCount: updates.modifiedCount
+    });
+
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
   }
 });
 

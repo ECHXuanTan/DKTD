@@ -18,7 +18,7 @@ export const getUser = async () => {
     return response.data;
   } catch (error) {
     if (error.response && error.response.status === 401) {
-      throw new Error('Bạn phải sử dụng Email do nhà trường cung cấp (@ptnk.edu.vn)');
+      throw new Error('Bạn phải sử dụng Email do nhà trường cung cấp');
     } else {
       throw new Error('Đã xảy ra lỗi khi đăng nhập. Vui lòng thử lại.');
     }

@@ -15,26 +15,24 @@ const SingleTeacherModal = ({ isOpen, onClose, departments, nonSpecializedSubjec
         type: '',
         lessonsPerWeek: '',
         teachingWeeks: '',
-        reducedLessonsPerWeek: '',
-        reducedWeeks: '',
-        reductionReason: '',
     });
+
+    const [reductions, setReductions] = useState([]);
     const [basicTeachingLessons, setBasicTeachingLessons] = useState(0);
     const [totalReducedLessons, setTotalReducedLessons] = useState(0);
     const [phoneError, setPhoneError] = useState('');
-    const [reductionReasonError, setReductionReasonError] = useState('');
 
     useEffect(() => {
         if (newTeacher.type === 'Cơ hữu') {
             const lessonsPerWeek = parseInt(newTeacher.lessonsPerWeek) || 0;
             const teachingWeeks = parseInt(newTeacher.teachingWeeks) || 0;
-            const reducedLessonsPerWeek = parseInt(newTeacher.reducedLessonsPerWeek) || 0;
-            const reducedWeeks = parseInt(newTeacher.reducedWeeks) || 0;
-
             setBasicTeachingLessons(lessonsPerWeek * teachingWeeks);
-            setTotalReducedLessons(reducedLessonsPerWeek * reducedWeeks);
+
+            const total = reductions.reduce((sum, reduction) => 
+                sum + (reduction.reducedLessonsPerWeek * reduction.reducedWeeks), 0);
+            setTotalReducedLessons(total);
         }
-    }, [newTeacher]);
+    }, [newTeacher, reductions]);
 
     const validatePhoneNumber = (phone) => {
         if (!phone) return true;
@@ -53,10 +51,47 @@ const SingleTeacherModal = ({ isOpen, onClose, departments, nonSpecializedSubjec
                 setPhoneError('');
             }
         }
+    };
 
-        if (name === 'reductionReason') {
-            setReductionReasonError('');
+    const handleAddReduction = () => {
+        setReductions([...reductions, {
+            reducedLessonsPerWeek: 0,
+            reducedWeeks: 0,
+            reductionReason: '',
+            reducedLessons: 0
+        }]);
+    };
+
+    const handleRemoveReduction = (index) => {
+        setReductions(reductions.filter((_, i) => i !== index));
+    };
+
+    const handleReductionChange = (index, field, value) => {
+        const updatedReductions = [...reductions];
+        updatedReductions[index] = {
+            ...updatedReductions[index],
+            [field]: value
+        };
+
+        if (field === 'reducedLessonsPerWeek' || field === 'reducedWeeks') {
+            const reducedLessonsPerWeek = field === 'reducedLessonsPerWeek' 
+                ? parseInt(value) || 0 
+                : parseInt(updatedReductions[index].reducedLessonsPerWeek) || 0;
+            const reducedWeeks = field === 'reducedWeeks'
+                ? parseInt(value) || 0
+                : parseInt(updatedReductions[index].reducedWeeks) || 0;
+            updatedReductions[index].reducedLessons = reducedLessonsPerWeek * reducedWeeks;
         }
+
+        setReductions(updatedReductions);
+    };
+
+    const validateReductions = () => {
+        return reductions.every(reduction => 
+            reduction.reducedLessonsPerWeek > 0 && 
+            reduction.reducedWeeks > 0 && 
+            reduction.reductionReason.trim() !== ''
+        );
     };
 
     const handleSubmit = async (e) => {
@@ -66,11 +101,11 @@ const SingleTeacherModal = ({ isOpen, onClose, departments, nonSpecializedSubjec
             return;
         }
 
-        if (newTeacher.type === 'Cơ hữu' && 
-            (newTeacher.reducedLessonsPerWeek || newTeacher.reducedWeeks) && 
-            !newTeacher.reductionReason.trim()) {
-            setReductionReasonError('Vui lòng nhập nội dung giảm khi có số tiết giảm hoặc số tuần giảm');
-            return;
+        if (newTeacher.type === 'Cơ hữu' && reductions.length > 0) {
+            if (!validateReductions()) {
+                toast.error('Vui lòng điền đầy đủ thông tin cho tất cả các mục giảm trừ');
+                return;
+            }
         }
 
         try {
@@ -79,12 +114,12 @@ const SingleTeacherModal = ({ isOpen, onClose, departments, nonSpecializedSubjec
                 position: 'Giáo viên',
             };
     
-            if (newTeacher.type === 'Thỉnh giảng') {
-                delete teacherData.lessonsPerWeek;
-                delete teacherData.teachingWeeks;
-                delete teacherData.reducedLessonsPerWeek;
-                delete teacherData.reducedWeeks;
-                delete teacherData.reductionReason;
+            if (newTeacher.type === 'Cơ hữu') {
+                teacherData.basicTeachingLessons = basicTeachingLessons;
+                if (reductions.length > 0) {
+                    teacherData.reductions = reductions;
+                    teacherData.totalReducedLessons = totalReducedLessons;
+                }
             }
     
             await createTeacher(teacherData);
@@ -95,8 +130,7 @@ const SingleTeacherModal = ({ isOpen, onClose, departments, nonSpecializedSubjec
             }
         } catch (error) {
             console.error('Error creating teacher:', error);
-            
-            if (error.response && error.response.data && error.response.data.message) {
+            if (error.response?.data?.message) {
                 toast.error(error.response.data.message);
             } else {
                 toast.error('Có lỗi xảy ra khi tạo giáo viên mới.');
@@ -204,6 +238,7 @@ const SingleTeacherModal = ({ isOpen, onClose, departments, nonSpecializedSubjec
                         </select>
                     </div>
                 </div>
+
                 {newTeacher.type === 'Cơ hữu' && (
                     <>
                         <div className={styles.formRow}>
@@ -241,53 +276,84 @@ const SingleTeacherModal = ({ isOpen, onClose, departments, nonSpecializedSubjec
                                 />
                             </div>
                         </div>
-                        <div className={styles.formRow}>
-                            <div className={styles.formGroup}>
-                                <label htmlFor="reducedLessonsPerWeek">Số tiết giảm một tuần:</label>
-                                <input
-                                    type="number"
-                                    id="reducedLessonsPerWeek"
-                                    name="reducedLessonsPerWeek"
-                                    value={newTeacher.reducedLessonsPerWeek}
-                                    onChange={handleInputChange}
-                                    min="0"
-                                />
-                            </div>
-                            <div className={styles.formGroup}>
-                                <label htmlFor="reducedWeeks">Số tuần giảm:</label>
-                                <input
-                                    type="number"
-                                    id="reducedWeeks"
-                                    name="reducedWeeks"
-                                    value={newTeacher.reducedWeeks}
-                                    onChange={handleInputChange}
-                                    min="0"
-                                />
-                            </div>
-                            <div className={styles.formGroup}>
-                                <label htmlFor="totalReducedLessons">Tổng số tiết giảm:</label>
-                                <input
-                                    type="number"
-                                    id="totalReducedLessons"
-                                    value={totalReducedLessons}
-                                    readOnly
-                                />
-                            </div>
-                        </div>
-                        <div className={styles.formRow}>
-                            <div className={styles.formGroup}>
-                                <label htmlFor="reductionReason">Nội dung giảm:</label>
-                                <textarea
-                                    id="reductionReason"
-                                    name="reductionReason"
-                                    value={newTeacher.reductionReason}
-                                    onChange={handleInputChange}
-                                />
-                                {reductionReasonError && <span className={styles.error}>{reductionReasonError}</span>}
+
+                        <div className={styles.reductionsSection}>
+                            <h3>Thông tin giảm trừ</h3>
+                            <button 
+                                type="button" 
+                                onClick={handleAddReduction}
+                                className={styles.addReductionButton}
+                            >
+                                Thêm mục giảm trừ
+                            </button>
+
+                            {reductions.map((reduction, index) => (
+                                <div key={index} className={styles.reductionItem}>
+                                    <h4>Mục giảm trừ {index + 1}</h4>
+                                    <div className={styles.formRow}>
+                                        <div className={styles.formGroup}>
+                                            <label>Số tiết giảm một tuần:</label>
+                                            <input
+                                                type="number"
+                                                value={reduction.reducedLessonsPerWeek}
+                                                onChange={(e) => handleReductionChange(index, 'reducedLessonsPerWeek', e.target.value)}
+                                                min="0"
+                                                required
+                                            />
+                                        </div>
+                                        <div className={styles.formGroup}>
+                                            <label>Số tuần giảm:</label>
+                                            <input
+                                                type="number"
+                                                value={reduction.reducedWeeks}
+                                                onChange={(e) => handleReductionChange(index, 'reducedWeeks', e.target.value)}
+                                                min="0"
+                                                required
+                                            />
+                                        </div>
+                                        <div className={styles.formGroup}>
+                                            <label>Tổng số tiết giảm:</label>
+                                            <input
+                                                type="number"
+                                                value={reduction.reducedLessons}
+                                                readOnly
+                                            />
+                                        </div>
+                                    </div>
+                                    <div className={styles.formRow}>
+                                        <div className={styles.formGroup}>
+                                            <label>Lý do giảm trừ:</label>
+                                            <textarea
+                                                value={reduction.reductionReason}
+                                                onChange={(e) => handleReductionChange(index, 'reductionReason', e.target.value)}
+                                                required
+                                            />
+                                        </div>
+                                        <button 
+                                            type="button" 
+                                            onClick={() => handleRemoveReduction(index)}
+                                            className={styles.removeReductionButton}
+                                        >
+                                            Xóa
+                                        </button>
+                                    </div>
+                                </div>
+                            ))}
+
+                            <div className={styles.formRow}>
+                                <div className={styles.formGroup}>
+                                    <label>Tổng số tiết giảm trừ:</label>
+                                    <input
+                                        type="number"
+                                        value={totalReducedLessons}
+                                        readOnly
+                                    />
+                                </div>
                             </div>
                         </div>
                     </>
                 )}
+
                 <div className={styles.formActions}>
                     <button type="submit" className={styles.submitButton}>Tạo Giáo Viên</button>
                     <button type="button" onClick={onClose} className={styles.cancelButton}>Hủy</button>

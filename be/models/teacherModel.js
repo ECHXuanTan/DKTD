@@ -13,14 +13,16 @@ const teacherSchema = new mongoose.Schema({
     lessonsPerWeek: { type: Number, default: 0 },
     teachingWeeks: { type: Number, default: 0 },
     basicTeachingLessons: { type: Number, default: 0 },
-    reducedLessonsPerWeek: { type: Number, default: 0 },
-    reducedWeeks: { type: Number, default: 0 },
-    totalReducedLessons: { type: Number, default: 0 },
-    reductionReason: { type: String, default: '' },
-  },
-  {
-    timestamps: true,
-  });
+    reductions: [{
+        reducedLessonsPerWeek: { type: Number, required: true },
+        reducedWeeks: { type: Number, required: true },
+        reductionReason: { type: String, required: true },
+        reducedLessons: { type: Number, required: true }
+    }],
+    totalReducedLessons: { type: Number, default: 0 }
+}, {
+    timestamps: true
+});
 
 const Teacher = mongoose.model('Teacher', teacherSchema);
-export default Teacher;   
+export default Teacher;
