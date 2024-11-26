@@ -1889,10 +1889,6 @@ statisticsRouter.get('/department-classes', isAuth, async (req, res) => {
       .populate({
         path: 'subjects.subject',
         select: 'name',
-        populate: {
-          path: 'department',
-          select: 'name'
-        }
       })
       .lean();
 

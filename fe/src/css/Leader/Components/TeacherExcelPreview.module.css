@@ -1,0 +1,298 @@
+.previewContainer {
+    background-color: white;
+    border-radius: 8px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    margin-top: 20px;
+    border: 1px solid #e2e8f0;
+   }
+   
+   .previewHeader {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 15px 20px;
+    border-bottom: 1px solid #e2e8f0;
+   }
+   
+   .previewTitle {
+    margin: 0;
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: #2d3748;
+   }
+   
+   .previewActions {
+    display: flex;
+    gap: 10px;
+   }
+   
+   .actionButton {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    padding: 6px 12px;
+    border: none;
+    border-radius: 4px;
+    background-color: #edf2f7;
+    color: #4a5568;
+    font-size: 0.9rem;
+    cursor: pointer;
+    transition: all 0.2s;
+   }
+   
+   .actionButton:hover {
+    background-color: #e2e8f0;
+   }
+   
+   .actionButton.cancelButton {
+    background-color: #fed7d7;
+    color: #c53030;
+   }
+   
+   .actionButton.cancelButton:hover {
+    background-color: #feb2b2;
+   }
+   
+   .tableWrapper {
+    overflow-x: auto;
+    margin: 0 20px;
+    padding: 10px 0;
+   }
+   
+   .tableWrapper::-webkit-scrollbar {
+    height: 6px;
+   }
+   
+   .tableWrapper::-webkit-scrollbar-track {
+    background: #f1f1f1;
+    border-radius: 3px;
+   }
+   
+   .tableWrapper::-webkit-scrollbar-thumb {
+    background: #888;
+    border-radius: 3px;
+   }
+   
+   .tableWrapper::-webkit-scrollbar-thumb:hover {
+    background: #555;
+   }
+   
+   .previewTable {
+    width: 100%;
+    border-collapse: collapse;
+    text-align: left;
+    font-size: 0.9rem;
+   }
+   
+   .previewTable th {
+    padding: 12px 8px;
+    background-color: #f8fafc;
+    font-weight: 600;
+    color: #4a5568;
+    border-bottom: 2px solid #e2e8f0;
+    white-space: nowrap;
+   }
+   
+   .previewTable td {
+    padding: 12px 8px;
+    border-bottom: 1px solid #e2e8f0;
+    color: #2d3748;
+   }
+   
+   .indexHeader,
+   .indexCell {
+    width: 50px;
+    text-align: center;
+   }
+   
+   .numberHeader,
+   .numberCell {
+    width: 100px;
+    text-align: center;
+   }
+   
+   .teacherCell {
+    min-width: 200px;
+   }
+   
+   .classCell {
+    min-width: 150px;
+   }
+   
+   .editableCell {
+    position: relative;
+   }
+   
+   .select {
+    width: 100%;
+    padding: 6px 8px;
+    border: 1px solid #e2e8f0;
+    border-radius: 4px;
+    background-color: white;
+    color: #2d3748;
+    font-size: 0.9rem;
+   }
+   
+   .select:focus {
+    outline: none;
+    border-color: #4299e1;
+    box-shadow: 0 0 0 1px #4299e1;
+   }
+   
+   .input {
+    width: 80px;
+    padding: 6px 8px;
+    border: 1px solid #e2e8f0;
+    border-radius: 4px;
+    text-align: center;
+    color: #2d3748;
+    font-size: 0.9rem;
+   }
+   
+   .input:focus {
+    outline: none;
+    border-color: #4299e1;
+    box-shadow: 0 0 0 1px #4299e1;
+   }
+   
+   .input[type="number"] {
+    -moz-appearance: textfield;
+   }
+   
+   .input[type="number"]::-webkit-outer-spin-button,
+   .input[type="number"]::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+   }
+   
+   .input:disabled {
+    background-color: #f7fafc;
+    cursor: not-allowed;
+   }
+   
+   .moreRows {
+    text-align: center;
+    padding: 10px;
+    color: #718096;
+    font-size: 0.9rem;
+    border-top: 1px solid #e2e8f0;
+   }
+   
+   @media (max-width: 768px) {
+    .previewHeader {
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 10px;
+    }
+   
+    .previewActions {
+      width: 100%;
+      justify-content: flex-end;
+    }
+   
+    .tableWrapper {
+      margin: 0 10px;
+    }
+   
+    .previewTable th,
+    .previewTable td {
+      padding: 8px 6px;
+      font-size: 0.85rem;
+    }
+   
+    .select,
+    .input {
+      padding: 4px 6px;
+      font-size: 0.85rem;
+    }
+   }
+   
+   @media (max-width: 480px) {
+    .previewActions {
+      flex-direction: column;
+      gap: 5px;
+    }
+   
+    .actionButton {
+      width: 100%;
+      justify-content: center;
+    }
+   }
+   
+   .errorRow {
+    background-color: #fff5f5;
+   }
+   
+   .warningRow {
+    background-color: #fffbeb;
+   }
+   
+   .validRow {
+    background-color: #f0fff4;
+   }
+   
+   .previewTable tr:hover {
+    background-color: #f7fafc;
+   }
+   
+   .cellError {
+    color: #e53e3e;
+    border-color: #fc8181;
+    background-color: #fff5f5;
+   }
+   
+   .cellWarning {
+    color: #c05621;
+    border-color: #fbd38d;
+    background-color: #fffbeb;
+   }
+   
+   .cellValid {
+    color: #2f855a;
+    border-color: #9ae6b4;
+    background-color: #f0fff4;
+   }
+   
+   .cellDisabled {
+    background-color: #edf2f7;
+    cursor: not-allowed;
+   }
+   
+   .cellReadOnly {
+    background-color: #f7fafc;
+    color: #718096;
+   }
+   
+   .tooltipWrapper {
+    position: relative;
+    display: inline-block;
+   }
+   
+   .tooltip {
+    position: absolute;
+    bottom: 100%;
+    left: 50%;
+    transform: translateX(-50%);
+    padding: 6px 10px;
+    background-color: #1a202c;
+    color: white;
+    font-size: 0.8rem;
+    border-radius: 4px;
+    white-space: nowrap;
+    z-index: 10;
+    opacity: 0;
+    visibility: hidden;
+    transition: all 0.2s;
+   }
+   
+   .tooltipWrapper:hover .tooltip {
+    opacity: 1;
+    visibility: visible;
+   }
+   
+   .remainingLessons {
+    font-size: 0.8rem;
+    color: #718096;
+    text-align: right;
+    padding: 4px 8px;
+   }

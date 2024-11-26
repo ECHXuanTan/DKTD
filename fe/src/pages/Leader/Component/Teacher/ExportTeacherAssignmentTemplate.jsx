@@ -5,7 +5,7 @@ import { Circles } from 'react-loader-spinner';
 import { getDepartmentTeacherNames } from '../../../../services/teacherService';
 import { getDepartmentClassesRemainingLessons } from '../../../../services/statisticsServices';
 
-const ExportAssignmentTemplate = () => {
+const ExportTeacherAssignmentTemplate = () => {
   const [teachers, setTeachers] = useState([]);
   const [classes, setClasses] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -52,25 +52,26 @@ const ExportAssignmentTemplate = () => {
       const validationSheet = workbook.addWorksheet('ValidationLists');
       validationSheet.state = 'hidden';
 
-      // Add class names and remaining lessons to validation sheet
-      validationSheet.addRow(['Classes', 'RemainingLessons']);
-      classes.forEach(c => {
-        validationSheet.addRow([c.name, c.remainingLessons]);
-      });
-      const classRange = `ValidationLists!$A$2:$A$${classes.length + 1}`;
-
-      const teacherCol = validationSheet.getColumn('C');
+      validationSheet.addRow(['Teachers', 'Classes', 'RemainingLessons']);
+      const teacherCol = validationSheet.getColumn('A');
       teacherCol.values = ['Teachers', ...teachers.map(t => t.name)];
-      const teacherRange = `ValidationLists!$C$2:$C$${teachers.length + 1}`;
+      const teacherRange = `ValidationLists!$A$2:$A$${teachers.length + 1}`;
 
-      const headers = ['Mã lớp', 'Số tiết trống'];
-      for (let i = 1; i <= 5; i++) {
-        headers.push(`Tên giáo viên ${i}`, `Số tiết ${i}`);
+      let validationRow = 2;
+      classes.forEach(c => {
+        validationSheet.getCell(`B${validationRow}`).value = c.name;
+        validationSheet.getCell(`C${validationRow}`).value = c.remainingLessons;
+        validationRow++;
+      });
+      const classRange = `ValidationLists!$B$2:$B$${classes.length + 1}`;
+
+      const headers = ['Tên giáo viên'];
+      for (let i = 0; i < classes.length; i++) {
+        headers.push(`Mã lớp ${i + 1}`, 'Số tiết trống', 'Số tiết');
       }
 
       mainSheet.addRow(headers);
       
-      // Style the header row
       const headerRow = mainSheet.getRow(1);
       headerRow.eachCell((cell) => {
         cell.fill = {
@@ -89,56 +90,56 @@ const ExportAssignmentTemplate = () => {
         };
       });
 
-      // Add formula for empty lessons and style all cells
       for (let i = 2; i <= 1000; i++) {
         const row = mainSheet.addRow([]);
         
-        // Set formula for remaining lessons column
-        const cell = mainSheet.getCell(`B${i}`);
-        cell.value = {
-          formula: `=IF(ISBLANK(A${i}),"",VLOOKUP(A${i},ValidationLists!$A$2:$B$${classes.length + 1},2,FALSE))`
-        };
-        cell.numFmt = '0';
+        for (let j = 0; j < classes.length; j++) {
+          const classCol = 2 + j * 3;
+          const remainingCol = classCol + 1;
+          
+          const cell = mainSheet.getCell(`${String.fromCharCode(64 + remainingCol)}${i}`);
+          cell.value = {
+            formula: `=IF(ISBLANK(${String.fromCharCode(64 + classCol)}${i}),"",VLOOKUP(${String.fromCharCode(64 + classCol)}${i},ValidationLists!$B$2:$C$${classes.length + 1},2,FALSE))`
+          };
+          cell.numFmt = '0';
+        }
         
-        // Style all cells in the row
         row.eachCell((cell, colNumber) => {
           cell.alignment = {
             vertical: 'middle',
-            horizontal: colNumber === 2 ? 'center' : 'left'
+            horizontal: 'center'
           };
         });
       }
 
-      // Set column widths
-      mainSheet.getColumn('A').width = 20; // Mã lớp
-      mainSheet.getColumn('B').width = 15; // Số tiết trống
-      for (let i = 0; i < 5; i++) {
-        const teacherCol = mainSheet.getColumn(3 + i * 2);
-        const lessonCol = mainSheet.getColumn(4 + i * 2);
-        teacherCol.width = 35; // Tên giáo viên
-        lessonCol.width = 10; // Số tiết
+      mainSheet.getColumn(1).width = 35;
+      for (let i = 0; i < classes.length; i++) {
+        const classCol = mainSheet.getColumn(2 + i * 3);
+        const remainingCol = mainSheet.getColumn(3 + i * 3);
+        const lessonCol = mainSheet.getColumn(4 + i * 3);
+        classCol.width = 20;
+        remainingCol.width = 15;
+        lessonCol.width = 10;
       }
 
-      // Add data validation for class selection
       mainSheet.dataValidations.add('A2:A1000', {
         type: 'list',
         allowBlank: true,
-        formulae: [classRange],
+        formulae: [teacherRange],
         showErrorMessage: true,
         errorStyle: 'error',
         errorTitle: 'Lỗi',
         error: 'Vui lòng chọn từ danh sách'
       });
 
-      // Add validations for teachers and lesson numbers
-      for (let i = 0; i < 5; i++) {
-        const teacherCol = String.fromCharCode(67 + i * 2);
-        const lessonCol = String.fromCharCode(68 + i * 2);
+      for (let i = 0; i < classes.length; i++) {
+        const classCol = String.fromCharCode(66 + i * 3);
+        const lessonCol = String.fromCharCode(68 + i * 3);
 
-        mainSheet.dataValidations.add(`${teacherCol}2:${teacherCol}1000`, {
+        mainSheet.dataValidations.add(`${classCol}2:${classCol}1000`, {
           type: 'list',
           allowBlank: true,
-          formulae: [teacherRange],
+          formulae: [classRange],
           showErrorMessage: true,
           errorStyle: 'error',
           errorTitle: 'Lỗi',
@@ -164,7 +165,7 @@ const ExportAssignmentTemplate = () => {
       const url = window.URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
-      link.download = 'mau_phan_cong.xlsx';
+      link.download = 'mau_phan_cong_giao_vien.xlsx';
       link.click();
       window.URL.revokeObjectURL(url);
 
@@ -208,4 +209,4 @@ const ExportAssignmentTemplate = () => {
   );
 };
 
-export default ExportAssignmentTemplate;
+export default ExportTeacherAssignmentTemplate;

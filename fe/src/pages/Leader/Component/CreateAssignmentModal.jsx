@@ -3,7 +3,7 @@ import { Circles } from 'react-loader-spinner';
 import { toast } from 'react-toastify';
 import Modal from 'react-modal';
 import { getClassesBySubject } from '../../../services/classServices';
-import { getClassSubjectInfo, createAssignment } from '../../../services/assignmentServices';
+import { getClassSubjectInfo } from '../../../services/assignmentServices';
 import styles from '../../../css/Leader/Components/CreateAssignmentModal.module.css';
 
 const CreateAssignmentModal = ({ 

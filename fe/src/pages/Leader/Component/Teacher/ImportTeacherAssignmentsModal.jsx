@@ -5,13 +5,13 @@ import Modal from 'react-modal';
 import * as XLSX from 'xlsx';
 import { CloudUpload, DeleteOutline } from '@mui/icons-material';
 import { getDepartmentTeacherNames } from '../../../../services/teacherService';
-import { createBulkAssignments } from '../../../../services/assignmentServices';
+import { createBulkTeacherAssignments } from '../../../../services/assignmentServices';
 import { getDepartmentClasses } from '../../../../services/statisticsServices';
-import ExportAssignmentTemplate from './ExportAssignmentTemplate';
-import ExcelPreview from './ExcelPreview';
+import ExportTeacherAssignmentTemplate from './ExportTeacherAssignmentTemplate';
+import TeacherExcelPreview from './TeacherExcelPreview';
 import styles from '../../../../css/Leader/Components/ImportAssignmentsModal.module.css';
 
-const ImportAssignmentsModal = ({ isOpen, onClose, onAssignmentCreate }) => {
+const ImportTeacherAssignmentsModal = ({ isOpen, onClose, onAssignmentCreate }) => {
   const [file, setFile] = useState(null);
   const [teachers, setTeachers] = useState([]);
   const [classes, setClasses] = useState([]);
@@ -48,91 +48,97 @@ const ImportAssignmentsModal = ({ isOpen, onClose, onAssignmentCreate }) => {
   }, [isOpen]);
 
   const validateData = (data) => {
+    console.log('Starting validation with data:', data);
     const errors = [];
     const assignments = [];
-    const processedClasses = new Set();
+    const teacherAssignments = new Map();
 
     data.forEach((row, index) => {
       const rowNumber = index + 2;
-      const className = row['Mã lớp']?.trim();
+      console.log(`Validating row ${rowNumber}:`, row);
 
-      if (!className) return;
+      const teacherName = row['Tên giáo viên']?.trim();
+      const teacher = teachers.find(t => t.name === teacherName);
 
-      if (processedClasses.has(className)) {
-        errors.push(`Dòng ${rowNumber}: Lớp "${className}" đã được khai báo trước đó`);
+      if (!teacherName || !teacher) {
+        errors.push(`Dòng ${rowNumber}: Không tìm thấy giáo viên "${teacherName}"`);
         return;
       }
 
-      const classData = classes.find(c => c.name === className);
-      if (!classData) {
-        errors.push(`Dòng ${rowNumber}: Không tìm thấy lớp "${className}"`);
-        return;
-      }
-
-      const remainingSubjects = classData.subjects.filter(s => {
-        const totalAssigned = s.assignments?.reduce((sum, a) => sum + a.completedLessons, 0) || 0;
-        return s.lessonCount > totalAssigned;
-      });
-
-      if (remainingSubjects.length === 0) {
-        errors.push(`Dòng ${rowNumber}: Không còn môn học nào có tiết trống trong lớp "${className}"`);
-        return;
-      }
-
-      const subjectData = remainingSubjects[0];
-      const totalAssignedLessons = subjectData.assignments?.reduce((sum, a) => sum + a.completedLessons, 0) || 0;
-      const remainingLessons = subjectData.lessonCount - totalAssignedLessons;
-
-      let totalNewLessons = 0;
-      const rowAssignments = [];
-      const teachersInRow = new Set();
-
-      for (let i = 1; i <= 5; i++) {
-        const teacherName = row[`Tên giáo viên ${i}`]?.trim();
-        const lessons = parseInt(row[`Số tiết ${i}`]);
-
-        if (!teacherName || isNaN(lessons)) continue;
-
-        if (teachersInRow.has(teacherName)) {
-          errors.push(`Dòng ${rowNumber}: Giáo viên "${teacherName}" xuất hiện nhiều lần trong cùng một lớp`);
-          continue;
-        }
-
-        const teacher = teachers.find(t => t.name.toLowerCase() === teacherName.toLowerCase());
-        if (!teacher) {
-          errors.push(`Dòng ${rowNumber}: Không tìm thấy giáo viên "${teacherName}"`);
-          continue;
-        }
-
-        if (lessons <= 0) {
-          errors.push(`Dòng ${rowNumber}: Số tiết phải lớn hơn 0 cho giáo viên "${teacherName}"`);
-          continue;
-        }
-
-        teachersInRow.add(teacherName);
-        totalNewLessons += lessons;
-        rowAssignments.push({
-          classId: classData._id,
-          subjectId: subjectData.subject._id,
+      if (!teacherAssignments.has(teacher._id)) {
+        teacherAssignments.set(teacher._id, {
           teacherId: teacher._id,
-          completedLessons: lessons
+          classes: []
         });
       }
 
-      if (totalNewLessons > remainingLessons) {
-        errors.push(
-          `Dòng ${rowNumber}: Tổng số tiết (${totalNewLessons}) vượt quá số tiết còn lại (${remainingLessons}) của môn ${subjectData.subject.name}`
-        );
-        return;
-      }
+      const teacherAssignment = teacherAssignments.get(teacher._id);
+      console.log(`Processing assignments for teacher ${teacherName} (ID: ${teacher._id})`);
 
-      if (rowAssignments.length > 0) {
-        processedClasses.add(className);
-        assignments.push(...rowAssignments);
-      }
+      const classColumns = Object.keys(row).filter(key => key.startsWith('Mã lớp '));
+      
+      classColumns.forEach(classKey => {
+        const position = classKey.replace('Mã lớp ', '');
+        const classCode = row[classKey]?.trim();
+        const lessonsKey = `Số tiết ${position}`;
+        const lessons = parseInt(row[lessonsKey]);
+
+        console.log(`Processing class assignment:`, {
+          position,
+          classCode,
+          lessonsKey,
+          lessons,
+          rawLessonsValue: row[lessonsKey]
+        });
+
+        if (!classCode) return;
+
+        if (isNaN(lessons) || lessons <= 0) {
+          console.log(`Invalid lessons value for class ${classCode}:`, lessons);
+          errors.push(`Dòng ${rowNumber}: Số tiết không hợp lệ cho lớp "${classCode}"`);
+          return;
+        }
+
+        const classData = classes.find(c => c.name === classCode);
+        if (!classData) {
+          errors.push(`Dòng ${rowNumber}: Không tìm thấy lớp "${classCode}"`);
+          return;
+        }
+
+        const remainingSubjects = classData.subjects.filter(s => {
+          const totalAssigned = s.assignments?.reduce((sum, a) => sum + a.completedLessons, 0) || 0;
+          return s.lessonCount > totalAssigned;
+        });
+
+        if (remainingSubjects.length === 0) {
+          errors.push(`Dòng ${rowNumber}: Không còn môn học nào có tiết trống trong lớp "${classCode}"`);
+          return;
+        }
+
+        const subjectData = remainingSubjects[0];
+        const totalAssignedLessons = subjectData.assignments?.reduce((sum, a) => sum + a.completedLessons, 0) || 0;
+        const remainingLessons = subjectData.lessonCount - totalAssignedLessons;
+
+        if (lessons > remainingLessons) {
+          errors.push(
+            `Dòng ${rowNumber}: Số tiết (${lessons}) vượt quá số tiết còn lại (${remainingLessons}) của môn ${subjectData.subject.name} trong lớp "${classCode}"`
+          );
+          return;
+        }
+
+        teacherAssignment.classes.push({
+          classId: classData._id,
+          subjectId: subjectData.subject._id,
+          completedLessons: lessons
+        });
+      });
     });
 
-    return { errors, assignments };
+    const finalAssignments = Array.from(teacherAssignments.values()).filter(a => a.classes.length > 0);
+    console.log('Final assignments to be submitted:', finalAssignments);
+    console.log('Validation errors:', errors);
+
+    return { errors, assignments: finalAssignments };
   };
 
   const processFile = async (file) => {
@@ -141,26 +147,62 @@ const ImportAssignmentsModal = ({ isOpen, onClose, onAssignmentCreate }) => {
       const data = await file.arrayBuffer();
       const workbook = XLSX.read(data);
       const worksheet = workbook.Sheets[workbook.SheetNames[0]];
-      const jsonData = XLSX.utils.sheet_to_json(worksheet);
+      const jsonData = XLSX.utils.sheet_to_json(worksheet, { 
+        defval: "",
+        raw: false 
+      });
 
-      // Lọc bỏ các dòng không có mã lớp và loại bỏ cột số tiết trống
+      console.log('Raw Excel Data:', jsonData);
+
       const processedData = jsonData
-        .filter(row => row['Mã lớp'] && row['Mã lớp'].trim())
+        .filter(row => row['Tên giáo viên'] && row['Tên giáo viên'].trim())
         .map(row => {
-          const newRow = {};
-          for (let key in row) {
-            if (key !== 'Số tiết trống') {
-              newRow[key] = row[key];
+          const newRow = { 'Tên giáo viên': row['Tên giáo viên'] };
+          
+          let maxClass = 1;
+          while (row[`Mã lớp ${maxClass}`] !== undefined && maxClass <= 10) {
+            maxClass++;
+          }
+          maxClass--;
+
+          console.log('Processing row:', {
+            teacher: row['Tên giáo viên'],
+            maxClass,
+            originalRow: row
+          });
+
+          for (let i = 1; i <= maxClass; i++) {
+            const classKey = `Mã lớp ${i}`;
+            const classValue = row[classKey];
+
+            if (classValue && classValue.trim()) {
+              newRow[classKey] = classValue.trim();
+              if (i === 1 && row['Số tiết']) {
+                // Special case for first class
+                newRow[`Số tiết ${i}`] = parseInt(row['Số tiết']) || 0;
+              } else if (row[`Số tiết_${i-1}`]) {
+                newRow[`Số tiết ${i}`] = parseInt(row[`Số tiết_${i-1}`]) || 0;
+              } else if (row[`Số tiết ${i}`]) {
+                newRow[`Số tiết ${i}`] = parseInt(row[`Số tiết ${i}`]) || 0;
+              } else {
+                newRow[`Số tiết ${i}`] = 0;
+              }
             }
           }
+
+          console.log('Processed row result:', newRow);
           return newRow;
         });
 
-      const { errors } = validateData(processedData);
-      setErrors(errors);
+      console.log('Final Processed Data:', processedData);
+
+      const validationResult = validateData(processedData);
+      console.log('Validation Result:', validationResult);
+
+      setErrors(validationResult.errors);
       setParsedData(processedData);
     } catch (error) {
-      console.error('Error parsing Excel:', error);
+      console.error('Error processing Excel file:', error);
       toast.error('Lỗi khi đọc file Excel');
     }
   };
@@ -178,13 +220,9 @@ const ImportAssignmentsModal = ({ isOpen, onClose, onAssignmentCreate }) => {
   const handleDrop = async (e) => {
     e.preventDefault();
     setIsDragActive(false);
-    
     const droppedFile = e.dataTransfer.files[0];
-    if (droppedFile && (droppedFile.type === "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" || 
-                        droppedFile.type === "application/vnd.ms-excel")) {
+    if (droppedFile) {
       await processFile(droppedFile);
-    } else {
-      toast.error('Vui lòng chỉ tải lên file Excel (.xlsx, .xls)');
     }
   };
 
@@ -227,7 +265,7 @@ const ImportAssignmentsModal = ({ isOpen, onClose, onAssignmentCreate }) => {
 
     try {
       setIsLoading(true);
-      await createBulkAssignments(assignments);
+      await createBulkTeacherAssignments(assignments);
       await onAssignmentCreate();
       handleClose();
       toast.success('Phân công giảng dạy thành công');
@@ -256,19 +294,19 @@ const ImportAssignmentsModal = ({ isOpen, onClose, onAssignmentCreate }) => {
       ariaHideApp={false}
     >
       <form onSubmit={handleSubmit} className={styles.form}>
-        <h2 className={styles.modalTitle}>Tải lên danh sách phân công</h2>
+        <h2 className={styles.modalTitle}>Tải lên danh sách phân công theo giáo viên</h2>
         
         <div className={styles.formContent}>
           <div className={styles.instructions}>
             <div className={styles.instructionsHeader}>
               <h3>Hướng dẫn:</h3>
-              <ExportAssignmentTemplate />
+              <ExportTeacherAssignmentTemplate />
             </div>
             <ul>
               <li>Tổng số tiết khai báo không được vượt quá số tiết còn lại của môn học</li>
-              <li>Mã lớp và tên giáo viên phải khớp với dữ liệu trong hệ thống</li>
-              <li>Mỗi lớp chỉ được khai báo một lần</li>
-              <li>Mỗi giáo viên chỉ được khai báo một lần trong cùng một lớp</li>
+              <li>Tên giáo viên và mã lớp phải khớp với dữ liệu trong hệ thống</li>
+              <li>Mỗi giáo viên chỉ được khai báo một lần</li>
+              <li>Một giáo viên có thể được phân công nhiều lớp</li>
             </ul>
           </div>
 
@@ -285,7 +323,7 @@ const ImportAssignmentsModal = ({ isOpen, onClose, onAssignmentCreate }) => {
             </p>
             <input
               type="file"
-              accept=".xlsx,.xls"
+              accept=".xlsx,.xls,.csv"
               onChange={handleFileChange}
               style={{ display: 'none' }}
               id="file-upload"
@@ -306,7 +344,7 @@ const ImportAssignmentsModal = ({ isOpen, onClose, onAssignmentCreate }) => {
           )}
 
           {file && parsedData && (
-            <ExcelPreview 
+            <TeacherExcelPreview 
               data={parsedData} 
               onDataChange={handleDataChange} 
               classes={classes}
@@ -328,7 +366,7 @@ const ImportAssignmentsModal = ({ isOpen, onClose, onAssignmentCreate }) => {
 
           {parsedData && !errors.length && !isEditing && (
             <div className={styles.summary}>
-              <p>Số lượng phân công: {parsedData.length}</p>
+              <p>Số lượng giáo viên: {parsedData.length}</p>
             </div>
           )}
         </div>
@@ -354,4 +392,4 @@ const ImportAssignmentsModal = ({ isOpen, onClose, onAssignmentCreate }) => {
   );
 };
 
-export default ImportAssignmentsModal;
+export default ImportTeacherAssignmentsModal;

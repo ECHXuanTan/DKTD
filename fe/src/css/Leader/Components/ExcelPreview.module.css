@@ -116,6 +116,12 @@
   padding: 4px !important;
 }
 
+.editableCell[data-header="Mã lớp"],
+.previewTable th:nth-child(2) {
+  min-width: 160px;
+  width: 160px;
+}
+
 .select {
   width: 100%;
   padding: 6px;
@@ -136,7 +142,6 @@
 }
 
 .input {
-  width: 100%;
   padding: 6px;
   border: 1px solid #ddd;
   border-radius: 4px;

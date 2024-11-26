@@ -280,6 +280,13 @@
     border-bottom: none;
 }
 
+.fixedWidth {
+    text-align: center;
+    width: 60px;
+    min-width: 60px;
+    max-width: 60px;
+}
+
 @media (max-width: 768px) {
     .dashboardLeader {
         padding: 16px;

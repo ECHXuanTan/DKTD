@@ -73,6 +73,25 @@ export const getAllAssignmentTeachers = async (id) => {
       throw error;
     }
   };
+
+  export const createBulkTeacherAssignments = async (assignments) => {
+    try {
+      const userToken = localStorage.getItem('userToken');
+      const response = await api.post('/api/assignment/bulk-assign-by-teacher', 
+        { assignments },
+        {
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${userToken}`,
+          },
+        }
+      );
+      return response.data;
+    } catch (error) {
+      console.error('Error creating bulk teacher assignments:', error);
+      throw error;
+    }
+  };
   
   export const editAssignment = async (assignmentId, lessonsPerWeek, numberOfWeeks) => {
     try {
@@ -140,8 +159,7 @@ export const getAllAssignmentTeachers = async (id) => {
         {
           assignments: assignments.map(assignment => ({
             assignmentId: assignment.assignmentId,
-            lessonsPerWeek: assignment.lessonsPerWeek,
-            numberOfWeeks: assignment.numberOfWeeks
+            completedLessons: assignment.completedLessons
           }))
         },
         {
@@ -157,7 +175,7 @@ export const getAllAssignmentTeachers = async (id) => {
     }
   };
   
-  export const batchDeleteAssignments = async (assignments) => {
+  export const batchDeleteAssignments = async (assignmentIds) => {
     try {
       const userToken = localStorage.getItem('userToken');
       const response = await api.delete('api/assignment/batch-delete',
@@ -166,10 +184,7 @@ export const getAllAssignmentTeachers = async (id) => {
             Authorization: `Bearer ${userToken}`,
           },
           data: {
-            assignments: assignments.map(assignment => ({
-              assignmentId: assignment.id,
-              completedLessons: assignment.completedLessons
-            }))
+            assignments: assignmentIds // Gửi trực tiếp mảng ID
           }
         }
       );

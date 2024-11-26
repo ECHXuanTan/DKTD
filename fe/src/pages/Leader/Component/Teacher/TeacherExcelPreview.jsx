@@ -2,19 +2,13 @@ import React, { useState } from 'react';
 import { Edit, Save, Close } from '@mui/icons-material';
 import styles from '../../../../css/Leader/Components/ExcelPreview.module.css';
 
-const ExcelPreview = ({ data, onDataChange, classes, teachers, onEditStateChange }) => {
+const TeacherExcelPreview = ({ data, onDataChange, classes, teachers, onEditStateChange }) => {
   const [isEditing, setIsEditing] = useState(false);
   const [editedData, setEditedData] = useState(data);
 
   if (!data || data.length === 0) return null;
 
   const headers = Object.keys(data[0]);
-
-  const calculateTotalLessons = (row) => {
-    return Object.keys(row)
-      .filter(key => key.startsWith('Số tiết'))
-      .reduce((sum, key) => sum + (parseInt(row[key]) || 0), 0);
-  };
 
   const getRemainingLessons = (className) => {
     const classData = classes.find(c => c.name === className);
@@ -32,24 +26,44 @@ const ExcelPreview = ({ data, onDataChange, classes, teachers, onEditStateChange
     return subjectData.lessonCount - totalAssignedLessons;
   };
 
+  const calculateTotalLessons = (row) => {
+    return Object.keys(row)
+      .filter(key => key.startsWith('Số tiết'))
+      .reduce((sum, key) => sum + (parseInt(row[key]) || 0), 0);
+  };
+
   const handleChange = (rowIndex, header, value) => {
     const newData = [...editedData];
     const row = { ...newData[rowIndex] };
-
-    if (header.startsWith('Số tiết')) {
-      const newValue = parseInt(value) || 0;
-      const className = row['Mã lớp'];
-      const remainingLessons = getRemainingLessons(className);
+    const prefix = header.startsWith('Mã lớp') ? 'Mã lớp' : header.startsWith('Số tiết') ? 'Số tiết' : null;
+    
+    if (prefix) {
+      const position = parseInt(header.replace(prefix, ''));
       
-      const otherLessons = Object.keys(row)
-        .filter(key => key.startsWith('Số tiết') && key !== header)
-        .reduce((sum, key) => sum + (parseInt(row[key]) || 0), 0);
+      if (prefix === 'Mã lớp') {
+        row[header] = value;
+        row[`Số tiết ${position}`] = 0;
+      } else {
+        const className = row[`Mã lớp ${position}`];
+        if (className) {
+          const newValue = parseInt(value) || 0;
+          const remainingLessons = getRemainingLessons(className);
+          
+          const otherPositions = Object.keys(row)
+            .filter(key => key.startsWith('Số tiết') && key !== `Số tiết ${position}`)
+            .reduce((acc, key) => {
+              const pos = parseInt(key.replace('Số tiết ', ''));
+              if (row[`Mã lớp ${pos}`] === className) {
+                acc += (parseInt(row[key]) || 0);
+              }
+              return acc;
+            }, 0);
 
-      if (newValue + otherLessons > remainingLessons) {
-        return;
+          if (newValue + otherPositions <= remainingLessons) {
+            row[header] = newValue;
+          }
+        }
       }
-
-      row[header] = newValue;
     } else {
       row[header] = value;
     }
@@ -77,16 +91,20 @@ const ExcelPreview = ({ data, onDataChange, classes, teachers, onEditStateChange
 
   const renderCell = (row, header, rowIndex) => {
     if (!isEditing) {
-      return row[header];
+      if (header.startsWith('Số tiết')) {
+        return row[header] || 0;
+      }
+      return row[header] || '';
     }
 
-    if (header === 'Mã lớp') {
+    if (header.startsWith('Mã lớp')) {
       return (
         <select
-          value={row[header]}
+          value={row[header] || ''}
           onChange={(e) => handleChange(rowIndex, header, e.target.value)}
           className={styles.select}
         >
+          <option value="">Chọn lớp</option>
           {classes.map((c) => (
             <option key={c.name} value={c.name}>
               {c.name}
@@ -95,8 +113,40 @@ const ExcelPreview = ({ data, onDataChange, classes, teachers, onEditStateChange
         </select>
       );
     }
-    
-    if (header.startsWith('Tên giáo viên')) {
+
+    if (header.startsWith('Số tiết')) {
+      const position = parseInt(header.replace('Số tiết ', ''));
+      const className = row[`Mã lớp ${position}`];
+      if (!className) return '';
+
+      const remainingLessons = getRemainingLessons(className);
+      const currentValue = parseInt(row[header]) || 0;
+      const otherPositions = Object.keys(row)
+        .filter(key => key.startsWith('Số tiết') && key !== header)
+        .reduce((acc, key) => {
+          const pos = parseInt(key.replace('Số tiết ', ''));
+          if (row[`Mã lớp ${pos}`] === className) {
+            acc += (parseInt(row[key]) || 0);
+          }
+          return acc;
+        }, 0);
+
+      const maxValue = remainingLessons - otherPositions + currentValue;
+
+      return (
+        <input
+          type="number"
+          value={row[header] || ''}
+          onChange={(e) => handleChange(rowIndex, header, e.target.value)}
+          min="0"
+          max={maxValue}
+          disabled={!className}
+          className={styles.input}
+        />
+      );
+    }
+
+    if (header === 'Tên giáo viên') {
       return (
         <select
           value={row[header] || ''}
@@ -113,24 +163,7 @@ const ExcelPreview = ({ data, onDataChange, classes, teachers, onEditStateChange
       );
     }
 
-    if (header.startsWith('Số tiết')) {
-      const remainingLessons = getRemainingLessons(row['Mã lớp']);
-      const totalLessons = calculateTotalLessons(row);
-      const maxValue = remainingLessons - totalLessons + (parseInt(row[header]) || 0);
-
-      return (
-        <input
-          type="number"
-          value={row[header] || ''}
-          onChange={(e) => handleChange(rowIndex, header, e.target.value)}
-          min="0"
-          max={maxValue}
-          className={styles.input}
-        />
-      );
-    }
-
-    return row[header];
+    return row[header] || '';
   };
 
   return (
@@ -169,15 +202,16 @@ const ExcelPreview = ({ data, onDataChange, classes, teachers, onEditStateChange
             </tr>
           </thead>
           <tbody>
-            {editedData.slice(0, 5).map((row, rowIndex) => (
+            {editedData.map((row, rowIndex) => (
               <tr key={rowIndex}>
                 <td className={styles.indexCell}>{rowIndex + 1}</td>
                 {headers.map((header, colIndex) => (
                   <td 
-                    key={colIndex} 
+                    key={colIndex}
                     className={`${styles.editableCell} ${
                       header.startsWith('Số tiết') ? styles.numberCell : 
-                      header.startsWith('Tên giáo viên') ? styles.teacherCell : ''
+                      header === 'Tên giáo viên' ? styles.teacherCell :
+                      header.startsWith('Mã lớp') ? styles.classCell : ''
                     }`}
                   >
                     {renderCell(row, header, rowIndex)}
@@ -188,13 +222,8 @@ const ExcelPreview = ({ data, onDataChange, classes, teachers, onEditStateChange
           </tbody>
         </table>
       </div>
-      {editedData.length > 5 && (
-        <div className={styles.moreRows}>
-          ... và {editedData.length - 5} dòng khác
-        </div>
-      )}
     </div>
   );
 };
 
-export default ExcelPreview;
+export default TeacherExcelPreview;
