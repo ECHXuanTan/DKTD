@@ -6,21 +6,22 @@ import Header from '../../components/Header.js';
 import Footer from '../../components/Footer.js';
 import { getUser } from '../../services/authServices.js';
 import { getSubjectsAssignments } from '../../services/statisticsServices';
+import { getSubject } from '../../services/subjectServices.js';
 import { toast, ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import { Box, Typography, TextField, Select, MenuItem, InputAdornment, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Paper, TablePagination } from '@mui/material';
 import SearchIcon from '@mui/icons-material/Search';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
-import ExportAllSubjectsButton from './Component/AllSubjectsReport.jsx';
-import ExportSingleSubjectButton from './Component/SingleSubjectReport.jsx';
 import styles from '../../css/Ministry/MinistrySubjectStatistics.module.css';
 
 const MinistrySubjectStatistics = () => {
     const [user, setUser] = useState(null);
     const [subjects, setSubjects] = useState([]);
+    const [subjectList, setSubjectList] = useState([]);
     const [loading, setLoading] = useState(true);
     const [searchQuery, setSearchQuery] = useState('');
     const [gradeFilter, setGradeFilter] = useState('');
+    const [subjectFilter, setSubjectFilter] = useState('');
     const [page, setPage] = useState(0);
     const [rowsPerPage, setRowsPerPage] = useState(25);
     const navigate = useNavigate();
@@ -33,7 +34,6 @@ const MinistrySubjectStatistics = () => {
                 
                 if (userData) {
                     if (!userData || userData.user.role !== 1) {
-                        // Redirect based on user role
                         switch(userData.user.role) {
                           case 2:
                             navigate('/admin-dashboard');
@@ -45,7 +45,11 @@ const MinistrySubjectStatistics = () => {
                             navigate('/login');
                         }
                     }
-                    const subjectsData = await getSubjectsAssignments();
+                    const [subjectsData, subjectListData] = await Promise.all([
+                        getSubjectsAssignments(),
+                        getSubject()
+                    ]);
+
                     if (Array.isArray(subjectsData) && subjectsData.length > 0) {
                         const sortedSubjects = subjectsData.sort((a, b) => a.subjectName.localeCompare(b.subjectName));
                         setSubjects(sortedSubjects);
@@ -53,6 +57,11 @@ const MinistrySubjectStatistics = () => {
                         console.error('Invalid subjects data:', subjectsData);
                         toast.error('Định dạng dữ liệu môn học không hợp lệ. Vui lòng thử lại sau.');
                     }
+
+                    const filteredSubjectList = subjectListData.filter(subject => 
+                        !['VP', 'HT', 'PHT', 'GVĐT', 'HTQT'].includes(subject.name)
+                    );
+                    setSubjectList(filteredSubjectList);
                 }
             } catch (error) {
                 console.error('Error fetching data:', error);
@@ -75,6 +84,11 @@ const MinistrySubjectStatistics = () => {
         setPage(0);
     };
 
+    const handleSubjectFilterChange = (event) => {
+        setSubjectFilter(event.target.value);
+        setPage(0);
+    };
+
     const handleChangePage = (event, newPage) => {
         setPage(newPage);
     };
@@ -86,10 +100,11 @@ const MinistrySubjectStatistics = () => {
 
     const filteredSubjects = subjects.filter((subject) => {
         const subjectMatchesSearch = subject.subjectName.toLowerCase().includes(searchQuery.toLowerCase());
+        const subjectMatchesFilter = subjectFilter === '' || subject.subjectName === subjectFilter;
         const classesInGrade = subject.classes.filter(classItem => 
             gradeFilter === '' || classItem.grade === parseInt(gradeFilter)
         );
-        return subjectMatchesSearch && classesInGrade.length > 0;
+        return subjectMatchesSearch && subjectMatchesFilter && classesInGrade.length > 0;
     }).map(subject => ({
         ...subject,
         classes: subject.classes.filter(classItem => 
@@ -156,19 +171,31 @@ const MinistrySubjectStatistics = () => {
                                 ),
                             }}
                         />
-                        <Box display={'flex'} gap={'20px'}>
+                        <Box display="flex" alignItems="center" gap={2}>
                             <Select
                                 value={gradeFilter}
                                 onChange={handleGradeFilterChange}
                                 displayEmpty
-                                style={{ width: '200px' }}
+                                style={{ width: '150px' }}
                             >
                                 <MenuItem value="">Tất cả khối</MenuItem>
                                 {uniqueGrades.map((grade) => (
                                     <MenuItem key={grade} value={grade}>Khối {grade}</MenuItem>
                                 ))}
                             </Select>
-                            <ExportAllSubjectsButton user={user.user} />
+                            <Select
+                                value={subjectFilter}
+                                onChange={handleSubjectFilterChange}
+                                displayEmpty
+                                style={{ width: '200px' }}
+                            >
+                                <MenuItem value="">Tất cả môn học</MenuItem>
+                                {subjectList.map((subject) => (
+                                    <MenuItem key={subject._id} value={subject.name}>
+                                        {subject.name}
+                                    </MenuItem>
+                                ))}
+                            </Select>
                         </Box>
                     </Box>
                     <div className={styles.tableWrapper}>
@@ -185,7 +212,6 @@ const MinistrySubjectStatistics = () => {
                                         <TableCell style={{ width: '100px' }}>Số tiết được khai báo</TableCell>
                                         <TableCell>Giáo viên</TableCell>
                                         <TableCell style={{ width: '100px' }}>Số tiết đã khai báo</TableCell>
-                                        <TableCell>Xuất báo cáo</TableCell>
                                     </TableRow>
                                 </TableHead>
                                 <TableBody>
@@ -228,16 +254,6 @@ const MinistrySubjectStatistics = () => {
                                                             <TableCell>-</TableCell>
                                                             <TableCell>0</TableCell>
                                                         </>
-                                                    )}
-                                                    {classIndex === 0 && (
-                                                        <TableCell rowSpan={subject.classes.reduce((sum, c) => sum + Math.max(c.assignments.length, 1), 0)}>
-                                                            <ExportSingleSubjectButton 
-                                                                user={user.user}
-                                                                subjectId={subject.subjectId}
-                                                                subjectName={subject.subjectName}
-                                                                grade={gradeFilter}
-                                                            />
-                                                        </TableCell>
                                                     )}
                                                 </TableRow>
                                                 {classItem.assignments.slice(1).map((assignment, assignmentIndex) => (

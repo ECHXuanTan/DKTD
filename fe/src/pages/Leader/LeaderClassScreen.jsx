@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Helmet } from 'react-helmet';
+import { Helmet } from 'react-helmet-async';
 import { useNavigate, Link } from 'react-router-dom';
 import { Circles } from 'react-loader-spinner';
 import Header from '../../components/Header.js';
@@ -41,6 +41,7 @@ const LeaderClassScreen = () => {
     const [selectedAssignments, setSelectedAssignments] = useState([]);
     const [actionLoading, setActionLoading] = useState(false);
     const [loadingClassId, setLoadingClassId] = useState(null);
+    const [subjectFilter, setSubjectFilter] = useState('');
     const navigate = useNavigate();
 
     useEffect(() => {
@@ -72,79 +73,9 @@ const LeaderClassScreen = () => {
         fetchUserAndClasses();
     }, [navigate]);
 
-    const calculateTotalDeclaredLessons = (subject, editValues, currentAssignment = null) => {
-        return subject.assignments?.reduce((sum, assignment) => {
-            if (assignment.id === currentAssignment?.id) {
-                const lessonsPerWeek = editValues[`${assignment.teacherName}-lessonsPerWeek`];
-                const numberOfWeeks = editValues[`${assignment.teacherName}-numberOfWeeks`];
-                if (lessonsPerWeek && numberOfWeeks) {
-                    return sum + (lessonsPerWeek * numberOfWeeks);
-                }
-                return sum;
-            }
-            const lessonsPerWeek = editValues[`${assignment.teacherName}-lessonsPerWeek`] || assignment.lessonsPerWeek;
-            const numberOfWeeks = editValues[`${assignment.teacherName}-numberOfWeeks`] || assignment.numberOfWeeks;
-            return sum + (lessonsPerWeek * numberOfWeeks);
-        }, 0) || 0;
-    };
-
-    const calculateMaxLessons = (subject, editValues, currentAssignment) => {
-        const totalLessons = subject.lessonCount;
-        const totalDeclared = calculateTotalDeclaredLessons(subject, editValues, currentAssignment);
-        const currentAssignmentLessons = currentAssignment ? (
-            (editValues[`${currentAssignment.teacherName}-lessonsPerWeek`] || 0) *
-            (editValues[`${currentAssignment.teacherName}-numberOfWeeks`] || 0)
-        ) : 0;
-        return totalLessons - (totalDeclared - currentAssignmentLessons);
-    };
-
-    const handleInputChange = (assignmentTeacherName, field, value, subject, currentAssignment) => {
-        if (value === '') {
-            setEditValues(prev => ({
-                ...prev,
-                [`${assignmentTeacherName}-${field}`]: ''
-            }));
-            return;
-        }
-
-        const newValue = parseInt(value);
-        if (newValue <= 0) {
-            toast.error('Vui lòng nhập số lớn hơn 0');
-            return;
-        }
-
-        const otherField = field === 'lessonsPerWeek' ? 'numberOfWeeks' : 'lessonsPerWeek';
-        const otherValue = editValues[`${assignmentTeacherName}-${otherField}`] || 
-                        (field === 'lessonsPerWeek' ? currentAssignment.numberOfWeeks : currentAssignment.lessonsPerWeek);
-
-        const proposedDeclaredLessons = newValue * otherValue;
-        const maxLessons = calculateMaxLessons(subject, editValues, currentAssignment);
-
-        if (proposedDeclaredLessons > maxLessons) {
-            const maxFieldValue = Math.floor(maxLessons / otherValue);
-            toast.warning(`Giá trị tối đa có thể nhập là ${maxFieldValue} để không vượt quá ${maxLessons} tiết`);
-            
-            setEditValues(prev => ({
-                ...prev,
-                [`${assignmentTeacherName}-${field}`]: maxFieldValue
-            }));
-        } else {
-            setEditValues(prev => ({
-                ...prev,
-                [`${assignmentTeacherName}-${field}`]: newValue
-            }));
-        }
-    };
-
-    const getMaxInputValue = (assignmentTeacherName, field, subject, currentAssignment) => {
-        const maxLessons = calculateMaxLessons(subject, editValues, currentAssignment);
-        const otherField = field === 'lessonsPerWeek' ? 'numberOfWeeks' : 'lessonsPerWeek';
-        const otherValue = editValues[`${assignmentTeacherName}-${otherField}`] || 
-                        (field === 'lessonsPerWeek' ? currentAssignment.numberOfWeeks : currentAssignment.lessonsPerWeek);
-
-        if (!otherValue) return maxLessons;
-        return Math.floor(maxLessons / otherValue);
-    };
+    const uniqueSubjects = [...new Set(classes.flatMap(classItem => 
+        classItem.subjects.map(subject => subject.subject.name)
+    ))].sort();
 
     const handleSearchChange = (event) => {
         setSearchQuery(event.target.value);
@@ -175,50 +106,47 @@ const LeaderClassScreen = () => {
         setEditingSubject(subject.subject._id);
         const initialValues = {};
         subject.assignments.forEach(assignment => {
-            initialValues[`${assignment.teacherName}-lessonsPerWeek`] = assignment.lessonsPerWeek;
-            initialValues[`${assignment.teacherName}-numberOfWeeks`] = assignment.numberOfWeeks;
+            initialValues[`${assignment.teacherName}-completedLessons`] = assignment.completedLessons;
         });
         setEditValues(initialValues);
         setDeletingClass(null);
         setSelectedAssignments([]);
     };
-
+    
     const handleSaveEdit = async (classItem, subject) => {
         try {
             const hasInvalidInput = subject.assignments.some(assignment => {
-                const lessonsPerWeek = editValues[`${assignment.teacherName}-lessonsPerWeek`];
-                const numberOfWeeks = editValues[`${assignment.teacherName}-numberOfWeeks`];
-                return !lessonsPerWeek || lessonsPerWeek <= 0 || !numberOfWeeks || numberOfWeeks <= 0;
+                const completedLessons = editValues[`${assignment.teacherName}-completedLessons`];
+                return !completedLessons || completedLessons <= 0;
             });
-
+    
             if (hasInvalidInput) {
-                toast.error('Vui lòng nhập số tiết/tuần và số tuần lớn hơn 0');
+                toast.error('Vui lòng nhập số tiết lớn hơn 0');
                 return;
             }
-
+    
             setActionLoading(true);
             setLoadingClassId(classItem._id);
-
+    
             const updatedAssignments = subject.assignments.map(assignment => ({
                 assignmentId: assignment.id,
-                lessonsPerWeek: parseInt(editValues[`${assignment.teacherName}-lessonsPerWeek`]),
-                numberOfWeeks: parseInt(editValues[`${assignment.teacherName}-numberOfWeeks`])
+                completedLessons: parseInt(editValues[`${assignment.teacherName}-completedLessons`])
             }));
-
+    
             await batchEditAssignments(updatedAssignments);
-
+    
             const classesData = await getDepartmentClasses();
             if (Array.isArray(classesData) && classesData.length > 0) {
                 const sortedClasses = classesData.sort((a, b) => a.name.localeCompare(b.name));
                 setClasses(sortedClasses);
             }
-
+    
             setEditingClass(null);
             setEditingSubject(null);
             setEditValues({});
             toast.success('Cập nhật phân công thành công');
         } catch (error) {
-            toast.error(error.message || 'Có lỗi xảy ra khi cập nhật phân công');
+            toast.error(error.response?.data?.message || 'Có lỗi xảy ra khi cập nhật phân công');
         } finally {
             setActionLoading(false);
             setLoadingClassId(null);
@@ -269,13 +197,22 @@ const LeaderClassScreen = () => {
         );
     };
 
-    const filteredClasses = classes.filter((classItem) =>
-        classItem.name.toLowerCase().includes(searchQuery.toLowerCase()) &&
-        (gradeFilter === '' || classItem.grade === parseInt(gradeFilter))
-    );
+    const filteredClasses = classes.filter((classItem) => {
+        const nameMatch = classItem.name.toLowerCase().includes(searchQuery.toLowerCase());
+        const gradeMatch = gradeFilter === '' || classItem.grade === parseInt(gradeFilter);
+        const subjectMatch = subjectFilter === '' || classItem.subjects.some(
+            subject => subject.subject.name === subjectFilter
+        );
+        return nameMatch && gradeMatch && subjectMatch;
+    });
 
     const paginatedClasses = filteredClasses.slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage);
     const uniqueGrades = [...new Set(classes.map(classItem => classItem.grade))];
+
+    const handleSubjectFilterChange = (event) => {
+        setSubjectFilter(event.target.value);
+        setPage(0);
+    };
 
     if (loading) {
         return (
@@ -303,11 +240,12 @@ const LeaderClassScreen = () => {
                         <Typography>Tổng số lớp: {classes.length}</Typography>
                     </Box>
                     <Box display="flex" justifyContent="space-between" mb={3}>
+                        <Box display="flex" alignItems="center" gap="10px">
                         <TextField
                             value={searchQuery}
                             onChange={handleSearchChange}
                             placeholder="Tìm kiếm theo tên lớp"
-                            style={{ width: '30%' }}
+                            style={{ flexGrow: 1 }}
                             InputProps={{
                                 startAdornment: (
                                     <InputAdornment position="start">
@@ -316,28 +254,41 @@ const LeaderClassScreen = () => {
                                 ),
                             }}
                         />
+                        <Select
+                            value={gradeFilter}
+                            onChange={handleGradeFilterChange}
+                            displayEmpty
+                            style={{ width: '200px', marginRight: '10px' }}
+                        >
+                            <MenuItem value="">Tất cả khối</MenuItem>
+                            {uniqueGrades.map((grade) => (
+                                <MenuItem key={grade} value={grade}>Khối {grade}</MenuItem>
+                            ))}
+                        </Select>
+                        <Select
+                            value={subjectFilter}
+                            onChange={handleSubjectFilterChange}
+                            displayEmpty
+                            style={{ minWidth: '180px' }}
+                        >
+                            <MenuItem value="">Tất cả môn học</MenuItem>
+                            {uniqueSubjects.map((subject) => (
+                                <MenuItem key={subject} value={subject}>{subject}</MenuItem>
+                            ))}
+                        </Select>
+                        </Box>
+
                         <Box display="flex" alignItems="center">
                             <Button
                                 variant="contained"
                                 color="primary"
                                 onClick={() => setIsImportModalOpen(true)}
                                 startIcon={<CloudUploadIcon />}
-                                style={{ marginRight: '10px' }}
+                                style={{ marginRight: '10px', fontWeight: 'bold', borderRadius: '26px' }}
                             >
-                                Tải lên Excel
+                                Tạo phân công
                             </Button>
                             <ExportDepartmentTeachersExcel />
-                            <Select
-                                value={gradeFilter}
-                                onChange={handleGradeFilterChange}
-                                displayEmpty
-                                style={{ width: '200px', marginRight: '10px' }}
-                            >
-                                <MenuItem value="">Tất cả khối</MenuItem>
-                                {uniqueGrades.map((grade) => (
-                                    <MenuItem key={grade} value={grade}>Khối {grade}</MenuItem>
-                                ))}
-                            </Select>
                         </Box>
                     </Box>
                     <div className={styles.tableWrapper}>

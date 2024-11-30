@@ -39,7 +39,7 @@
 
 /* Đảm bảo button và select có layout đẹp */
 .selectField, .inputField {
-    width: 100%;
+    width: 90% !important;
     min-width: 150px;
 }
 

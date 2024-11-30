@@ -1,21 +1,27 @@
 import api from '../api';
 
-export const getClasses = async () => {
-    try {
-      const userToken = localStorage.getItem('userToken');
-      const response = await api.get('api/class/classes', 
-        {
-          headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${userToken}`,
-          },
-        }
-      );
-      return response.data;
-    } catch (error) {
-      console.error('Error creating result:', error);
-      throw error;
-    }
+export const getClasses = async (page = 1, limit = 25, search = '', grade = '', subjectId = '') => {
+  try {
+    const userToken = localStorage.getItem('userToken');
+    const params = new URLSearchParams({
+      page: page.toString(),
+      limit: limit.toString(),
+      ...(search && { search }),
+      ...(grade && { grade }),
+      ...(subjectId && { subjectId })
+    });
+
+    const response = await api.get(`api/class/classes?${params}`, {
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${userToken}`,
+      }
+    });
+    return response.data;
+  } catch (error) {
+    console.error('Error fetching classes:', error);
+    throw error;
+  }
 };
 
 export const getClassById = async (classId) => {

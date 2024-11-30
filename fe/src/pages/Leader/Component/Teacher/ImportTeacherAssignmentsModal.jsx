@@ -52,6 +52,7 @@ const ImportTeacherAssignmentsModal = ({ isOpen, onClose, onAssignmentCreate }) 
     const errors = [];
     const assignments = [];
     const teacherAssignments = new Map();
+    const teacherClassAssignments = new Map(); // Track class assignments per teacher
 
     data.forEach((row, index) => {
       const rowNumber = index + 2;
@@ -70,9 +71,11 @@ const ImportTeacherAssignmentsModal = ({ isOpen, onClose, onAssignmentCreate }) 
           teacherId: teacher._id,
           classes: []
         });
+        teacherClassAssignments.set(teacher._id, new Set()); // Initialize set of assigned classes
       }
 
       const teacherAssignment = teacherAssignments.get(teacher._id);
+      const assignedClasses = teacherClassAssignments.get(teacher._id);
       console.log(`Processing assignments for teacher ${teacherName} (ID: ${teacher._id})`);
 
       const classColumns = Object.keys(row).filter(key => key.startsWith('Mã lớp '));
@@ -92,6 +95,12 @@ const ImportTeacherAssignmentsModal = ({ isOpen, onClose, onAssignmentCreate }) 
         });
 
         if (!classCode) return;
+
+        // Check if this class has already been assigned to this teacher
+        if (assignedClasses.has(classCode)) {
+          errors.push(`Dòng ${rowNumber}: Lớp "${classCode}" đã được phân công cho giáo viên "${teacherName}" trong một dòng khác`);
+          return;
+        }
 
         if (isNaN(lessons) || lessons <= 0) {
           console.log(`Invalid lessons value for class ${classCode}:`, lessons);
@@ -126,6 +135,7 @@ const ImportTeacherAssignmentsModal = ({ isOpen, onClose, onAssignmentCreate }) 
           return;
         }
 
+        assignedClasses.add(classCode); // Mark this class as assigned to this teacher
         teacherAssignment.classes.push({
           classId: classData._id,
           subjectId: subjectData.subject._id,
@@ -160,7 +170,7 @@ const ImportTeacherAssignmentsModal = ({ isOpen, onClose, onAssignmentCreate }) 
           const newRow = { 'Tên giáo viên': row['Tên giáo viên'] };
           
           let maxClass = 1;
-          while (row[`Mã lớp ${maxClass}`] !== undefined && maxClass <= 10) {
+          while (row[`Mã lớp ${maxClass}`] !== undefined && maxClass <= 7) {
             maxClass++;
           }
           maxClass--;
@@ -305,8 +315,8 @@ const ImportTeacherAssignmentsModal = ({ isOpen, onClose, onAssignmentCreate }) 
             <ul>
               <li>Tổng số tiết khai báo không được vượt quá số tiết còn lại của môn học</li>
               <li>Tên giáo viên và mã lớp phải khớp với dữ liệu trong hệ thống</li>
-              <li>Mỗi giáo viên chỉ được khai báo một lần</li>
-              <li>Một giáo viên có thể được phân công nhiều lớp</li>
+              <li>Một lớp chỉ được khai báo một lần duy nhất cho mỗi giáo viên</li>
+              <li>Một giáo viên có thể xuất hiện nhiều dòng</li>
             </ul>
           </div>
 
@@ -366,7 +376,7 @@ const ImportTeacherAssignmentsModal = ({ isOpen, onClose, onAssignmentCreate }) 
 
           {parsedData && !errors.length && !isEditing && (
             <div className={styles.summary}>
-              <p>Số lượng giáo viên: {parsedData.length}</p>
+              <p>Số lượng dòng phân công: {parsedData.length}</p>
             </div>
           )}
         </div>

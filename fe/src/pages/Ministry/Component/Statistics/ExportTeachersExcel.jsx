@@ -9,7 +9,7 @@ const ExportTeachersExcel = ({ teachers }) => {
   };
 
   const getTotalClasses = (teachingDetails) => {
-    return teachingDetails.length;
+    return teachingDetails?.length || 0;
   };
 
   const getTotalReducedLessons = (teacher) => {
@@ -23,19 +23,62 @@ const ExportTeachersExcel = ({ teachers }) => {
     return reasons.join(' + ');
   };
 
+  const processTeacherData = (teachers) => {
+    // Create a map to store aggregated teacher data by email
+    const teacherMap = new Map();
+
+    teachers.forEach(teacher => {
+      if (teacherMap.has(teacher.email)) {
+        // Get existing teacher data
+        const existingTeacher = teacherMap.get(teacher.email);
+
+        // Aggregate numeric fields
+        existingTeacher.totalLessonsQ5S = (existingTeacher.totalLessonsQ5S || 0) + (teacher.totalLessonsQ5S || 0);
+        existingTeacher.totalLessonsQ5NS = (existingTeacher.totalLessonsQ5NS || 0) + (teacher.totalLessonsQ5NS || 0);
+        existingTeacher.totalLessonsTDS = (existingTeacher.totalLessonsTDS || 0) + (teacher.totalLessonsTDS || 0);
+        existingTeacher.totalLessonsTDNS = (existingTeacher.totalLessonsTDNS || 0) + (teacher.totalLessonsTDNS || 0);
+        existingTeacher.totalAssignment = (existingTeacher.totalAssignment || 0) + (teacher.totalAssignment || 0);
+
+        // Combine teaching details if they exist
+        if (teacher.teachingDetails) {
+          existingTeacher.teachingDetails = [
+            ...(existingTeacher.teachingDetails || []),
+            ...(teacher.teachingDetails || [])
+          ];
+        }
+
+        // Combine teaching subjects if different
+        if (teacher.teachingSubjects && !existingTeacher.teachingSubjects.includes(teacher.teachingSubjects)) {
+          existingTeacher.teachingSubjects = `${existingTeacher.teachingSubjects}, ${teacher.teachingSubjects}`;
+        }
+
+        teacherMap.set(teacher.email, existingTeacher);
+      } else {
+        // Create new entry
+        teacherMap.set(teacher.email, { ...teacher });
+      }
+    });
+
+    // Convert map back to array
+    return Array.from(teacherMap.values());
+  };
+
   const handleExport = async () => {
-    const data = teachers.map((teacher, index) => ({
+    // Process and aggregate teacher data
+    const processedTeachers = processTeacherData(teachers);
+
+    const data = processedTeachers.map((teacher, index) => ({
       STT: index + 1,
       'Họ và tên': teacher.name,
       Tên: getLastName(teacher.name),
       'Số lớp': getTotalClasses(teacher.teachingDetails),
       'Hình thức giáo viên': teacher.type,
-      'KC CS1': teacher.totalLessonsQ5NS,
-      'Ch CS1': teacher.totalLessonsQ5S,
-      'KC CS2': teacher.totalLessonsTDNS,
-      'Ch CS2': teacher.totalLessonsTDS,
+      'KC CS1': teacher.totalLessonsQ5NS || 0,
+      'Ch CS1': teacher.totalLessonsQ5S || 0,
+      'KC CS2': teacher.totalLessonsTDNS || 0,
+      'Ch CS2': teacher.totalLessonsTDS || 0,
       'Bộ môn': teacher.teachingSubjects,
-      'Tổng số tiết': teacher.totalAssignment,
+      'Tổng số tiết': teacher.totalAssignment || 0,
       'Số tiết chuẩn': teacher.basicTeachingLessons,
       'Số tiết giảm': getTotalReducedLessons(teacher),
       'Nội dung giảm': getReductionReasons(teacher),

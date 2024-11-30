@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Button, CircularProgress } from '@mui/material';
+import CloudDownloadIcon from '@mui/icons-material/CloudDownload';
 import * as XLSX from 'xlsx';
 import { getExportDepartmentTeachers } from '../../../services/statisticsServices';
 import { toast } from 'react-toastify';
@@ -114,9 +115,10 @@ const ExportDepartmentTeachers = ({ departmentId, departmentName }) => {
       variant="contained" 
       onClick={handleExport}
       disabled={loading}
-      style={{borderRadius: '26px', fontWeight: 'bold', marginLeft: '10px', backgroundColor: '#d98236'}}
+      startIcon={loading ? <CircularProgress size={20} /> : <CloudDownloadIcon />}
+      style={{ borderRadius: '26px', fontWeight: 'bold', marginRight: '10px', backgroundColor: '#d98236' }}
     >
-      {loading ? <CircularProgress size={24} /> : 'Xuất file Excel'}
+      {loading ? 'Đang tải file' : 'Tải kết quả'}
     </Button>
   );
 };

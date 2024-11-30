@@ -260,6 +260,22 @@ export const getDepartmentStatistics = async (subjectId, grade = null) => {
   }
 };
 
+export const getAllClassesSubjects = async () => {
+  try {
+    const userToken = localStorage.getItem('userToken');
+    const response = await api.get('api/statistics/all-classes-subjects', {
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${userToken}`,
+      },
+    });
+    return response.data;
+  } catch (error) {
+    console.error('Error getting all classes and subjects:', error);
+    throw error;
+  }
+};
+
 export const getDepartmentTeachersById = async (departmentId) => {
   try {
     const userToken = localStorage.getItem('userToken');
@@ -271,7 +287,7 @@ export const getDepartmentTeachersById = async (departmentId) => {
     });
     return response.data;
   } catch (error) {
-    console.error('Error getting department teachers:', error);
+    console.error('Error fetching department teachers by ID:', error);
     throw error;
   }
 };

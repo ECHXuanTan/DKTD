@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Helmet } from 'react-helmet';
+import { Helmet } from 'react-helmet-async';
 import { useNavigate } from 'react-router-dom';
 import Modal from 'react-modal';
 import { Circles } from 'react-loader-spinner';
@@ -45,7 +45,7 @@ const MinistryDeclare = () => {
                     }
                 }
               const departmentData = await getAllDepartment();
-              setDepartments(departmentData.filter(dept => dept.name !== "Tổ Giáo vụ – Đào tạo"));
+              setDepartments(departmentData.filter(dept => dept.name !== "Tổ GVĐT"));
             }
             setLoading(false);
           } catch (error) {
@@ -76,9 +76,7 @@ const MinistryDeclare = () => {
             navigate('/ministry/teacher-statistics');
         } else if (event.target.value === 'subject') {
             navigate('/ministry/subject-statistics');
-        } else if (event.target.value === 'warning') {
-            navigate('/ministry/teacher-warning');
-        } 
+        }
     };
 
     const getCompletionStatus = (declared, total) => {
@@ -140,7 +138,6 @@ const MinistryDeclare = () => {
                         <MenuItem value="class">Lớp học</MenuItem>
                         <MenuItem value="teacher">Giáo viên</MenuItem>
                         <MenuItem value="subject">Môn học</MenuItem>
-                        <MenuItem value="warning">Cảnh báo</MenuItem>
                     </Select>
                     </Box>
                 </Box>

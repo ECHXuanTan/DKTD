@@ -71,86 +71,75 @@ const MultiClassModal = ({ isOpen, onClose, onClassesAdded }) => {
     const handleFileUpload = (event) => {
         const file = event.target.files[0];
         setExcelFile(file);
-
+    
         const reader = new FileReader();
         reader.onload = (e) => {
             const data = new Uint8Array(e.target.result);
             const workbook = read(data, { type: 'array' });
             const sheetName = workbook.SheetNames[0];
             const worksheet = workbook.Sheets[sheetName];
-            const jsonData = utils.sheet_to_json(worksheet, { header: 1 });
+            const jsonData = utils.sheet_to_json(worksheet, { 
+                header: headers_template,
+                range: 1 // Skip header row
+            });
             
-            // Validate headers
-            const uploadedHeaders = jsonData[0];
-            if (!headers_template.every((header, index) => header === uploadedHeaders[index])) {
-                toast.error('Format file không đúng. Vui lòng sử dụng template được cung cấp.');
-                return;
-            }
-
-            setHeaders(uploadedHeaders);
-            const processedData = jsonData.slice(1).map(row => ({
-                'Tên lớp': row[0],
-                'Khối': row[1],
-                'Sĩ số': row[2],
-                'Cơ sở': row[3],
-                'Môn học': row[4],
-                'Số tiết/tuần': row[5],
-                'Số tuần': row[6]
-            }));
-            
+            const processedData = jsonData.map(row => {
+                let campus = row['Cơ sở'];
+                if (campus) {
+                    campus = campus.toString().trim().toUpperCase();
+                    switch (campus) {
+                        case 'Q5':
+                        case 'QUẬN 5':
+                        case 'QU?N 5':
+                            campus = 'Quận 5';
+                            break;
+                        case 'TĐ':
+                        case 'TD':
+                        case 'THỦ ĐỨC':
+                        case 'THU DUC':
+                            campus = 'Thủ Đức';
+                            break;
+                    }
+                }
+    
+                return {
+                    'Tên lớp': row['Tên lớp'],
+                    'Khối': row['Khối'],
+                    'Sĩ số': row['Sĩ số'],
+                    'Cơ sở': campus,
+                    'Môn học': row['Môn học'],
+                    'Số tiết/tuần': row['Số tiết/tuần'],
+                    'Số tuần': row['Số tuần']
+                };
+            });
+    
             setExcelData(processedData);
         };
         reader.readAsArrayBuffer(file);
     };
-
-    const processDataForUpload = (data) => {
-        // Group data by class
-        const classGroups = data.reduce((acc, row) => {
-            const className = row['Tên lớp'];
-            if (!acc[className]) {
-                acc[className] = {
-                    name: className,
-                    grade: parseInt(row['Khối']),
-                    size: parseInt(row['Sĩ số']),
-                    campus: row['Cơ sở'],
-                    subjects: []
-                };
-            }
-            
-            // Thêm thông tin môn học với đầy đủ các trường
-            acc[className].subjects.push({
-                subjectName: row['Môn học'],
-                periodsPerWeek: parseInt(row['Số tiết/tuần']),
-                numberOfWeeks: parseInt(row['Số tuần']),
-                lessonCount: parseInt(row['Số tiết/tuần']) * parseInt(row['Số tuần'])
-            });
-            
-            return acc;
-        }, {});
     
-        return Object.values(classGroups);
-    };
-    
-    // Cập nhật validate để kiểm tra chặt chẽ hơn
+    // Cập nhật hàm validateInput để xử lý tên lớp có chứa cả "Q5" và "TĐ"
     const validateInput = (value, type) => {
         if (!value && value !== 0) return false;
         
         switch (type) {
             case 'text':
-                return value.trim() !== '';
+                return value.toString().trim() !== '';
             case 'grade':
                 return ['10', '11', '12'].includes(value.toString());
             case 'number':
                 const num = Number(value);
                 return !isNaN(num) && num > 0 && Number.isInteger(num);
             case 'campus':
-                return ['Quận 5', 'Thủ Đức'].includes(value);
+                const normalizedCampus = value.toString().trim().toUpperCase();
+                return ['QUẬN 5', 'Q5', 'THỦ ĐỨC', 'TĐ', 'TD'].includes(normalizedCampus) ||
+                       value === 'Quận 5' || value === 'Thủ Đức';
             case 'subject':
-                return value.trim() !== '';
+                return value.toString().trim() !== '';
             default:
                 return true;
         }
-    };
+    };  
     
     const validateAllData = () => {
         if (!editingData || editingData.length === 0) return false;
@@ -176,6 +165,38 @@ const MultiClassModal = ({ isOpen, onClose, onClassesAdded }) => {
         });
     };
     
+    const processDataForUpload = (data) => {
+        // Create a validation map to track classes and their subjects
+        const classValidation = new Map();
+        
+        // First pass: Validate unique class-subject combinations
+        for (const row of data) {
+            const className = row['Tên lớp'];
+            const subjectName = row['Môn học'];
+            
+            if (!classValidation.has(className)) {
+                classValidation.set(className, subjectName);
+            } else {
+                // If class already exists with a different subject, throw error
+                throw new Error(`Lớp ${className} đã được định nghĩa với môn ${classValidation.get(className)}. Mỗi lớp chỉ được phép có một môn học.`);
+            }
+        }
+        
+        // Process validated data
+        return data.map(row => ({
+            name: row['Tên lớp'],
+            grade: parseInt(row['Khối']),
+            size: parseInt(row['Sĩ số']),
+            campus: row['Cơ sở'],
+            subjects: [{
+                subjectName: row['Môn học'],
+                periodsPerWeek: parseInt(row['Số tiết/tuần']),
+                numberOfWeeks: parseInt(row['Số tuần']),
+                lessonCount: parseInt(row['Số tiết/tuần']) * parseInt(row['Số tuần'])
+            }]
+        }));
+    };
+    
     const handleExcelUpload = async () => {
         if (!excelFile) {
             toast.error('Vui lòng chọn file Excel trước khi tải lên');
@@ -191,10 +212,9 @@ const MultiClassModal = ({ isOpen, onClose, onClassesAdded }) => {
         try {
             const formattedData = processDataForUpload(editingData);
             
-            // Log để debug
             console.log('Formatted data:', formattedData);
             
-            await createClasses(formattedData);
+            const result = await createClasses(formattedData);
             toast.success('Tải lên và tạo lớp thành công!');
             onClassesAdded();
             clearData();
@@ -202,13 +222,9 @@ const MultiClassModal = ({ isOpen, onClose, onClassesAdded }) => {
         } catch (error) {
             console.error('Error uploading Excel file:', error);
             if (error.response?.data?.message) {
-                const errorMessage = error.response.data.message;
-                if (errorMessage.includes('Tên lớp đã tồn tại')) {
-                    const classNames = errorMessage.split(':')[1].trim();
-                    toast.error(`Các lớp sau đã tồn tại: ${classNames}`);
-                } else {
-                    toast.error(errorMessage);
-                }
+                toast.error(error.response.data.message);
+            } else if (error.message) {
+                toast.error(error.message);
             } else {
                 toast.error('Đã có lỗi xảy ra khi tải lên file');
             }

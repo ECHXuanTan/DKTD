@@ -5,6 +5,10 @@ import mongoose from 'mongoose';
 
 const subjectRouter = express.Router();
 
+const compareVietnamese = (a, b) => {
+  return a.name.localeCompare(b.name, 'vi');
+};
+
 subjectRouter.post('/create', isAuth, async (req, res) => {
   try {
     const { name, department, isSpecialized } = req.body;
@@ -33,7 +37,11 @@ subjectRouter.post('/create', isAuth, async (req, res) => {
 
 subjectRouter.get('/', isAuth, async (req, res) => {
     try {
-      const subjects = await Subject.find().select('name isSpecialized').populate('department', 'name').lean();
+      const subjects = await Subject.find()
+        .select('name isSpecialized')
+        .populate('department', 'name')
+        .lean();
+      subjects.sort(compareVietnamese);
       res.json(subjects);
     } catch (error) {
       console.error('Error fetching subjects:', error);
@@ -41,16 +49,36 @@ subjectRouter.get('/', isAuth, async (req, res) => {
     }
 });
 
+subjectRouter.get('/all', isAuth, async (req, res) => {
+  try {
+      const subjects = await Subject.find()
+        .select('name isSpecialized')
+        .populate('department', 'name')
+        .lean();
+      subjects.sort(compareVietnamese);
+      const totalSubjects = await Subject.countDocuments();
+      
+      res.json({
+          subjects,
+          totalSubjects
+      });
+  } catch (error) {
+      console.error('Error fetching subjects:', error);
+      res.status(500).json({ message: 'Error fetching subjects', error: error.message });
+  }
+});
+
 subjectRouter.get('/non-specialized', isAuth, async (req, res) => {
   try {
     const subjects = await Subject.find({
       isSpecialized: false,
-      name: { $ne: 'CCSHL' }  // Loại trừ môn CCSHL
+      name: { $ne: 'CCSHL' }  
     })
     .select('name department')
     .populate('department', 'name')
     .lean();
-
+    
+    subjects.sort(compareVietnamese);
     res.json(subjects);
   } catch (error) {
     console.error('Error fetching non-specialized subjects:', error);
@@ -77,14 +105,15 @@ subjectRouter.get('/department/:departmentId', isAuth, async (req, res) => {
       if (!mongoose.Types.ObjectId.isValid(departmentId)) {
         return res.status(400).json({ message: 'Invalid department ID' });
       }
-      const subjects = await Subject.find({ department: departmentId }).populate('department', 'name').lean();
+      const subjects = await Subject.find({ department: departmentId })
+        .populate('department', 'name')
+        .lean();
+      subjects.sort(compareVietnamese);
       res.json(subjects);
     } catch (error) {
       console.error('Error fetching subjects by department:', error);
       res.status(500).json({ message: 'Error fetching subjects by department', error: error.message });
     }
 });
-
-
 
 export default subjectRouter;

@@ -81,13 +81,25 @@ const AdminDashboard = () => {
   };
 
   const filteredDepartments = departmentStats.filter((dept) =>
-    dept.name.toLowerCase().includes(searchQuery.toLowerCase())
+    dept.name.toLowerCase().includes(searchQuery.toLowerCase()) && 
+    dept.name !== "Tổ GVĐT"
   );
-
-  const totalTeachers = departmentStats.reduce((sum, dept) => sum + dept.teacherCount, 0);
-  const totalDeclaredLessons = departmentStats.reduce((sum, dept) => sum + dept.declaredTeachingLessons, 0);
-  const totalAboveThreshold = departmentStats.reduce((sum, dept) => sum + dept.teachersAboveThreshold, 0);
-  const totalBelowBasic = departmentStats.reduce((sum, dept) => sum + dept.teachersBelowBasic, 0);
+  
+  const totalTeachers = departmentStats
+    .filter(dept => dept.name !== "Tổ GVĐT")
+    .reduce((sum, dept) => sum + dept.teacherCount, 0);
+  
+  const totalDeclaredLessons = departmentStats
+    .filter(dept => dept.name !== "Tổ GVĐT")
+    .reduce((sum, dept) => sum + dept.declaredTeachingLessons, 0);
+  
+  const totalAboveThreshold = departmentStats
+    .filter(dept => dept.name !== "Tổ GVĐT")
+    .reduce((sum, dept) => sum + dept.teachersAboveThreshold, 0);
+  
+  const totalBelowBasic = departmentStats
+    .filter(dept => dept.name !== "Tổ GVĐT")
+    .reduce((sum, dept) => sum + dept.teachersBelowBasic, 0);
 
   const handleViewDepartmentDetail = (departmentId) => {
     navigate(`/admin-dashboard/department/${departmentId}`);
@@ -171,9 +183,6 @@ const AdminDashboard = () => {
               </Link>
               <Link to="/admin/class-statistics" style={{ textDecoration: 'none', marginLeft: '10px' }}>
                 <Button variant="contained" className={styles.actionButton}>Thống kê theo lớp</Button>
-              </Link>
-              <Link to="/admin/warning" style={{ textDecoration: 'none', marginLeft: '10px' }}>
-                <Button variant="contained" className={styles.warningButton}>Cảnh báo</Button>
               </Link>
             </Box>
           </Box>

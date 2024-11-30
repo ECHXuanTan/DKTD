@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Helmet } from 'react-helmet';
+import { Helmet } from 'react-helmet-async';
 import { useNavigate, Link } from 'react-router-dom';
 import Modal from 'react-modal';
 import { Circles } from 'react-loader-spinner';
@@ -152,21 +152,35 @@ const TeacherScreen = () => {
         }
     };
 
+    const getReductionsText = (teacher) => {
+        const reductions = [];
+        
+        if (teacher.homeroom) {
+            reductions.push(`GVCN (${teacher.homeroom.totalReducedLessons})`);
+        }
+        
+        if (teacher.reductions && teacher.reductions.length > 0) {
+            const otherReductions = teacher.reductions.map(reduction => 
+                `${reduction.reductionReason} (${reduction.reducedLessons})`
+            );
+            reductions.push(...otherReductions);
+        }
+        
+        return reductions.length > 0 ? reductions.join(' + ') : '-';
+    };
+
     const columns = [
         { field: 'index', label: 'STT', width: '5%', sticky: true },
         { field: 'name', label: 'Tên giáo viên', width: '15%', sticky: true },
         { field: 'email', label: 'Email', width: '15%' },
         { field: 'phone', label: 'Số điện thoại', width: '10%' },
         { field: 'department', label: 'Tổ chuyên môn', width: '15%' },
-        { field: 'teachingSubjects', label: 'Môn giảng dạy', width: '15%' },
+        { field: 'teachingSubjects', label: 'Tổ bộ môn', width: '15%' },
         { field: 'type', label: 'Hình thức GV', width: '10%' },
         { field: 'homeroom', label: 'Lớp chủ nhiệm', width: '10%' },
         { field: 'lessonsPerWeek', label: 'Số tiết/tuần', width: '8%' },
         { field: 'teachingWeeks', label: 'Số tuần dạy', width: '8%' },
-        { field: 'reducedLessonsPerWeek', label: 'Số tiết giảm một tuần', width: '10%' },
-        { field: 'reducedWeeks', label: 'Số tuần giảm', width: '8%' },
-        { field: 'totalReducedLessons', label: 'Số tiết giảm', width: '10%' },
-        { field: 'reductionReason', label: 'Nội dung giảm', width: '15%' },
+        { field: 'reductions', label: 'Giảm trừ', width: '15%' },
         { field: 'totalReductionLessons', label: 'Tổng số tiết giảm', width: '10%' },
         { field: 'actions', label: 'Thao tác', width: '10%' },
     ];
@@ -182,65 +196,31 @@ const TeacherScreen = () => {
         ? filteredTeachers.slice(page * rowsPerPage, (page + 1) * rowsPerPage)
         : filteredTeachers;
 
-    const rows = paginatedTeachers.flatMap((teacher, index) => {
-        const baseIndex = page * rowsPerPage + index + 1;
-        const generalRow = {
-            id: `${teacher._id}-general`,
-            index: baseIndex,
-            name: teacher.name,
-            email: teacher.email,
-            phone: teacher.phone,
-            department: teacher.department ? teacher.department.name : '-',
-            teachingSubjects: teacher.teachingSubjects ? teacher.teachingSubjects.name : '-',
-            type: teacher.type,
-            homeroom: teacher.homeroom ? teacher.homeroom.class : '-',
-            lessonsPerWeek: teacher.lessonsPerWeek || '-',
-            teachingWeeks: teacher.teachingWeeks || '-',
-            reducedLessonsPerWeek: teacher.reducedLessonsPerWeek || '-',
-            reducedWeeks: teacher.reducedWeeks || '-',
-            totalReducedLessons: teacher.totalReducedLessons || '-',
-            totalReductionLessons: (teacher.totalReducedLessons || 0) + (teacher.homeroom ? teacher.homeroom.totalReducedLessons || 0 : 0),
-            reductionReason: teacher.reductionReason || '-',
-            actions: (
-                <div className={styles.actionButtons}>
-                    <Button onClick={() => handleEditTeacher(teacher)}>
-                        <EditIcon /> Sửa
-                    </Button>
-                    <Button onClick={() => handleDeleteConfirm(teacher)}>
-                        <DeleteIcon style={{color: '#ef5a5a'}} /> Xóa
-                    </Button>
-                </div>
-            ),
-            isFirstRow: true,
-            rowSpan: teacher.homeroom ? 2 : 1,
-        };
-
-        if (teacher.homeroom) {
-            const homeroomRow = {
-                id: `${teacher._id}-homeroom`,
-                index: null,
-                name: null,
-                email: null,
-                phone: null,
-                department: null,
-                teachingSubjects: null,
-                type: null,
-                homeroom: null,
-                lessonsPerWeek: null,
-                teachingWeeks: null,
-                reducedLessonsPerWeek: teacher.homeroom.reducedLessonsPerWeek || '-',
-                reducedWeeks: teacher.homeroom.reducedWeeks || '-',
-                totalReducedLessons: teacher.homeroom.totalReducedLessons || '-',
-                totalReductionLessons: null,
-                reductionReason: 'GVCN',
-                actions: null,
-                isFirstRow: false,
-                rowSpan: 1,
-            };
-            return [generalRow, homeroomRow];
-        }
-        return [generalRow];
-    });
+    const rows = paginatedTeachers.map((teacher, index) => ({
+        id: teacher._id,
+        index: page * rowsPerPage + index + 1,
+        name: teacher.name,
+        email: teacher.email,
+        phone: teacher.phone,
+        department: teacher.department ? teacher.department.name : '-',
+        teachingSubjects: teacher.teachingSubjects ? teacher.teachingSubjects.name : '-',
+        type: teacher.type,
+        homeroom: teacher.homeroom ? teacher.homeroom.class : '-',
+        lessonsPerWeek: teacher.lessonsPerWeek || '-',
+        teachingWeeks: teacher.teachingWeeks || '-',
+        reductions: getReductionsText(teacher),
+        totalReductionLessons: (teacher.totalReducedLessons || 0) + (teacher.homeroom ? teacher.homeroom.totalReducedLessons || 0 : 0),
+        actions: (
+            <div className={styles.actionButtons}>
+                <Button onClick={() => handleEditTeacher(teacher)}>
+                    <EditIcon /> Sửa
+                </Button>
+                <Button onClick={() => handleDeleteConfirm(teacher)}>
+                    <DeleteIcon style={{color: '#ef5a5a'}} /> Xóa
+                </Button>
+            </div>
+        ),
+    }));
 
     if (loading) {
         return (
@@ -328,7 +308,7 @@ const TeacherScreen = () => {
                                         <TableRow>
                                             {columns.map((column) => (
                                                 <TableCell
-                                                key={column.field} 
+                                                    key={column.field} 
                                                     style={{ width: column.width, minWidth: column.width }}
                                                     className={column.sticky ? styles.stickyColumn : ''}
                                                 >
@@ -340,20 +320,14 @@ const TeacherScreen = () => {
                                     <TableBody>
                                         {rows.map((row) => (
                                             <TableRow key={row.id}>
-                                                {columns.map((column) => {
-                                                    if (row.isFirstRow || !['index', 'name', 'email', 'phone', 'department', 'teachingSubjects', 'type', 'homeroom', 'lessonsPerWeek', 'teachingWeeks', 'actions'].includes(column.field)) {
-                                                        return (
-                                                            <TableCell 
-                                                                key={`${row.id}-${column.field}`}
-                                                                rowSpan={column.field === 'reducedLessonsPerWeek' || column.field === 'reducedWeeks' || column.field === 'totalReducedLessons' || column.field === 'reductionReason' ? 1 : row.rowSpan}
-                                                                className={column.sticky ? styles.stickyColumn : ''}
-                                                            >
-                                                                {row[column.field]}
-                                                            </TableCell>
-                                                        );
-                                                    }
-                                                    return null;
-                                                })}
+                                                {columns.map((column) => (
+                                                    <TableCell 
+                                                        key={`${row.id}-${column.field}`}
+                                                        className={column.sticky ? styles.stickyColumn : ''}
+                                                    >
+                                                        {row[column.field]}
+                                                    </TableCell>
+                                                ))}
                                             </TableRow>
                                         ))}
                                     </TableBody>

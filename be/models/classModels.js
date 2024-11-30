@@ -1,7 +1,7 @@
 import mongoose from "mongoose";
 
 const classSchema = new mongoose.Schema({
-    name: { type: String, required: true, unique: true },
+    name: { type: String, required: true},
     grade: { type: Number, required: true },
     campus: { type: String, required: true },
     size: {type: Number, required: true },

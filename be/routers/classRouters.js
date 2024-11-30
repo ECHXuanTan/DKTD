@@ -42,56 +42,108 @@ const sortClasses = (a, b) => {
 // GET /classes
 classRouter.get('/classes', isAuth, async (req, res) => {
   try {
-    const homeroomAssignments = await Homeroom.find().lean();
-    const homeroomMap = homeroomAssignments.reduce((acc, homeroom) => {
-      acc[homeroom.class.toString()] = {
-        teacherId: homeroom.teacher.toString(),
-        reducedLessonsPerWeek: homeroom.reducedLessonsPerWeek,
-        reducedWeeks: homeroom.reducedWeeks,
-        totalReducedLessons: homeroom.totalReducedLessons
-      };
-      return acc;
-    }, {});
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 25;
+    const search = req.query.search || '';
+    const grade = req.query.grade || '';
+    const subjectId = req.query.subjectId || '';
 
-    const teachers = await Teacher.find().select('_id name').lean();
-    const teacherMap = teachers.reduce((acc, teacher) => {
-      acc[teacher._id.toString()] = teacher.name;
-      return acc;
-    }, {});
+    // Build filter object
+    const filter = {};
+    if (search) {
+      filter.name = { $regex: search, $options: 'i' };
+    }
+    if (grade) {
+      filter.grade = parseInt(grade);
+    }
+    if (subjectId) {
+      filter['subjects.subject'] = new mongoose.Types.ObjectId(subjectId);
+    }
 
-    const classes = await Class.find()
+    // Get total count for pagination
+    const total = await Class.countDocuments(filter);
+
+    // Only fetch homeroom assignments for the current page
+    const skip = (page - 1) * limit;
+    
+    // Fetch classes with pagination
+    const classes = await Class.find(filter)
+      .select('name grade campus size subjects updatedAt')
       .populate({
         path: 'subjects.subject',
-        select: 'name',
+        select: 'name department',
         populate: {
           path: 'department',
           select: 'name'
         }
       })
+      .skip(skip)
+      .limit(limit)
       .lean();
 
-    const classesWithExtraInfo = classes.map(classItem => {
-      const homeroomInfo = homeroomMap[classItem._id.toString()];
-      const homeroomTeacher = homeroomInfo ? teacherMap[homeroomInfo.teacherId] : null;
+    // Fetch homeroom data only for classes on current page
+    const classIds = classes.map(c => c._id);
+    const homeroomAssignments = await Homeroom.find({ class: { $in: classIds } })
+      .select('class teacher reducedLessonsPerWeek reducedWeeks totalReducedLessons')
+      .populate('teacher', 'name')
+      .lean();
+
+    const homeroomMap = new Map(homeroomAssignments.map(h => [
+      h.class.toString(),
+      {
+        teacherName: h.teacher.name,
+        totalReducedLessons: h.totalReducedLessons || 72
+      }
+    ]));
+
+    // Process classes with homeroom data
+    const processedClasses = classes.map(classItem => {
+      const homeroomInfo = homeroomMap.get(classItem._id.toString());
+      const processedSubjects = classItem.subjects.map(subject => ({
+        subject: {
+          _id: subject.subject._id,
+          name: subject.subject.name,
+          department: subject.subject.department ? {
+            _id: subject.subject.department._id,
+            name: subject.subject.department.name
+          } : null
+        },
+        periodsPerWeek: subject.periodsPerWeek,
+        numberOfWeeks: subject.numberOfWeeks,
+        lessonCount: subject.lessonCount
+      }));
+
+      if (homeroomInfo) {
+        processedSubjects.push({
+          subject: { name: "CCSHL" },
+          lessonCount: homeroomInfo.totalReducedLessons
+        });
+      }
+
       return {
-        ...classItem,
-        homeroomTeacher: homeroomTeacher || null,
-        subjects: (classItem.subjects || []).concat(
-          homeroomTeacher ? [{
-            subject: {
-              name: "CCSHL"
-            },
-            lessonCount: homeroomInfo.totalReducedLessons || 72
-          }] : []
-        )
+        _id: classItem._id,
+        name: classItem.name,
+        grade: classItem.grade,
+        campus: classItem.campus,
+        size: classItem.size,
+        homeroomTeacher: homeroomInfo?.teacherName || null,
+        updatedAt: classItem.updatedAt,
+        subjects: processedSubjects
       };
     });
 
-    const sortedClasses = classesWithExtraInfo.sort(sortClasses);
-    res.status(200).json(sortedClasses);
+    const sortedClasses = processedClasses.sort(sortClasses);
+
+    res.status(200).json({
+      classes: sortedClasses,
+      page,
+      limit,
+      total,
+      totalPages: Math.ceil(total / limit)
+    });
   } catch (error) {
     console.error('Error in GET /classes:', error);
-    res.status(500).json({ message: "Lỗi khi lấy danh sách lớp học", error: error.message });
+    res.status(500).json({ message: "Lỗi khi lấy danh sách lớp học" });
   }
 });
 
@@ -276,24 +328,32 @@ classRouter.get('/by-subject/:subjectId', isAuth, async (req, res) => {
   }
 });
 
+// Single class creation endpoint
 classRouter.post('/create-class', isAuth, async (req, res) => {
   const session = await mongoose.startSession();
   session.startTransaction();
-
+ 
   try {
     const { name, grade, campus, subjects, size } = req.body;
-
-    const existingClass = await Class.findOne({ name });
+ 
+    // Validate single subject
+    if (subjects.length !== 1) {
+      throw new Error('Mỗi lớp chỉ được phép có một môn học');
+    }
+ 
+    // Kiểm tra lớp có tồn tại và có môn học trùng không
+    const existingClass = await Class.findOne({ name }).populate('subjects.subject');
     if (existingClass) {
-      throw new Error('Tên lớp đã tồn tại');
+      // Kiểm tra các môn học mới có trùng với các môn học hiện có không
+      const newSubjectNames = subjects.map(s => s.subjectName);
+      const existingSubjectNames = existingClass.subjects.map(s => s.subject.name);
+      const duplicateSubjects = newSubjectNames.filter(name => existingSubjectNames.includes(name));
+ 
+      if (duplicateSubjects.length > 0) {
+        throw new Error(`Lớp ${name} đã tồn tại với các môn: ${duplicateSubjects.join(', ')}`);
+      }
     }
-
-    const subjectIds = subjects.map(s => s.subjectId);
-    const uniqueSubjectIds = new Set(subjectIds);
-    if (subjectIds.length !== uniqueSubjectIds.size) {
-      throw new Error('Môn học được khai báo trùng lặp');
-    }
-
+ 
     const newClass = new Class({
       name,
       grade,
@@ -301,32 +361,31 @@ classRouter.post('/create-class', isAuth, async (req, res) => {
       size,
       subjects: []
     });
-
-    for (const subjectData of subjects) {
-      const { subjectId, periodsPerWeek, numberOfWeeks } = subjectData;
-      const lessonCount = parseInt(periodsPerWeek) * parseInt(numberOfWeeks);
-      
-      const subject = await Subject.findById(subjectId).populate('department');
-      if (!subject) {
-        throw new Error(`Không tìm thấy môn học với ID: ${subjectId}`);
-      }
-      
-      newClass.subjects.push({
-        subject: subject._id,
-        periodsPerWeek: parseInt(periodsPerWeek),
-        numberOfWeeks: parseInt(numberOfWeeks),
-        lessonCount
-      });
-      
-      await Department.findByIdAndUpdate(
-        subject.department._id,
-        { $inc: { totalAssignmentTime: lessonCount } },
-        { session }
-      );
+ 
+    const subjectData = subjects[0];
+    const { subjectId, periodsPerWeek, numberOfWeeks } = subjectData;
+    const lessonCount = parseInt(periodsPerWeek) * parseInt(numberOfWeeks);
+    
+    const subject = await Subject.findById(subjectId).populate('department');
+    if (!subject) {
+      throw new Error(`Không tìm thấy môn học với ID: ${subjectId}`);
     }
-
+    
+    newClass.subjects.push({
+      subject: subject._id,
+      periodsPerWeek: parseInt(periodsPerWeek),
+      numberOfWeeks: parseInt(numberOfWeeks),
+      lessonCount
+    });
+    
+    await Department.findByIdAndUpdate(
+      subject.department._id,
+      { $inc: { totalAssignmentTime: lessonCount } },
+      { session }
+    );
+ 
     await newClass.save({ session });
-
+ 
     const resultData = {
       action: 'CREATE',
       user: req.user._id,
@@ -334,10 +393,10 @@ classRouter.post('/create-class', isAuth, async (req, res) => {
       entityId: newClass._id,
       dataAfter: newClass
     };
-
+ 
     const result = new Result(resultData);
     await result.save({ session });
-
+ 
     await session.commitTransaction();
     res.status(201).json({ message: "Lớp đã được tạo thành công", class: newClass });
   } catch (error) {
@@ -346,106 +405,118 @@ classRouter.post('/create-class', isAuth, async (req, res) => {
   } finally {
     session.endSession();
   }
-});
+ });
 
+// Multiple classes creation endpoint
 classRouter.post('/create-classes', isAuth, async (req, res) => {
-  const session = await mongoose.startSession();
-  session.startTransaction();
-
+  let session;
   try {
+      session = await mongoose.startSession();
+      session.startTransaction();
+
       const classesData = req.body.classes;
       if (!Array.isArray(classesData) || classesData.length === 0) {
           throw new Error('Dữ liệu lớp học không hợp lệ');
       }
 
-      // Validate và xử lý từng lớp
-      const processedClasses = await Promise.all(classesData.map(async (classData) => {
-          const { name, grade, campus, size, subjects } = classData;
-
-          // Validate dữ liệu cơ bản
-          if (!name || !grade || !campus || !size || !Array.isArray(subjects)) {
-              throw new Error(`Thiếu thông tin cơ bản cho lớp: ${name || 'Unknown'}`);
+      // First, validate all class names and subjects
+      const validationResults = await Promise.all(classesData.map(async (classData) => {
+          const { name, subjects } = classData;
+          
+          // Validate one subject per class
+          if (!subjects || subjects.length !== 1) {
+              throw new Error(`Lớp ${name} phải có đúng một môn học`);
           }
 
-          // Validate và xử lý môn học
-          const processedSubjects = await Promise.all(subjects.map(async (subjectData) => {
-              const { subjectName, periodsPerWeek, numberOfWeeks } = subjectData;
-              
-              if (!subjectName || !periodsPerWeek || !numberOfWeeks) {
-                  throw new Error(`Thiếu thông tin môn học cho lớp ${name}`);
+          // Check if class exists
+          const existingClass = await Class.findOne({ name })
+              .populate('subjects.subject')
+              .session(session);
+
+          if (existingClass) {
+              // Get subject names for the existing class
+              const existingSubjectNames = existingClass.subjects.map(s => 
+                  s.subject.name
+              );
+
+              // Check for subject conflicts
+              const newSubjectName = subjects[0].subjectName;
+              if (existingSubjectNames.includes(newSubjectName)) {
+                  throw new Error(`Lớp ${name} đã tồn tại với môn học ${newSubjectName}`);
               }
+          }
 
-              const subject = await Subject.findOne({ name: subjectName }).session(session);
-              if (!subject) {
-                  throw new Error(`Không tìm thấy môn học: ${subjectName}`);
-              }
+          return { valid: true, className: name };
+      }));
 
-              return {
-                  subject: subject._id,
-                  periodsPerWeek: parseInt(periodsPerWeek),
-                  numberOfWeeks: parseInt(numberOfWeeks),
-                  lessonCount: parseInt(periodsPerWeek) * parseInt(numberOfWeeks)
-              };
-          }));
+      // Process and create classes
+      const createdClasses = [];
+      for (const classData of classesData) {
+          const { name, grade, campus, size, subjects } = classData;
+          
+          // Find or validate subject
+          const subject = await Subject.findOne({ name: subjects[0].subjectName })
+              .populate('department')
+              .session(session);
 
-          return {
+          if (!subject) {
+              throw new Error(`Không tìm thấy môn học: ${subjects[0].subjectName}`);
+          }
+
+          // Create class with single subject
+          const newClass = new Class({
               name,
               grade: parseInt(grade),
               campus,
               size: parseInt(size),
-              subjects: processedSubjects
-          };
-      }));
+              subjects: [{
+                  subject: subject._id,
+                  periodsPerWeek: parseInt(subjects[0].periodsPerWeek),
+                  numberOfWeeks: parseInt(subjects[0].numberOfWeeks),
+                  lessonCount: parseInt(subjects[0].periodsPerWeek) * parseInt(subjects[0].numberOfWeeks)
+              }]
+          });
 
-      // Kiểm tra trùng tên lớp
-      const classNames = processedClasses.map(c => c.name);
-      const existingClasses = await Class.find({ name: { $in: classNames } });
-      if (existingClasses.length > 0) {
-          throw new Error(`Tên lớp đã tồn tại: ${existingClasses.map(c => c.name).join(', ')}`);
-      }
-
-      // Tạo lớp và cập nhật Department
-      const createdClasses = [];
-      for (const classData of processedClasses) {
-          const newClass = new Class(classData);
           await newClass.save({ session });
           createdClasses.push(newClass);
 
-          // Cập nhật totalAssignmentTime cho Department
-          for (const subjectData of classData.subjects) {
-              const subject = await Subject.findById(subjectData.subject).populate('department');
-              if (subject?.department) {
-                  await Department.findByIdAndUpdate(
-                      subject.department._id,
-                      { $inc: { totalAssignmentTime: subjectData.lessonCount } },
-                      { session }
-                  );
-              }
+          // Update department assignment time
+          if (subject.department) {
+              await Department.findByIdAndUpdate(
+                  subject.department._id,
+                  { $inc: { totalAssignmentTime: subjects[0].lessonCount } },
+                  { session }
+              );
           }
       }
 
-      // Lưu kết quả
-      const resultData = {
+      // Log the creation
+      const result = new Result({
           action: 'CREATE',
           user: req.user._id,
           entityType: 'Class',
           entityId: createdClasses.map(c => c._id),
-          dataAfter: createdClasses.map(c => c.toObject())
-      };
+          dataAfter: createdClasses
+      });
 
-      await new Result(resultData).save({ session });
+      await result.save({ session });
       await session.commitTransaction();
 
-      res.status(201).json({ 
-          message: "Các lớp đã được tạo thành công", 
-          classesCreated: createdClasses.length 
+      res.status(201).json({
+          message: "Các lớp đã được tạo thành công",
+          classesCreated: createdClasses.length
       });
+
   } catch (error) {
-      await session.abortTransaction();
+      if (session) {
+          await session.abortTransaction();
+      }
       console.error('Chi tiết lỗi:', error);
       res.status(400).json({ message: error.message });
   } finally {
-      session.endSession();
+      if (session) {
+          session.endSession();
+      }
   }
 });
 
@@ -1047,6 +1118,94 @@ classRouter.post('/update-class-names', isAuth, async (req, res) => {
   } catch (error) {
     await session.abortTransaction();
     console.error('Error in update class names:', error);
+    res.status(400).json({ 
+      message: error.message,
+      error: error.stack
+    });
+  } finally {
+    session.endSession();
+  }
+});
+
+classRouter.post('/update-names-by-subject', isAuth, async (req, res) => {
+  const session = await mongoose.startSession();
+  session.startTransaction();
+
+  try {
+    const { subjectName } = req.body;
+
+    if (!subjectName) {
+      throw new Error('Vui lòng cung cấp tên môn học');
+    }
+
+    // Tìm subject dựa trên tên
+    const subject = await Subject.findOne({ name: subjectName }).session(session);
+    if (!subject) {
+      throw new Error(`Không tìm thấy môn học: ${subjectName}`);
+    }
+
+    // Tìm tất cả các lớp có môn học này
+    const classes = await Class.find({
+      'subjects.subject': subject._id
+    }).session(session);
+
+    if (classes.length === 0) {
+      throw new Error(`Không tìm thấy lớp nào có môn học ${subjectName}`);
+    }
+
+    const updateResults = await Promise.all(classes.map(async classItem => {
+      const oldName = classItem.name;
+      
+      // Kiểm tra xem tên lớp đã có tên môn học chưa
+      if (oldName.includes(`-${subjectName}`)) {
+        return {
+          id: classItem._id,
+          oldName,
+          newName: oldName,
+          status: 'Đã có tên môn học'
+        };
+      }
+
+      // Thêm tên môn học vào cuối tên lớp
+      const newName = `${oldName}-${subjectName}`;
+
+      // Lưu trạng thái trước khi cập nhật
+      const dataBefore = classItem.toObject();
+
+      // Cập nhật tên lớp
+      classItem.name = newName;
+      await classItem.save({ session });
+
+      // Ghi log thay đổi
+      const result = new Result({
+        action: 'UPDATE',
+        user: req.user._id,
+        entityType: 'Class',
+        entityId: classItem._id,
+        dataBefore,
+        dataAfter: classItem.toObject()
+      });
+      await result.save({ session });
+
+      return {
+        id: classItem._id,
+        oldName,
+        newName,
+        status: 'Đã cập nhật'
+      };
+    }));
+
+    await session.commitTransaction();
+
+    res.status(200).json({
+      message: "Cập nhật tên lớp thành công",
+      totalClasses: classes.length,
+      updates: updateResults
+    });
+
+  } catch (error) {
+    await session.abortTransaction();
+    console.error('Error in updating class names by subject:', error);
     res.status(400).json({ 
       message: error.message,
       error: error.stack

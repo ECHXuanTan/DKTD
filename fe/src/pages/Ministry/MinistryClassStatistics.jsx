@@ -6,28 +6,29 @@ import Header from '../../components/Header.js';
 import Footer from '../../components/Footer.js';
 import { getUser } from '../../services/authServices.js';
 import { getAllClasses } from '../../services/statisticsServices';
+import { getSubject } from '../../services/subjectServices.js';
 import { toast, ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import { Box, Typography, TextField, Select, MenuItem, InputAdornment, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Paper, TablePagination } from '@mui/material';
 import SearchIcon from '@mui/icons-material/Search';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import styles from '../../css/Ministry/MinistryClassStatistics.module.css';
-import ExportAllClassesButton from './Component/AllClassesReport.jsx';
-import SingleClassReport from './Component/SingleClassReport.jsx';
 import ExportTeachersClassExcel from './Component/Statistics/ExportTeachersClassExcel.jsx';
 
 const MinistryClassStatistics = () => { 
     const [user, setUser] = useState(null);
     const [classes, setClasses] = useState([]);
+    const [subjects, setSubjects] = useState([]);
     const [loading, setLoading] = useState(true);
     const [searchQuery, setSearchQuery] = useState('');
     const [gradeFilter, setGradeFilter] = useState('');
+    const [subjectFilter, setSubjectFilter] = useState('');
     const [page, setPage] = useState(0);
     const [rowsPerPage, setRowsPerPage] = useState(25);
     const navigate = useNavigate();
 
     useEffect(() => {
-        const fetchUserAndClasses = async () => {
+        const fetchUserAndData = async () => {
           try {
             const userData = await getUser();
             setUser(userData);
@@ -37,6 +38,8 @@ const MinistryClassStatistics = () => {
                 navigate('/admin-dashboard');
                 return;
               }
+
+              // Fetch classes
               const classesData = await getAllClasses();
               if (Array.isArray(classesData) && classesData.length > 0) {
                 const sortedClasses = classesData.sort((a, b) => a.name.localeCompare(b.name));
@@ -45,6 +48,14 @@ const MinistryClassStatistics = () => {
                 console.error('Invalid classes data:', classesData);
                 toast.error('Định dạng dữ liệu lớp học không hợp lệ. Vui lòng thử lại sau.');
               }
+
+              // Fetch subjects
+              const subjectsData = await getSubject();
+              // Filter out administrative subjects
+              const filteredSubjects = subjectsData.filter(subject => 
+                !['VP', 'HT', 'PHT', 'GVĐT', 'HTQT'].includes(subject.name)
+              );
+              setSubjects(filteredSubjects);
             }
           } catch (error) {
             console.error('Error fetching data:', error);
@@ -54,7 +65,7 @@ const MinistryClassStatistics = () => {
           }
         };
     
-        fetchUserAndClasses();
+        fetchUserAndData();
     }, [navigate]);
 
     const handleSearchChange = (event) => {
@@ -67,6 +78,11 @@ const MinistryClassStatistics = () => {
         setPage(0);
     };
 
+    const handleSubjectFilterChange = (event) => {
+        setSubjectFilter(event.target.value);
+        setPage(0);
+    };
+
     const handleChangePage = (event, newPage) => {
         setPage(newPage);
     };
@@ -76,10 +92,14 @@ const MinistryClassStatistics = () => {
         setPage(0);
     };
 
-    const filteredClasses = classes.filter((classItem) =>
-        classItem.name.toLowerCase().includes(searchQuery.toLowerCase()) &&
-        (gradeFilter === '' || classItem.grade === parseInt(gradeFilter))
-    );    
+    const filteredClasses = classes.filter((classItem) => {
+        const nameMatch = classItem.name.toLowerCase().includes(searchQuery.toLowerCase());
+        const gradeMatch = gradeFilter === '' || classItem.grade === parseInt(gradeFilter);
+        const subjectMatch = subjectFilter === '' || classItem.subjects.some(
+            subject => subject.subject.name === subjectFilter
+        );
+        return nameMatch && gradeMatch && subjectMatch;
+    });    
 
     const paginatedClasses = filteredClasses.slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage);
 
@@ -124,19 +144,31 @@ const MinistryClassStatistics = () => {
                             ),
                         }}
                     />
-                    <Box display="flex" alignItems="center">
+                    <Box display="flex" alignItems="center" gap={2}>
                         <Select
                             value={gradeFilter}
                             onChange={handleGradeFilterChange}
                             displayEmpty
-                            style={{ width: '200px', marginRight: '10px' }}
+                            style={{ width: '150px' }}
                         >
                             <MenuItem value="">Tất cả khối</MenuItem>
                             {uniqueGrades.map((grade) => (
                                 <MenuItem key={grade} value={grade}>Khối {grade}</MenuItem>
                             ))}
                         </Select>
-                        <ExportAllClassesButton user={user?.user} />
+                        <Select
+                            value={subjectFilter}
+                            onChange={handleSubjectFilterChange}
+                            displayEmpty
+                            style={{ width: '200px' }}
+                        >
+                            <MenuItem value="">Tất cả môn học</MenuItem>
+                            {subjects.map((subject) => (
+                                <MenuItem key={subject._id} value={subject.name}>
+                                    {subject.name}
+                                </MenuItem>
+                            ))}
+                        </Select>
                         <ExportTeachersClassExcel />
                     </Box>
                 </Box>
@@ -152,7 +184,6 @@ const MinistryClassStatistics = () => {
                                     <TableCell>Số tiết</TableCell>
                                     <TableCell>Giáo viên</TableCell>
                                     <TableCell>Số tiết khai báo</TableCell>
-                                    <TableCell>Hành động</TableCell>
                                 </TableRow>
                             </TableHead>
                             <TableBody>
@@ -185,11 +216,6 @@ const MinistryClassStatistics = () => {
                                                     <TableCell>
                                                         {subject.subject.name === 'CCSHL' ? '-' : assignment.completedLessons}
                                                     </TableCell>
-                                                    {subjectIndex === 0 && assignmentIndex === 0 && (
-                                                        <TableCell rowSpan={rowSpan}>
-                                                            <SingleClassReport user={user?.user} classId={classItem._id} />
-                                                        </TableCell>
-                                                    )}
                                                 </TableRow>
                                             ))
                                         ) : (
@@ -211,11 +237,6 @@ const MinistryClassStatistics = () => {
                                                 <TableCell>
                                                     {subject.subject.name === 'CCSHL' ? '-' : '0'}
                                                 </TableCell>
-                                                {subjectIndex === 0 && (
-                                                    <TableCell rowSpan={rowSpan}>
-                                                        <SingleClassReport user={user?.user} classId={classItem._id} />
-                                                    </TableCell>
-                                                )}
                                             </TableRow>
                                         ));
                                     });

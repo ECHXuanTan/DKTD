@@ -12,16 +12,18 @@ const CreateAssignmentModal = ({
   subjects, 
   teacherId,
   onAssignmentCreate,
-  existingAssignments 
+  existingAssignments,
+  isLoading: parentIsLoading 
 }) => {
   const [selectedSubject, setSelectedSubject] = useState('');
   const [selectedGrade, setSelectedGrade] = useState('all');
   const [searchTerm, setSearchTerm] = useState('');
   const [classes, setClasses] = useState([]);
-  const [classAssignments, setClassAssignments] = useState({});
-  const [isLoading, setIsLoading] = useState(false);
-  const [weeklyLessons, setWeeklyLessons] = useState({});
-  const [numberOfWeeks, setNumberOfWeeks] = useState({});
+  const [completedLessons, setCompletedLessons] = useState({});
+  const [isLoadingClasses, setIsLoadingClasses] = useState(false);
+
+  const excludedSubjects = ['GVĐT', 'VP', 'HTQT', 'HT', 'PHT'];
+  const filteredSubjects = subjects.filter(subject => !excludedSubjects.includes(subject.name));
 
   useEffect(() => {
     if (selectedSubject) {
@@ -42,19 +44,9 @@ const CreateAssignmentModal = ({
     return filtered;
   }, [selectedGrade, searchTerm, classes]);
 
-  useEffect(() => {
-    const newClassAssignments = {};
-    Object.keys(weeklyLessons).forEach(classId => {
-      const weekly = weeklyLessons[classId] || 0;
-      const weeks = numberOfWeeks[classId] || 0;
-      newClassAssignments[classId] = weekly * weeks;
-    });
-    setClassAssignments(newClassAssignments);
-  }, [weeklyLessons, numberOfWeeks]);
-
   const fetchClasses = useCallback(async () => {
     try {
-      setIsLoading(true);
+      setIsLoadingClasses(true);
       const classesData = await getClassesBySubject(selectedSubject);
       
       const availableClasses = classesData.classes.filter(cls => 
@@ -80,14 +72,11 @@ const CreateAssignmentModal = ({
       
       setClasses(sortedClasses);
 
-      const initialWeeklyLessons = {};
-      const initialNumberOfWeeks = {};
+      const initialCompletedLessons = {};
       sortedClasses.forEach(cls => {
-        initialWeeklyLessons[cls._id] = '';
-        initialNumberOfWeeks[cls._id] = '';
+        initialCompletedLessons[cls._id] = '';
       });
-      setWeeklyLessons(initialWeeklyLessons);
-      setNumberOfWeeks(initialNumberOfWeeks);
+      setCompletedLessons(initialCompletedLessons);
 
       if (availableClasses.length === 0) {
         toast.info('Không có lớp học khả dụng cho môn học này');
@@ -96,7 +85,7 @@ const CreateAssignmentModal = ({
       console.error('Error fetching classes:', error);
       toast.error('Lỗi khi tải danh sách lớp học');
     } finally {
-      setIsLoading(false);
+      setIsLoadingClasses(false);
     }
   }, [selectedSubject, existingAssignments, teacherId]);
 
@@ -107,14 +96,13 @@ const CreateAssignmentModal = ({
       return;
     }
   
-    const assignments = Object.entries(classAssignments)
+    const assignments = Object.entries(completedLessons)
       .filter(([_, value]) => value && parseInt(value) > 0)
-      .map(([classId]) => ({
+      .map(([classId, value]) => ({
         classId,
         subjectId: selectedSubject,
-        teacherId,  
-        lessonsPerWeek: parseInt(weeklyLessons[classId]),
-        numberOfWeeks: parseInt(numberOfWeeks[classId])
+        teacherId,
+        completedLessons: parseInt(value)
       }));
   
     if (assignments.length === 0) {
@@ -123,15 +111,11 @@ const CreateAssignmentModal = ({
     }
   
     try {
-      setIsLoading(true);
-      // Chỉ gọi callback, không gọi API trực tiếp
       await onAssignmentCreate(assignments);
       handleClose();
     } catch (error) {
       console.error('Error creating assignments:', error);
       toast.error(error.response?.data?.message || 'Có lỗi xảy ra khi phân công tiết dạy');
-    } finally {
-      setIsLoading(false);
     }
   };
 
@@ -140,38 +124,17 @@ const CreateAssignmentModal = ({
     setSelectedGrade('all');
     setSearchTerm('');
     setClasses([]);
-    setWeeklyLessons({});
-    setNumberOfWeeks({});
-    setClassAssignments({});
+    setCompletedLessons({});
     onClose();
   };
 
-  const handleWeeklyLessonsChange = (classId, value) => {
+  const handleCompletedLessonsChange = (classId, value) => {
     const classInfo = classes.find(c => c._id === classId);
     if (!classInfo) return;
 
     const numValue = value === '' ? '' : parseInt(value);
-    const weeks = numberOfWeeks[classId] ? parseInt(numberOfWeeks[classId]) : 0;
-    const totalLessons = numValue * weeks;
-
-    if (value === '' || (numValue >= 0 && totalLessons <= classInfo.remainingLessons)) {
-      setWeeklyLessons(prev => ({
-        ...prev,
-        [classId]: value
-      }));
-    }
-  };
-
-  const handleNumberOfWeeksChange = (classId, value) => {
-    const classInfo = classes.find(c => c._id === classId);
-    if (!classInfo) return;
-
-    const numValue = value === '' ? '' : parseInt(value);
-    const weekly = weeklyLessons[classId] ? parseInt(weeklyLessons[classId]) : 0;
-    const totalLessons = weekly * numValue;
-
-    if (value === '' || (numValue >= 0 && totalLessons <= classInfo.remainingLessons)) {
-      setNumberOfWeeks(prev => ({
+    if (value === '' || (numValue >= 0 && numValue <= classInfo.remainingLessons)) {
+      setCompletedLessons(prev => ({
         ...prev,
         [classId]: value
       }));
@@ -193,7 +156,7 @@ const CreateAssignmentModal = ({
             onChange={(e) => setSelectedSubject(e.target.value)}
           >
             <option value="">Chọn môn học</option>
-            {subjects.map((subject) => (
+            {filteredSubjects.map((subject) => (
               <option key={subject._id} value={subject._id}>{subject.name}</option>
             ))}
           </select>
@@ -221,7 +184,7 @@ const CreateAssignmentModal = ({
             </div>
           )}
 
-          {isLoading ? (
+          {isLoadingClasses ? (
             <div className={styles.loadingContainer}>
               <Circles color="#00BFFF" height={50} width={50} />
             </div>
@@ -232,9 +195,7 @@ const CreateAssignmentModal = ({
                   <tr>
                     <th>Lớp</th>
                     <th>Số tiết trống</th>
-                    <th>Số tiết/tuần</th>
-                    <th>Số tuần</th>
-                    <th>Tổng số tiết</th>
+                    <th>Số tiết khai báo</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -246,24 +207,12 @@ const CreateAssignmentModal = ({
                         <input
                           type="number"
                           className={styles.lessonInput}
-                          value={weeklyLessons[cls._id]}
-                          onChange={(e) => handleWeeklyLessonsChange(cls._id, e.target.value)}
+                          value={completedLessons[cls._id]}
+                          onChange={(e) => handleCompletedLessonsChange(cls._id, e.target.value)}
                           min="0"
+                          max={cls.remainingLessons}
                           disabled={cls.remainingLessons === 0}
                         />
-                      </td>
-                      <td>
-                        <input
-                          type="number"
-                          className={styles.lessonInput}
-                          value={numberOfWeeks[cls._id]}
-                          onChange={(e) => handleNumberOfWeeksChange(cls._id, e.target.value)}
-                          min="0"
-                          disabled={cls.remainingLessons === 0}
-                        />
-                      </td>
-                      <td>
-                        {classAssignments[cls._id] || 0}
                       </td>
                     </tr>
                   ))}
@@ -282,9 +231,9 @@ const CreateAssignmentModal = ({
           <button 
             type="submit" 
             className={styles.submitButton}
-            disabled={isLoading}
+            disabled={parentIsLoading}
           >
-            {isLoading ? <Circles color="#ffffff" height={20} width={20} /> : 'Phân công'}
+            {parentIsLoading ? <Circles color="#ffffff" height={20} width={20} /> : 'Phân công'}
           </button>
         </div>
       </form>

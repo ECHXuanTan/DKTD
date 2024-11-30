@@ -14,34 +14,136 @@
 }
 
 .table {
-    width: 100%;
-    border-collapse: collapse;
+    width: 2000px;
+    border-collapse: separate;
+    border-spacing: 0;
+    table-layout: fixed;
+}
+
+.tableContainer {
+    max-height: 600px;
+    overflow: auto;
+    position: relative;
+    z-index: 0;
+}
+
+.tableContainer::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+}
+
+.tableContainer::-webkit-scrollbar-track {
+    background: #f1f1f1;
+}
+
+.tableContainer::-webkit-scrollbar-thumb {
+    background: #888;
+    border-radius: 4px;
+}
+
+.tableContainer::-webkit-scrollbar-thumb:hover {
+    background: #555;
 }
 
 .tableHeader {
-    background-color: #f2f2f2;
+    z-index: 1;
+    position: sticky;
+    top: 0;
+    background-color: #5585b5;
     font-weight: bold;
-    color: #2c3e50;
-    padding: 12px;
+    color: white !important;
+    padding: 6px !important;
     text-align: left;
     border: 1px solid #ddd;
+    font-weight: 600 !important;
+    font-size: 15px !important;
+}
+
+.headerFirstColumn {
+    left: 0 !important;
+    z-index: 4 !important;
+}
+
+.headerSecondColumn {
+    left: 50px !important;
+    z-index: 4 !important;
+}
+
+.fixedWidth {
+    width: 100px !important;
+}
+
+.fixedWidth2 {
+    width: 160px !important;
+}
+
+.mediumWidth {
+    width: 150px !important;
+    min-width: 150px !important;
+    max-width: 150px !important;
+}
+
+.firstColumn {
+    left: 0;
+    width: 50px !important;
+    min-width: 50px !important;
+    max-width: 50px !important;
+    z-index: 3;
+}
+
+.secondColumn {
+    left: 50px;
+    width: 200px !important;
+    min-width: 200px !important;
+    max-width: 200px !important;
+    z-index: 3;
+}
+
+.stickyColumn {
+    position: sticky;
+    background-color: white;
+    z-index: 2;
+}
+
+.stickyHeader {
+    z-index: 3;
+    background-color: #5585b5 !important;
 }
 
 .table td {
     padding: 12px;
     text-align: left;
     border: 1px solid #ddd;
+    background-color: inherit;
 }
 
-.evenRow {
+.table td:not(:nth-child(5)) {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.reductionContent {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.reductionItem {
+    padding: 2px 0;
+    white-space: normal;
+    word-break: break-word;
+}
+
+.evenRow td {
     background-color: #f9f9f9;
 }
 
-.oddRow {
-    background-color: #ffffff;
+.oddRow td {
+    background-color: white;
 }
 
-.table tr:hover {
+.evenRow:hover td, .oddRow:hover td {
     background-color: #f5f5f5;
 }
 
@@ -50,6 +152,19 @@
     text-align: center;
     margin-top: 2rem;
     color: #666;
+}
+
+.reductionCell {
+    padding: 0 !important;
+}
+
+.reductionRow {
+    padding: 12px;
+    border-bottom: 1px solid #ddd;
+}
+
+.reductionRow:last-child {
+    border-bottom: none;
 }
 
 @media (max-width: 768px) {

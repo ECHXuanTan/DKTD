@@ -198,7 +198,7 @@ const SingleTeacherModal = ({ isOpen, onClose, departments, nonSpecializedSubjec
                         >
                             <option value="">Chọn Tổ bộ môn</option>
                             {departments
-                                .filter(dept => dept.name !== "Tổ Giáo vụ – Đào tạo")
+                                .filter(dept => dept.name !== "Tổ GVĐT")
                                 .map((dept) => (
                                     <option key={dept._id} value={dept._id}>
                                         {dept.name}

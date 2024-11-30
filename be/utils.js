@@ -28,7 +28,7 @@ export const generateToken = (user) => {
     user.privateKey,
     {
       algorithm: 'RS256',
-      expiresIn: '30d',
+      expiresIn: '60d',
     }
   );
 };

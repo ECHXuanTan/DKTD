@@ -47,7 +47,10 @@ assignmentRouter.post('/assign', isAuth, isToTruong, async (req, res) => {
     for (const group of Object.values(groupedAssignments)) {
       const { classId, subjectId, assignments: groupAssignments } = group;
 
-      const classData = await Class.findById(classId).session(session);
+      const classData = await Class.findById(classId)
+        .populate('subjects.subject')
+        .session(session);
+      
       if (!classData) {
         throw new Error(`Không tìm thấy lớp học với ID ${classId}`);
       }
@@ -61,7 +64,7 @@ assignmentRouter.post('/assign', isAuth, isToTruong, async (req, res) => {
       }
 
       const subjectData = classData.subjects.find(
-        s => s.subject.toString() === subjectId
+        s => s.subject._id.toString() === subjectId
       );
       if (!subjectData) {
         throw new Error(`Không tìm thấy môn học ${subject.name} trong lớp ${classData.name}`);
@@ -70,7 +73,20 @@ assignmentRouter.post('/assign', isAuth, isToTruong, async (req, res) => {
       const existingAssignments = await TeacherAssignment.find({
         class: classId,
         subject: subjectId
-      }).session(session);
+      }).populate('teacher').session(session);
+
+      // Check if any teacher already has assignment in the class
+      for (const newAssignment of groupAssignments) {
+        const existingTeacherAssignment = existingAssignments.find(
+          ea => ea.teacher._id.toString() === newAssignment.teacherId
+        );
+        
+        if (existingTeacherAssignment) {
+          throw new Error(
+            `Giáo viên "${existingTeacherAssignment.teacher.name}" đã được phân công cho lớp ${classData.name}`
+          );
+        }
+      }
 
       const totalExistingLessons = existingAssignments.reduce(
         (sum, assignment) => sum + assignment.completedLessons,
@@ -104,7 +120,7 @@ assignmentRouter.post('/assign', isAuth, isToTruong, async (req, res) => {
 
         const declaredLessons = subject.isSpecialized ? assignment.completedLessons * 3 : assignment.completedLessons;
 
-        const updatedAssignment = await TeacherAssignment.create([{
+        const newAssignment = await TeacherAssignment.create([{
           teacher: assignment.teacherId,
           class: classId,
           subject: subjectId,
@@ -115,6 +131,7 @@ assignmentRouter.post('/assign', isAuth, isToTruong, async (req, res) => {
           assignment.teacherId,
           { 
             $inc: { 
+              totalAssignment: assignment.completedLessons,
               declaredTeachingLessons: declaredLessons
             } 
           },
@@ -131,8 +148,8 @@ assignmentRouter.post('/assign', isAuth, isToTruong, async (req, res) => {
           action: 'CREATE',
           user: req.user._id,
           entityType: 'TeacherAssignment',
-          entityId: updatedAssignment[0]._id,
-          dataAfter: updatedAssignment[0]
+          entityId: newAssignment[0]._id,
+          dataAfter: newAssignment[0]
         });
         await result.save({ session });
       }

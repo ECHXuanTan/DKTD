@@ -3,6 +3,7 @@ import mongoose from 'mongoose';
 import dotenv from 'dotenv';
 import cors from 'cors';
 import session from 'express-session';
+import MongoStore from 'connect-mongo';
 import authRoutes from "./routers/authRoutes.js";
 import userRoutes from "./routers/userRoutes.js";
 import resultRoutes from "./routers/resultRoutes.js";
@@ -36,7 +37,6 @@ const corsOptions = {
       'http://localhost:3000',
       'https://khaibao-client.onrender.com',
       'http://10.1.6.17:3000'
-      // Thêm các domain khác ở đây
     ].filter(Boolean);
 
     if (!origin || allowedOrigins.indexOf(origin) !== -1) {
@@ -51,17 +51,39 @@ const corsOptions = {
   optionsSuccessStatus: 200
 };
 
-app.use(cors(corsOptions));;
+app.use(cors(corsOptions));
 
-// Setup session
-app.use(session({
+// Cấu hình session với MongoStore
+const sessionConfig = {
   secret: process.env.SESSION_SECRET,
   resave: false,
-  saveUninitialized: true
-}));
+  saveUninitialized: false, // changed to false for better performance
+  store: MongoStore.create({
+    mongoUrl: process.env.MONGODB_URI,
+    collectionName: 'sessions', // tên collection để lưu sessions
+    ttl: 24 * 60 * 60, // thời gian session tồn tại (1 ngày)
+    autoRemove: 'native', // tự động xóa expired sessions
+    crypto: {
+      secret: process.env.SESSION_SECRET // mã hóa session data
+    }
+  }),
+  cookie: {
+    secure: process.env.NODE_ENV === 'production', // chỉ dùng HTTPS trong production
+    httpOnly: true, // prevent XSS
+    maxAge: 24 * 60 * 60 * 1000 // 1 ngày
+  }
+};
+
+// Nếu đang trong production, set thêm các options bảo mật
+if (process.env.NODE_ENV === 'production') {
+  app.set('trust proxy', 1); // trust first proxy
+  sessionConfig.cookie.sameSite = 'strict'; // CSRF protection
+}
+
+app.use(session(sessionConfig));
 
 // Use routes
-app.use('/api/auth',authRoutes);
+app.use('/api/auth', authRoutes);
 app.use('/api/results', resultRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/departments', departmentRoutes);
@@ -72,16 +94,13 @@ app.use('/api/assignment', assignmentRouter);
 app.use('/api/statistics', statisticsRouter);
 app.use('/api/homerooms', homeroomRouters);
 
+app.get('/', (req, res) => {
+  res.status(200).json({
+    message: "Hi"
+  })
+})
 
-
-app.get ('/', (req, res) => {
-    res.status(200).json({
-     message: "Hi"
-   })
- })
- 
- const port = 5000;
- app.listen(port, () => {
-     console.log(`serve at http://localhost:${port}`)
- })
- 
+const port = process.env.PORT || 5000;
+app.listen(port, () => {
+  console.log(`serve at http://localhost:${port}`)
+})

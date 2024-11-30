@@ -122,6 +122,19 @@
     background-color: #fff;
 }
 
+.reductionCell {
+    padding: 0 !important;
+}
+
+.reductionRow {
+    padding: 12px;
+    border-bottom: 1px solid #000000;
+}
+
+.reductionRow:last-child {
+    border-bottom: none;
+}
+
 @media (max-width: 768px) {
     .dashboardMinistry {
         padding: 10px;
