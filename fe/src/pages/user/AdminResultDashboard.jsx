@@ -4,7 +4,7 @@ import { getAllResult } from '../../services/resultServices';
 import { getUser } from '../../services/authServices';
 import { getAllDepartment } from '../../services/departmentService';
 import styles from '../../css/Admin/AdminActionResultScreen.module.css';
-import { Box, Typography, TextField, InputAdornment, Button, Select, MenuItem, FormControl, InputLabel } from '@mui/material';
+import { Box, Typography, TextField, InputAdornment, FormControl, InputLabel, Select, MenuItem } from '@mui/material';
 import { DataGrid } from '@mui/x-data-grid';
 import SearchIcon from '@mui/icons-material/Search';
 import VisibilityIcon from '@mui/icons-material/Visibility';
@@ -25,43 +25,66 @@ export default function AdminActionResultScreen() {
   const [departments, setDepartments] = useState([]);
   const [selectedDepartment, setSelectedDepartment] = useState('');
   const [selectedAction, setSelectedAction] = useState('');
+  const [paginationModel, setPaginationModel] = useState({
+    pageSize: 100,
+    page: 0,
+  });
+  const [totalResults, setTotalResults] = useState(0);
   const navigate = useNavigate();
 
+  const fetchResults = async () => {
+    try {
+      setLoading(true);
+      const resultsData = await getAllResult(paginationModel.page + 1);
+      setResults(resultsData.existingResult);
+      setTotalResults(resultsData.pagination.total);
+    } catch (error) {
+      console.error('Error fetching results:', error);
+      setError(error.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   useEffect(() => {
-    const fetchUserAndResults = async () => {
+    const fetchInitialData = async () => {
       try {
+        setLoading(true);
         const userData = await getUser();
         setUser(userData);
        
         if (userData) {
           if (!userData || userData.user.role !== 2) {
-           // Redirect based on user role
-          switch(userData.user.role) {
-            case 1:
-              navigate('/ministry-dashboard');
-              break;
-            case 0:
-              navigate('/user-dashboard');
-              break;
-            default:
-              navigate('/login');
+            switch(userData.user.role) {
+              case 1:
+                navigate('/ministry-dashboard');
+                break;
+              case 0:
+                navigate('/leader-declare');
+                break;
+              default:
+                navigate('/login');
+            }
           }
-          }
-          const resultsData = await getAllResult();
-          setResults(resultsData.existingResult);
           
+          await fetchResults();
           const departmentNames = await getAllDepartment();
           setDepartments(departmentNames);
         }
-        setLoading(false);
       } catch (error) {
-        console.error('Error fetching data:', error);
+        console.error('Error fetching initial data:', error);
         setError(error.message);
+      } finally {
         setLoading(false);
       }
     };
-    fetchUserAndResults();
+
+    fetchInitialData();
   }, [navigate]);
+
+  useEffect(() => {
+    fetchResults();
+  }, [paginationModel.page]);
 
   const handleStartDateChange = (event) => {
     setStartDate(event.target.value);
@@ -81,10 +104,6 @@ export default function AdminActionResultScreen() {
 
   const handleActionChange = (event) => {
     setSelectedAction(event.target.value);
-  };
-
-  const handleBack = () => {
-    navigate('/admin-dashboard');
   };
 
   const getActionClass = (action) => {
@@ -187,7 +206,7 @@ export default function AdminActionResultScreen() {
 
   const rows = filteredRows.map((record, index) => ({
     id: record._id,
-    index: index + 1,
+    index: paginationModel.page * paginationModel.pageSize + index + 1,
     action: translateAction(record.action),
     userName: record.user.name,
     position: record.user.teacher ? record.user.teacher.position : 'N/A',
@@ -196,7 +215,7 @@ export default function AdminActionResultScreen() {
     timestamp: new Date(record.timestamp).toLocaleString(),
   }));
 
-  if (loading) {
+  if (loading && !results.length) {
     return (
       <div className={styles.loadingContainer}>
         <Circles type="TailSpin" color="#00BFFF" height={80} width={80} />
@@ -293,8 +312,12 @@ export default function AdminActionResultScreen() {
                   <DataGrid
                     rows={rows}
                     columns={columns}
-                    pageSize={10}
-                    rowsPerPageOptions={[10]}
+                    paginationModel={paginationModel}
+                    onPaginationModelChange={setPaginationModel}
+                    pageSizeOptions={[100]}
+                    rowCount={totalResults}
+                    paginationMode="server"
+                    loading={loading}
                     className={styles.dataGrid}
                     disableSelectionOnClick
                     getRowId={(row) => row.id}

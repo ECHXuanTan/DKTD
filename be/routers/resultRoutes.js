@@ -10,13 +10,21 @@ const resultRoutes = express.Router();
 
 resultRoutes.get('/all', isAuth, isAdmin, async (req, res) => {
   try {
+    const page = parseInt(req.query.page) || 1;
+    const limit = 100;
+    const skip = (page - 1) * limit;
+
+    // Get total count for pagination
+    const totalCount = await Result.countDocuments({});
+    
     const existingResult = await Result.find({})
       .sort({ timestamp: -1 })
+      .skip(skip)
+      .limit(limit)
       .populate('user', 'name email role')
       .lean();
 
     const transformedResults = await Promise.all(existingResult.map(async (result) => {
-      // Check if user is ministry (role = 1)
       if (result.user.role === 1) {
         return {
           ...result,
@@ -25,7 +33,7 @@ resultRoutes.get('/all', isAuth, isAdmin, async (req, res) => {
             teacher: {
               position: "Giáo vụ",
               department: {
-                name: "Tổ Giáo vụ Đào tạo"
+                name: "Tổ Giáo vụ - Đào tạo"
               },
               type: "Cơ hữu"
             }
@@ -33,7 +41,6 @@ resultRoutes.get('/all', isAuth, isAdmin, async (req, res) => {
         };
       }
 
-      // For other users, find teacher by email
       const teacher = await Teacher.findOne({ email: result.user.email })
         .populate('department', 'name')
         .lean();
@@ -60,7 +67,12 @@ resultRoutes.get('/all', isAuth, isAdmin, async (req, res) => {
     }));
     
     res.status(200).json({ 
-      existingResult: transformedResults
+      existingResult: transformedResults,
+      pagination: {
+        total: totalCount,
+        currentPage: page,
+        totalPages: Math.ceil(totalCount / limit)
+      }
     });
   } catch (error) {
     console.error('Error in getting all results:', error);
@@ -106,6 +118,25 @@ resultRoutes.get('/:id', isAuth, isAdmin, async (req, res) => {
         department: { name: 'N/A' },
         type: 'N/A'
       };
+    }
+
+    // For Class creation, populate subject names
+    if (result.entityType === 'Class' && result.dataAfter) {
+      if (Array.isArray(result.dataAfter)) {
+        const classesWithSubjects = await Promise.all(result.dataAfter.map(async (classData) => {
+          const subjectIds = classData.subjects.map(s => s.subject);
+          const subjects = await Subject.find({ _id: { $in: subjectIds } }).lean();
+          
+          return {
+            ...classData,
+            subjects: classData.subjects.map(subject => ({
+              ...subject,
+              subjectName: subjects.find(s => s._id.toString() === subject.subject.toString())?.name || 'Unknown Subject'
+            }))
+          };
+        }));
+        transformedResult.dataAfter = classesWithSubjects;
+      }
     }
 
     // Populate details for TeacherAssignment CREATE action

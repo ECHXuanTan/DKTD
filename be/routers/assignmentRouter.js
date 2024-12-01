@@ -661,6 +661,14 @@ assignmentRouter.delete('/batch-delete', isAuth, isToTruong, async (req, res) =>
       throw new Error('Dữ liệu không hợp lệ');
     }
 
+    let resultData = {
+      action: 'DELETE',
+      user: req.user._id,
+      entityType: 'TeacherAssignment',
+      entityId: [],
+      dataBefore: []
+    };
+
     for (const assignmentId of assignmentIds) {
       const foundAssignment = await TeacherAssignment.findById(assignmentId)
         .populate('class')
@@ -681,6 +689,36 @@ assignmentRouter.delete('/batch-delete', isAuth, isToTruong, async (req, res) =>
       const { completedLessons } = foundAssignment;
       const declaredLessons = foundAssignment.subject.isSpecialized ? completedLessons * 3 : completedLessons;
 
+      resultData.entityId.push(foundAssignment._id);
+      resultData.dataBefore.push({
+        _id: foundAssignment._id,
+        class: {
+          _id: foundAssignment.class._id,
+          name: foundAssignment.class.name,
+          grade: foundAssignment.class.grade
+        },
+        subject: {
+          _id: foundAssignment.subject._id,
+          name: foundAssignment.subject.name,
+          department: {
+            _id: foundAssignment.subject.department._id,
+            name: foundAssignment.subject.department.name
+          }
+        },
+        teacher: {
+          _id: foundAssignment.teacher._id,
+          name: foundAssignment.teacher.name,
+          position: foundAssignment.teacher.position,
+          department: {
+            _id: foundAssignment.teacher.department._id,
+            name: foundAssignment.teacher.department.name
+          }
+        },
+        completedLessons: foundAssignment.completedLessons,
+        createdAt: foundAssignment.createdAt,
+        updatedAt: foundAssignment.updatedAt
+      });
+
       await TeacherAssignment.findByIdAndDelete(assignmentId).session(session);
 
       await Teacher.findByIdAndUpdate(
@@ -699,6 +737,10 @@ assignmentRouter.delete('/batch-delete', isAuth, isToTruong, async (req, res) =>
         { $inc: { declaredTeachingLessons: -completedLessons } },
         { session }
       );
+    }
+
+    if (resultData.entityId.length > 0) {
+      await Result.create(resultData);
     }
 
     await session.commitTransaction();
@@ -793,6 +835,15 @@ assignmentRouter.put('/batch-edit', isAuth, isToTruong, async (req, res) => {
       }
     }
 
+    let resultData = {
+      action: 'UPDATE',
+      user: req.user._id,
+      entityType: 'TeacherAssignment',
+      entityId: [],
+      dataBefore: [],
+      dataAfter: []
+    };
+
     for (const assignment of assignmentsToUpdate) {
       const updateInfo = updatesMap.get(assignment._id.toString());
       const oldLessons = assignment.completedLessons;
@@ -803,8 +854,10 @@ assignmentRouter.put('/batch-edit', isAuth, isToTruong, async (req, res) => {
       const newDeclaredLessons = assignment.subject.isSpecialized ? newLessons * 3 : newLessons;
       const declaredLessonsDifference = newDeclaredLessons - oldDeclaredLessons;
 
+      const oldAssignment = assignment.toObject();
+
       assignment.completedLessons = newLessons;
-      await assignment.save({ session });
+      const updatedAssignment = await assignment.save({ session });
 
       await Teacher.findByIdAndUpdate(
         assignment.teacher._id,
@@ -822,6 +875,68 @@ assignmentRouter.put('/batch-edit', isAuth, isToTruong, async (req, res) => {
         { $inc: { declaredTeachingLessons: lessonDifference } },
         { session }
       );
+
+      resultData.entityId.push(assignment._id);
+      resultData.dataBefore.push({
+        _id: oldAssignment._id,
+        class: {
+          _id: oldAssignment.class._id,
+          name: oldAssignment.class.name,
+          grade: oldAssignment.class.grade
+        },
+        subject: {
+          _id: oldAssignment.subject._id,
+          name: oldAssignment.subject.name,
+          department: {
+            _id: oldAssignment.subject.department._id,
+            name: oldAssignment.subject.department.name
+          }
+        },
+        teacher: {
+          _id: oldAssignment.teacher._id,
+          name: oldAssignment.teacher.name,
+          position: oldAssignment.teacher.position,
+          department: {
+            _id: oldAssignment.teacher.department._id,
+            name: oldAssignment.teacher.department.name
+          }
+        },
+        completedLessons: oldAssignment.completedLessons,
+        createdAt: oldAssignment.createdAt,
+        updatedAt: oldAssignment.updatedAt
+      });
+      resultData.dataAfter.push({
+        _id: updatedAssignment._id,
+        class: {
+          _id: updatedAssignment.class._id,
+          name: updatedAssignment.class.name,
+          grade: updatedAssignment.class.grade
+        },
+        subject: {
+          _id: updatedAssignment.subject._id,
+          name: updatedAssignment.subject.name,
+          department: {
+            _id: updatedAssignment.subject.department._id,
+            name: updatedAssignment.subject.department.name
+          }
+        },
+        teacher: {
+          _id: updatedAssignment.teacher._id,
+          name: updatedAssignment.teacher.name,
+          position: updatedAssignment.teacher.position,
+          department: {
+            _id: updatedAssignment.teacher.department._id,
+            name: updatedAssignment.teacher.department.name
+          }
+        },
+        completedLessons: updatedAssignment.completedLessons,
+        createdAt: updatedAssignment.createdAt,
+        updatedAt: updatedAssignment.updatedAt
+      });
+    }
+
+    if (resultData.entityId.length > 0) {
+      await Result.create(resultData);
     }
 
     await session.commitTransaction();
@@ -829,78 +944,6 @@ assignmentRouter.put('/batch-edit', isAuth, isToTruong, async (req, res) => {
   } catch (error) {
     await session.abortTransaction();
     res.status(400).json({ message: error.message });
-  } finally {
-    session.endSession();
-  }
-});
-
-assignmentRouter.delete('/batch-delete', isAuth, isToTruong, async (req, res) => {
-  const session = await mongoose.startSession();
-  session.startTransaction();
-
-  try {
-    const { assignments } = req.body;
-
-    if (!Array.isArray(assignments)) {
-      throw new Error('Dữ liệu không hợp lệ');
-    }
-
-    for (const assignment of assignments) {
-      const { assignmentId, completedLessons } = assignment;
-      
-      const foundAssignment = await TeacherAssignment.findById(assignmentId)
-        .populate('class')
-        .populate({
-          path: 'subject',
-          populate: { path: 'department' }
-        })
-        .populate({
-          path: 'teacher',
-          populate: { path: 'department' }
-        })
-        .session(session);
-
-      if (!foundAssignment) {
-        throw new Error(`Không tìm thấy khai báo giảng dạy với ID ${assignmentId}`);
-      }
-
-      if (foundAssignment.completedLessons !== completedLessons) {
-        throw new Error(`Số tiết đã hoàn thành không khớp với dữ liệu hiện tại cho assignment ${assignmentId}`);
-      }
-
-      const declaredLessons = foundAssignment.subject.isSpecialized ? completedLessons * 3 : completedLessons;
-
-      await TeacherAssignment.findByIdAndDelete(assignmentId).session(session);
-
-      await Teacher.findByIdAndUpdate(
-        foundAssignment.teacher._id,
-        { 
-          $inc: { 
-            totalAssignment: -completedLessons,
-            declaredTeachingLessons: -declaredLessons
-          } 
-        },
-        { session }
-      );
-
-      await Department.findByIdAndUpdate(
-        foundAssignment.subject.department._id,
-        { $inc: { declaredTeachingLessons: -completedLessons } },
-        { session }
-      );
-    }
-
-    await session.commitTransaction();
-    res.status(200).json({ 
-      success: true,
-      message: "Xóa các khai báo giảng dạy thành công" 
-    });
-  } catch (error) {
-    await session.abortTransaction();
-    res.status(400).json({ 
-      success: false,
-      message: error.message 
-    });
   } finally {
     session.endSession();
   }
@@ -1070,114 +1113,6 @@ assignmentRouter.get('/by-subject/:subjectId', isAuth, isToTruong, async (req, r
     res.status(200).json(assignments);
   } catch (error) {
     res.status(500).json({ message: 'Lỗi server', error: error.message });
-  }
-});
-
-// Endpoint xóa tất cả assignment
-assignmentRouter.delete('/delete-all', isAuth, isToTruong, async (req, res) => {
-  const session = await mongoose.startSession();
-  session.startTransaction();
-
-  try {
-    // Lấy danh sách tất cả assignment để lưu vào Results
-    const allAssignments = await TeacherAssignment.find()
-      .populate('class')
-      .populate({
-        path: 'subject',
-        populate: { path: 'department' }
-      })
-      .populate('teacher')
-      .session(session);
-
-    // Lưu trạng thái trước khi xóa vào Results
-    const results = allAssignments.map(assignment => ({
-      action: 'DELETE',
-      user: req.user._id,
-      entityType: 'TeacherAssignment',
-      entityId: assignment._id,
-      dataBefore: {
-        _id: assignment._id,
-        class: {
-          _id: assignment.class._id,
-          name: assignment.class.name,
-          grade: assignment.class.grade
-        },
-        subject: {
-          _id: assignment.subject._id,
-          name: assignment.subject.name,
-          department: {
-            _id: assignment.subject.department._id,
-            name: assignment.subject.department.name
-          }
-        },
-        teacher: {
-          _id: assignment.teacher._id,
-          name: assignment.teacher.name,
-          position: assignment.teacher.position,
-          department: {
-            _id: assignment.teacher.department._id,
-            name: assignment.teacher.department.name
-          }
-        },
-        completedLessons: assignment.completedLessons,
-        createdAt: assignment.createdAt,
-        updatedAt: assignment.updatedAt
-      }
-    }));
-
-    // Lưu kết quả vào Results collection
-    if (results.length > 0) {
-      await Result.insertMany(results, { session });
-    }
-
-    // Reset tất cả các giá trị liên quan của Teacher về 0
-    await Teacher.updateMany(
-      {},
-      {
-        $set: {
-          totalAssignment: 0,
-          declaredTeachingLessons: 0,
-          lessonsPerWeek: 0,
-          teachingWeeks: 0,
-          reductions: [],
-          totalReducedLessons: 0
-        }
-      },
-      { session }
-    );
-
-    // Reset tất cả các giá trị liên quan của Department về 0
-    await Department.updateMany(
-      {},
-      {
-        $set: {
-          totalAssignmentTime: 0,
-          declaredTeachingLessons: 0
-        }
-      },
-      { session }
-    );
-
-    // Xóa tất cả assignment
-    await TeacherAssignment.deleteMany({}, { session });
-
-    await session.commitTransaction();
-
-    res.status(200).json({
-      success: true,
-      message: "Đã xóa tất cả phân công và reset dữ liệu liên quan",
-      deletedCount: allAssignments.length
-    });
-
-  } catch (error) {
-    await session.abortTransaction();
-    console.error('Error deleting all assignments:', error);
-    res.status(500).json({
-      success: false,
-      message: error.message || 'Có lỗi xảy ra khi xóa dữ liệu'
-    });
-  } finally {
-    session.endSession();
   }
 });
 

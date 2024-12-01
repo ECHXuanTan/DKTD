@@ -823,6 +823,8 @@ classRouter.delete('/:id', isAuth, async (req, res) => {
           subject: subjectData.subject._id,
           subjectName: subject.name,
           lessonCount: subjectData.lessonCount,
+          periodsPerWeek: subjectData.periodsPerWeek,
+          numberOfWeeks: subjectData.numberOfWeeks,
           departmentName: subject.department ? subject.department.name : null
         };
       }))

@@ -417,6 +417,13 @@ teacherRoutes.post('/create-many', isAuth, async (req, res) => {
 
     const createdTeachers = [];
     const errors = [];
+    let resultData = {
+      action: 'CREATE',
+      user: req.user._id,
+      entityType: 'Teacher',
+      entityId: [],
+      dataAfter: []
+    };
 
     for (const teacherData of teachers) {
       try {
@@ -490,22 +497,23 @@ teacherRoutes.post('/create-many', isAuth, async (req, res) => {
         });
 
         const savedTeacher = await newTeacher.save();
-
-        await Result.create({
-          action: 'CREATE',
-          user: req.user._id,
-          entityType: 'Teacher',
-          entityId: savedTeacher._id,
-          dataAfter: savedTeacher.toObject()
-        });
-
         createdTeachers.push(savedTeacher);
+
+        // Collect data for result
+        resultData.entityId.push(savedTeacher._id);
+        resultData.dataAfter.push(savedTeacher.toObject());
+
       } catch (error) {
         errors.push({ 
           email: teacherData.email, 
           message: error.message || 'Lỗi khi tạo giáo viên' 
         });
       }
+    }
+
+    // Create result record if there are successfully created teachers
+    if (resultData.entityId.length > 0) {
+      await Result.create(resultData);
     }
 
     res.status(201).json({

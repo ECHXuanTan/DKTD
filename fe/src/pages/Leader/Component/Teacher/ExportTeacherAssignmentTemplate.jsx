@@ -9,6 +9,7 @@ const ExportTeacherAssignmentTemplate = () => {
   const [teachers, setTeachers] = useState([]);
   const [classes, setClasses] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
+  const MAX_CLASS_COLUMNS = 5;
 
   useEffect(() => {
     fetchData();
@@ -52,7 +53,7 @@ const ExportTeacherAssignmentTemplate = () => {
       const validationSheet = workbook.addWorksheet('ValidationLists');
       validationSheet.state = 'hidden';
 
-      validationSheet.addRow(['Teachers', 'Classes', 'RemainingLessons', 'Subject']);
+      validationSheet.addRow(['Teachers', 'Classes', 'RemainingLessons']);
       const teacherCol = validationSheet.getColumn('A');
       teacherCol.values = ['Teachers', ...teachers.map(t => t.name)];
       const teacherRange = `ValidationLists!$A$2:$A$${teachers.length + 1}`;
@@ -61,14 +62,13 @@ const ExportTeacherAssignmentTemplate = () => {
       classes.forEach(c => {
         validationSheet.getCell(`B${validationRow}`).value = c.name;
         validationSheet.getCell(`C${validationRow}`).value = c.remainingLessons;
-        validationSheet.getCell(`D${validationRow}`).value = c.subject;
         validationRow++;
       });
       const classRange = `ValidationLists!$B$2:$B$${classes.length + 1}`;
 
       const headers = ['Tên giáo viên'];
-      for (let i = 0; i < 5; i++) {
-        headers.push(`Mã lớp ${i + 1}`, 'Số tiết trống', 'Môn học', 'Số tiết');
+      for (let i = 0; i < MAX_CLASS_COLUMNS; i++) {
+        headers.push(`Mã lớp ${i + 1}`, 'Số tiết trống', 'Số tiết');
       }
 
       mainSheet.addRow(headers);
@@ -94,21 +94,15 @@ const ExportTeacherAssignmentTemplate = () => {
       for (let i = 2; i <= 1000; i++) {
         const row = mainSheet.addRow([]);
         
-        for (let j = 0; j < 5; j++) {
-          const classCol = 2 + j * 4;
+        for (let j = 0; j < MAX_CLASS_COLUMNS; j++) {
+          const classCol = 2 + j * 3;
           const remainingCol = classCol + 1;
-          const subjectCol = classCol + 2;
           
-          const cellRemaining = mainSheet.getCell(`${String.fromCharCode(64 + remainingCol)}${i}`);
-          cellRemaining.value = {
+          const cell = mainSheet.getCell(`${String.fromCharCode(64 + remainingCol)}${i}`);
+          cell.value = {
             formula: `=IF(ISBLANK(${String.fromCharCode(64 + classCol)}${i}),"",VLOOKUP(${String.fromCharCode(64 + classCol)}${i},ValidationLists!$B$2:$C$${classes.length + 1},2,FALSE))`
           };
-          cellRemaining.numFmt = '0';
-
-          const cellSubject = mainSheet.getCell(`${String.fromCharCode(64 + subjectCol)}${i}`);
-          cellSubject.value = {
-            formula: `=IF(ISBLANK(${String.fromCharCode(64 + classCol)}${i}),"",VLOOKUP(${String.fromCharCode(64 + classCol)}${i},ValidationLists!$B$2:$D$${classes.length + 1},3,FALSE))`
-          };
+          cell.numFmt = '0';
         }
         
         row.eachCell((cell, colNumber) => {
@@ -120,14 +114,12 @@ const ExportTeacherAssignmentTemplate = () => {
       }
 
       mainSheet.getColumn(1).width = 35;
-      for (let i = 0; i < 5; i++) {
-        const classCol = mainSheet.getColumn(2 + i * 4);
-        const remainingCol = mainSheet.getColumn(3 + i * 4);
-        const subjectCol = mainSheet.getColumn(4 + i * 4);
-        const lessonCol = mainSheet.getColumn(5 + i * 4);
+      for (let i = 0; i < MAX_CLASS_COLUMNS; i++) {
+        const classCol = mainSheet.getColumn(2 + i * 3);
+        const remainingCol = mainSheet.getColumn(3 + i * 3);
+        const lessonCol = mainSheet.getColumn(4 + i * 3);
         classCol.width = 20;
         remainingCol.width = 15;
-        subjectCol.width = 20;
         lessonCol.width = 10;
       }
 
@@ -141,9 +133,9 @@ const ExportTeacherAssignmentTemplate = () => {
         error: 'Vui lòng chọn từ danh sách'
       });
 
-      for (let i = 0; i < 5; i++) {
-        const classCol = String.fromCharCode(66 + i * 4);
-        const lessonCol = String.fromCharCode(69 + i * 4);
+      for (let i = 0; i < MAX_CLASS_COLUMNS; i++) {
+        const classCol = String.fromCharCode(66 + i * 3);
+        const lessonCol = String.fromCharCode(68 + i * 3);
 
         mainSheet.dataValidations.add(`${classCol}2:${classCol}1000`, {
           type: 'list',
@@ -193,12 +185,12 @@ const ExportTeacherAssignmentTemplate = () => {
       style={{
         display: 'flex',
         alignItems: 'center',
-        borderRadius: '26px',
         gap: '8px',
         padding: '8px 16px',
         backgroundColor: isLoading ? '#ccc' : '#1976d2',
         color: 'white',
         border: 'none',
+        borderRadius: '4px',
         cursor: isLoading ? 'not-allowed' : 'pointer',
         fontSize: '14px',
         fontWeight: 500,
