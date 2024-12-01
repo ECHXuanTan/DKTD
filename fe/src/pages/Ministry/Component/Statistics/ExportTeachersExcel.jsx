@@ -18,9 +18,19 @@ const ExportTeachersExcel = ({ teachers }) => {
 
   const getReductionReasons = (teacher) => {
     const reasons = [];
-    if (teacher.homeroom?.reductionReason) reasons.push(teacher.homeroom.reductionReason);
-    if (teacher.teacherReduction?.reductionReason) reasons.push(teacher.teacherReduction.reductionReason);
-    return reasons.join(' + ');
+    
+    // Add GVCN if teacher has homeroom
+    if (teacher.homeroomInfo) {
+      reasons.push('GVCN');
+    }
+  
+    // Add other reduction reasons
+    if (teacher.reductions && teacher.reductions.length > 0) {
+      const otherReasons = teacher.reductions.map(reduction => reduction.reductionReason);
+      reasons.push(...otherReasons);
+    }
+  
+    return reasons.join(' + ') || '-';
   };
 
   const processTeacherData = (teachers) => {
@@ -79,8 +89,8 @@ const ExportTeachersExcel = ({ teachers }) => {
       'Ch CS2': teacher.totalLessonsTDS || 0,
       'Bộ môn': teacher.teachingSubjects,
       'Tổng số tiết': teacher.totalAssignment || 0,
-      'Số tiết chuẩn': teacher.basicTeachingLessons,
-      'Số tiết giảm': getTotalReducedLessons(teacher),
+      'Số tiết chuẩn': teacher.basicTeachingLessons, 
+      'Số tiết giảm': teacher.totalReductions,
       'Nội dung giảm': getReductionReasons(teacher),
       'Ghi chú': ''
     }));

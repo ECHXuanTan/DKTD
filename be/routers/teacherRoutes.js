@@ -832,4 +832,27 @@ teacherRoutes.post('/convert-old-reductions', isAuth, async (req, res) => {
   }
 });
 
+teacherRoutes.put('/update-permanent-teachers', isAuth, async (req, res) => {
+  try {
+    const result = await Teacher.updateMany(
+      { type: 'Cơ hữu' },
+      { 
+        $set: { 
+          lessonsPerWeek: 17,
+          teachingWeeks: 18,
+          basicTeachingLessons: 17 * 18
+        } 
+      }
+    );
+
+    res.status(200).json({
+      message: 'Cập nhật thành công số tiết và số tuần cho tất cả giáo viên cơ hữu',
+      modifiedCount: result.modifiedCount
+    });
+
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+});
+
 export default teacherRoutes;

@@ -180,6 +180,7 @@ const TeacherScreen = () => {
         { field: 'homeroom', label: 'Lớp chủ nhiệm', width: '10%' },
         { field: 'lessonsPerWeek', label: 'Số tiết/tuần', width: '8%' },
         { field: 'teachingWeeks', label: 'Số tuần dạy', width: '8%' },
+        { field: 'basicTeachingLessons', label: 'Tiết chuẩn', width: '8%' },
         { field: 'reductions', label: 'Giảm trừ', width: '15%' },
         { field: 'totalReductionLessons', label: 'Tổng số tiết giảm', width: '10%' },
         { field: 'actions', label: 'Thao tác', width: '10%' },
@@ -208,6 +209,7 @@ const TeacherScreen = () => {
         homeroom: teacher.homeroom ? teacher.homeroom.class : '-',
         lessonsPerWeek: teacher.lessonsPerWeek || '-',
         teachingWeeks: teacher.teachingWeeks || '-',
+        basicTeachingLessons: teacher.basicTeachingLessons || '-',
         reductions: getReductionsText(teacher),
         totalReductionLessons: (teacher.totalReducedLessons || 0) + (teacher.homeroom ? teacher.homeroom.totalReducedLessons || 0 : 0),
         actions: (
@@ -291,13 +293,13 @@ const TeacherScreen = () => {
                             >
                                 Tạo nhiều giáo viên
                             </Button>
-                            <Button 
+                            {/* <Button 
                                 onClick={() => setShowHomeroomAssignmentModal(true)}
                                 variant="contained"
                                 style={{ backgroundColor: '#4caf50', fontWeight: '600', borderRadius: '26px' }}
                             >
                                 Phân công chủ nhiệm
-                            </Button>
+                            </Button> */}
                         </Box>
                     </Box>
                     <div className={styles.tableWrapper}>

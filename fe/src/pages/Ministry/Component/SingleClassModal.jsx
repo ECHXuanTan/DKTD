@@ -118,7 +118,7 @@ const SingleClassModal = ({ isOpen, onClose, onClassAdded, subjects }) => {
             toast.error('Sĩ số phải lớn hơn hoặc bằng 1.');
             return;
         }
-
+    
         setIsCreatingClass(true);
         try {
             const classData = {
@@ -139,11 +139,7 @@ const SingleClassModal = ({ isOpen, onClose, onClassAdded, subjects }) => {
             handleClose();
         } catch (error) {
             console.error('Error creating class:', error);
-            if (error.response?.data?.message?.includes('Tên lớp đã tồn tại')) {
-                toast.error(`Lớp ${newClass.name} đã tồn tại.`);
-            } else {
-                toast.error('Đã có lỗi xảy ra');
-            }
+            toast.error(error.response?.data?.message || 'Đã có lỗi xảy ra');
         } finally {
             setIsCreatingClass(false);
         }

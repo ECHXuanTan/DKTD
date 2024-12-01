@@ -18,12 +18,12 @@ const ExportDepartmentTeachers = ({ departmentId, departmentName }) => {
   };
 
   const getTotalReducedLessons = (teacher) => {
-    return (teacher.homeroomInfo?.totalReducedLessons || 0) + (teacher.totalReducedLessons || 0);
+    return (teacher.homeroom?.totalReducedLessons || 0) + (teacher.totalReducedLessons || 0);
   };
 
   const getReductionReasons = (teacher) => {
     const reasons = [];
-    if (teacher.homeroomInfo?.reductionReason) reasons.push(teacher.homeroomInfo.reductionReason);
+    if (teacher.homeroom?.reductionReason) reasons.push(teacher.homeroom.reductionReason);
     if (teacher.reductionReason && teacher.reductionReason.includes(', ')) {
       reasons.push(...teacher.reductionReason.split(', '));
     } else if (teacher.reductionReason) {

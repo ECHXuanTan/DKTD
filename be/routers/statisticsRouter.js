@@ -1244,9 +1244,9 @@ statisticsRouter.get('/export-department-teachers/:departmentId', isAuth, async 
           totalLessonsQ5NS: 1,
           totalLessonsTDS: 1,
           totalLessonsTDNS: 1,
-          reducedLessonsPerWeek: 1,
-          reducedWeeks: 1,
-          reductionReason: 1
+          reducedLessonsPerWeek: { $ifNull: [{ $arrayElemAt: ['$reductions.reducedLessonsPerWeek', 0] }, 0] },
+          reducedWeeks: { $ifNull: [{ $arrayElemAt: ['$reductions.reducedWeeks', 0] }, 0] },
+          reductionReason: { $ifNull: [{ $arrayElemAt: ['$reductions.reductionReason', 0] }, ''] }
         }
       }
     ]);
@@ -1263,7 +1263,8 @@ statisticsRouter.get('/export-department-teachers/:departmentId', isAuth, async 
         totalLessonsTDNS: teacher.totalLessonsTDNS || 0,
         reducedLessonsPerWeek: teacher.reducedLessonsPerWeek || 0,
         reducedWeeks: teacher.reducedWeeks || 0,
-        reductionReason: teacher.reductionReason || ''
+        reductionReason: teacher.reductionReason || '',
+        totalReducedLessons: teacher.totalReducedLessons || 0
       };
     }));
     

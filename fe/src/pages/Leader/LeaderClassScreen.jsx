@@ -42,6 +42,7 @@ const LeaderClassScreen = () => {
     const [actionLoading, setActionLoading] = useState(false);
     const [loadingClassId, setLoadingClassId] = useState(null);
     const [subjectFilter, setSubjectFilter] = useState('');
+    const [statusFilter, setStatusFilter] = useState('');
     const navigate = useNavigate();
 
     useEffect(() => {
@@ -99,6 +100,11 @@ const LeaderClassScreen = () => {
     const handleOpenModal = (classItem, subject) => {
         setSelectedClass({ ...classItem, subject });
         setIsModalOpen(true);
+    };
+
+    const handleStatusFilterChange = (event) => {
+        setStatusFilter(event.target.value);
+        setPage(0);
     };
 
     const handleStartEdit = (classItem, subject) => {
@@ -203,7 +209,15 @@ const LeaderClassScreen = () => {
         const subjectMatch = subjectFilter === '' || classItem.subjects.some(
             subject => subject.subject.name === subjectFilter
         );
-        return nameMatch && gradeMatch && subjectMatch;
+
+        // Add status filter logic
+        const statusMatch = statusFilter === '' || classItem.subjects.every(subject => {
+            const totalDeclaredLessons = subject.assignments?.reduce((sum, a) => sum + a.completedLessons, 0) || 0;
+            const remainingLessons = subject.lessonCount - totalDeclaredLessons;
+            return statusFilter === 'completed' ? remainingLessons === 0 : remainingLessons > 0;
+        });
+
+        return nameMatch && gradeMatch && subjectMatch && statusMatch;
     });
 
     const paginatedClasses = filteredClasses.slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage);
@@ -258,7 +272,7 @@ const LeaderClassScreen = () => {
                             value={gradeFilter}
                             onChange={handleGradeFilterChange}
                             displayEmpty
-                            style={{ width: '200px', marginRight: '10px' }}
+                            style={{ width: '200px'}}
                         >
                             <MenuItem value="">Tất cả khối</MenuItem>
                             {uniqueGrades.map((grade) => (
@@ -275,6 +289,16 @@ const LeaderClassScreen = () => {
                             {uniqueSubjects.map((subject) => (
                                 <MenuItem key={subject} value={subject}>{subject}</MenuItem>
                             ))}
+                        </Select>
+                        <Select
+                            value={statusFilter}
+                            onChange={handleStatusFilterChange}
+                            displayEmpty
+                            style={{ minWidth: '180px' }}
+                        >
+                            <MenuItem value="">Tất cả trạng thái</MenuItem>
+                            <MenuItem value="completed">Đã hoàn thành</MenuItem>
+                            <MenuItem value="incomplete">Chưa hoàn thành</MenuItem>
                         </Select>
                         </Box>
 
@@ -472,7 +496,7 @@ const LeaderClassScreen = () => {
                                             <TableRow key={`${classItem._id}-${subject.subject.name}`}>
                                                 {subjectIndex === 0 && (
                                                     <>
-                                                        <TableCell rowSpan={rowSpan}>{page * rowsPerPage + index + 1}</TableCell>
+                                                        <TableCell style={{textAlign: 'center'}} rowSpan={rowSpan}>{page * rowsPerPage + index + 1}</TableCell>
                                                         <TableCell rowSpan={rowSpan}>{classItem.name}</TableCell>
                                                     </>
                                                 )}

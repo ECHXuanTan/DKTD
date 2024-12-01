@@ -336,31 +336,9 @@ classRouter.post('/create-class', isAuth, async (req, res) => {
   try {
     const { name, grade, campus, subjects, size } = req.body;
  
-    // Validate single subject
     if (subjects.length !== 1) {
       throw new Error('Mỗi lớp chỉ được phép có một môn học');
     }
- 
-    // Kiểm tra lớp có tồn tại và có môn học trùng không
-    const existingClass = await Class.findOne({ name }).populate('subjects.subject');
-    if (existingClass) {
-      // Kiểm tra các môn học mới có trùng với các môn học hiện có không
-      const newSubjectNames = subjects.map(s => s.subjectName);
-      const existingSubjectNames = existingClass.subjects.map(s => s.subject.name);
-      const duplicateSubjects = newSubjectNames.filter(name => existingSubjectNames.includes(name));
- 
-      if (duplicateSubjects.length > 0) {
-        throw new Error(`Lớp ${name} đã tồn tại với các môn: ${duplicateSubjects.join(', ')}`);
-      }
-    }
- 
-    const newClass = new Class({
-      name,
-      grade,
-      campus,
-      size,
-      subjects: []
-    });
  
     const subjectData = subjects[0];
     const { subjectId, periodsPerWeek, numberOfWeeks } = subjectData;
@@ -370,12 +348,32 @@ classRouter.post('/create-class', isAuth, async (req, res) => {
     if (!subject) {
       throw new Error(`Không tìm thấy môn học với ID: ${subjectId}`);
     }
-    
-    newClass.subjects.push({
-      subject: subject._id,
-      periodsPerWeek: parseInt(periodsPerWeek),
-      numberOfWeeks: parseInt(numberOfWeeks),
-      lessonCount
+
+    const existingClass = await Class.findOne({ name })
+      .populate('subjects.subject')
+      .session(session);
+
+    if (existingClass) {
+      const hasSubject = existingClass.subjects.some(
+        s => s.subject._id.toString() === subjectId
+      );
+
+      if (hasSubject) {
+        throw new Error(`Lớp ${name} đã tồn tại với môn học này`);
+      }
+    }
+ 
+    const newClass = new Class({
+      name,
+      grade,
+      campus,
+      size,
+      subjects: [{
+        subject: subject._id,
+        periodsPerWeek: parseInt(periodsPerWeek),
+        numberOfWeeks: parseInt(numberOfWeeks),
+        lessonCount
+      }]
     });
     
     await Department.findByIdAndUpdate(
@@ -405,7 +403,7 @@ classRouter.post('/create-class', isAuth, async (req, res) => {
   } finally {
     session.endSession();
   }
- });
+});
 
 // Multiple classes creation endpoint
 classRouter.post('/create-classes', isAuth, async (req, res) => {
