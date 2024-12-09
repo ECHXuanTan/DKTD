@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Helmet } from 'react-helmet';
+import { Helmet } from 'react-helmet-async';
 import { useNavigate, Link } from 'react-router-dom';
 import { getUser } from '../../services/authServices.js';
 import { getDepartmentStatistics } from '../../services/statisticsServices';

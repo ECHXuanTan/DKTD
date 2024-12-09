@@ -16,7 +16,6 @@ const ClassScreen = lazy(() => import('./pages/Ministry/ClassScreen'));
 const TeacherScreen = lazy(() => import('./pages/Ministry/TeacherScreen'));
 const SubjectScreen  = lazy(() => import('./pages/Ministry/SubjectScreen'));
 const LeaderDeclare = lazy(() => import('./pages/Leader/LeaderDeclareScrenn'));
-const TeacherDeclareScreen = lazy(() => import('./pages/Leader/TeacherDeclareScreen'));
 const LeaderClassScreen = lazy(() => import('./pages/Leader/LeaderClassScreen'));
 
 const MinistryTeacherStatic = lazy(() => import('./pages/Ministry/MinistryTeacherStatic'));
@@ -71,9 +70,7 @@ const App = () => {
             <Route path="/ministry/subject-statistics" element={<MinistrySubjectStatistics />} />
 
             <Route path="/leader-declare" element={<LeaderDeclare />} />
-            <Route path="/declare-teacher/:id" element={<TeacherDeclareScreen />} />
             <Route path="/leader/class-statistics" element={<LeaderClassScreen />} />
-            {/* <Route path="/leader/warning" element={<LeaderWarning />} /> */}
           </Routes>
         </Suspense>
       </Router>

@@ -11,7 +11,7 @@ import VisibilityIcon from '@mui/icons-material/Visibility';
 import { Circles } from 'react-loader-spinner';
 import Header from '../../components/Header.js';
 import Footer from '../../components/Footer.js';
-import { Helmet } from 'react-helmet';
+import { Helmet } from 'react-helmet-async';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 
 export default function AdminActionResultScreen() {

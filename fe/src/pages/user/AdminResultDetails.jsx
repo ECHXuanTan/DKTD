@@ -6,6 +6,7 @@ import { getResultById } from '../../services/resultServices';
 import { getUser } from '../../services/authServices.js';
 import { Circles } from 'react-loader-spinner';
 import styles from '../../css/Admin/AdminResultDetail.module.css';
+import { Helmet } from 'react-helmet-async';
 
 const AdminResultDetail = () => {
   const [result, setResult] = useState(null);
@@ -170,6 +171,11 @@ const AdminResultDetail = () => {
     if (!data) return <p>Không có dữ liệu</p>;
   
     return (
+      <>
+      <Helmet>
+        <title>Kết quả khai báo tiết dạy</title>
+        <meta name="description" content="Trang quản trị kết quả khai báo tiết dạy" />
+      </Helmet>
       <div className={styles.classGrid}>
         <div className={styles.infoColumn}>
           <div className={styles.infoCard}>
@@ -207,6 +213,8 @@ const AdminResultDetail = () => {
           </div>
         </div>
       </div>
+      </>
+      
     );
   };
 
