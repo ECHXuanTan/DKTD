@@ -36,7 +36,7 @@ const corsOptions = {
       process.env.FRONTEND_URL,
       'http://localhost:3000',
       'https://khaibao-client.onrender.com',
-      'https://kbgd.api-ptnk.edu.vn'
+      'https://kbgd.ptnk.edu.vn'
     ].filter(Boolean);
 
     if (!origin || allowedOrigins.indexOf(origin) !== -1) {
