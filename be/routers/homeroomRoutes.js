@@ -6,13 +6,35 @@ const homeroomRouters = express.Router();
 // Create a new homeroom
 homeroomRouters.post('/', async (req, res) => {
   try {
-    const homeroom = new Homeroom(req.body);
-    await homeroom.save();
-    res.status(201).json(homeroom);
+    const { teacherId, classData, reducedLessonsPerWeek, reducedWeeks } = req.body;
+
+    // Create new class with empty subjects array
+    const newClass = new Class({
+      ...classData,
+      subjects: []
+    });
+    const savedClass = await newClass.save();
+
+    // Create homeroom with the new class
+    const homeroom = new Homeroom({
+      teacher: teacherId,
+      class: savedClass._id,
+      reducedLessonsPerWeek,
+      reducedWeeks,
+      totalReducedLessons: reducedLessonsPerWeek * reducedWeeks,
+      reductionReason: 'Chủ nhiệm lớp'
+    });
+    
+    const savedHomeroom = await homeroom.save();
+    const populatedHomeroom = await Homeroom.findById(savedHomeroom._id)
+      .populate('teacher')
+      .populate('class');
+
+    res.status(201).json(populatedHomeroom);
   } catch (error) {
     res.status(400).json({ message: error.message });
   }
-}); 
+});
 
 // Get all homerooms
 homeroomRouters.get('/', async (req, res) => {

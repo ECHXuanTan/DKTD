@@ -257,6 +257,7 @@ teacherRoutes.get('/', isAuth, async (req, res) => {
       return {
         ...teacher,
         homeroom: homeroom ? {
+          classId: homeroom.class._id,
           class: homeroom.class.name,
           grade: homeroom.class.grade,
           reducedLessonsPerWeek: homeroom.reducedLessonsPerWeek,
@@ -528,10 +529,10 @@ teacherRoutes.post('/create-many', isAuth, async (req, res) => {
 
 teacherRoutes.post('/assign-homeroom', isAuth, async (req, res) => {
   try {
-    const { teacherId, classId, reducedLessonsPerWeek, reducedWeeks } = req.body;
+    const { teacherId, classData, reducedLessonsPerWeek, reducedWeeks } = req.body;
 
-    if (!teacherId || !classId) {
-      return res.status(400).json({ message: 'ID giáo viên và ID lớp là bắt buộc' });
+    if (!teacherId || !classData) {
+      return res.status(400).json({ message: 'ID giáo viên và thông tin lớp là bắt buộc' });
     }
 
     const teacher = await Teacher.findById(teacherId);
@@ -539,22 +540,24 @@ teacherRoutes.post('/assign-homeroom', isAuth, async (req, res) => {
       return res.status(404).json({ message: 'Không tìm thấy giáo viên' });
     }
 
-    const classObj = await Class.findById(classId);
-    if (!classObj) {
-      return res.status(404).json({ message: 'Không tìm thấy lớp học' });
-    }
+    // Create new class with empty subjects array
+    const newClass = new Class({
+      name: classData.name,
+      grade: classData.grade,
+      campus: classData.campus,
+      size: classData.size,
+      subjects: []
+    });
+    
+    const savedClass = await newClass.save();
 
-    // Check if there's already a homeroom assignment for this class
-    const existingHomeroom = await Homeroom.findOne({ class: classId });
-    if (existingHomeroom) {
-      return res.status(400).json({ message: 'Lớp học này đã có giáo viên chủ nhiệm' });
-    }
-
+    // Calculate total reduced lessons
     const totalReducedLessons = reducedLessonsPerWeek * reducedWeeks;
 
+    // Create new homeroom assignment
     const newHomeroom = new Homeroom({
       teacher: teacherId,
-      class: classId,
+      class: savedClass._id,
       reducedLessonsPerWeek,
       reducedWeeks,
       totalReducedLessons,
@@ -563,36 +566,21 @@ teacherRoutes.post('/assign-homeroom', isAuth, async (req, res) => {
 
     const savedHomeroom = await newHomeroom.save();
 
-    // Update teacher's reduction information
-    teacher.reducedLessonsPerWeek += reducedLessonsPerWeek;
-    teacher.reducedWeeks += reducedWeeks;
-    teacher.totalReducedLessons += totalReducedLessons;
-    teacher.reductionReason = teacher.reductionReason 
-      ? `${teacher.reductionReason}, GVCN` 
-      : "GVCN";
-
-    const updatedTeacher = await teacher.save();
-
-    await Result.create({
-      action: 'CREATE',
-      user: req.user._id,
-      entityType: 'Homeroom',
-      entityId: savedHomeroom._id,
-      dataAfter: savedHomeroom.toObject()
-    });
-
-    await Result.create({
-      action: 'UPDATE',
-      user: req.user._id,
-      entityType: 'Teacher',
-      entityId: teacher._id,
-      dataAfter: updatedTeacher.toObject()
-    });
+    // Record the changes in Result collection
+    await Promise.all([
+      Result.create({
+        action: 'CREATE',
+        user: req.user._id,
+        entityType: 'Class',
+        entityId: savedClass._id,
+        dataAfter: savedClass.toObject()
+      }),
+    ]);
 
     res.json({
-      message: 'Đã chỉ định lớp chủ nhiệm và cập nhật thông tin giảm giờ thành công',
+      message: 'Đã tạo lớp mới, chỉ định lớp chủ nhiệm và cập nhật thông tin giảm giờ thành công',
+      class: savedClass,
       homeroom: savedHomeroom,
-      teacher: updatedTeacher
     });
   } catch (error) {
     console.error('Error assigning homeroom:', error);
@@ -725,110 +713,6 @@ teacherRoutes.delete('/delete/:id', isAuth, async (req, res) => {
   } catch (error) {
     console.error('Error deleting teacher:', error);
     res.status(500).json({ message: 'Lỗi server khi xóa giáo viên', error: error.message });
-  }
-});
-
-teacherRoutes.post('/reset-assignments', isAuth, async (req, res) => {
-  try {
-    // Lấy danh sách giáo viên trước khi cập nhật để lưu vào Result
-    const teachersBefore = await Teacher.find().lean();
-    
-    // Cập nhật totalAssignment và declaredTeachingLessons về 0 cho tất cả giáo viên
-    const result = await Teacher.updateMany(
-      {}, // filter rỗng để cập nhật tất cả documents
-      { $set: { 
-          totalAssignment: 0,
-          declaredTeachingLessons: 0 
-        } 
-      }
-    );
-
-    // Lấy danh sách giáo viên sau khi cập nhật
-    const teachersAfter = await Teacher.find().lean();
-
-    // Ghi log cho mỗi giáo viên đã được cập nhật
-    await Promise.all(teachersAfter.map(async (teacherAfter) => {
-      const teacherBefore = teachersBefore.find(t => t._id.toString() === teacherAfter._id.toString());
-      
-      await Result.create({
-        action: 'UPDATE',
-        user: req.user._id,  
-        entityType: 'Teacher',
-        entityId: teacherAfter._id,
-        dataBefore: teacherBefore,
-        dataAfter: teacherAfter
-      });
-    }));
-
-    res.json({
-      message: 'Đã reset totalAssignment và declaredTeachingLessons của tất cả giáo viên về 0',
-      modifiedCount: result.modifiedCount
-    });
-  } catch (error) {
-    console.error('Error resetting teacher assignments:', error);
-    res.status(500).json({ 
-      message: 'Lỗi khi reset dữ liệu của giáo viên', 
-      error: error.message 
-    });
-  }
-});
-
-teacherRoutes.post('/convert-old-reductions', isAuth, async (req, res) => {
-  try {
-    const updates = await Teacher.updateMany(
-      {
-        $and: [
-          { reductions: { $exists: true, $size: 0 } },
-          { $or: [
-            { reducedLessonsPerWeek: { $exists: true, $ne: null } },
-            { reducedWeeks: { $exists: true, $ne: null } },
-            { reductionReason: { $exists: true, $ne: null } }
-          ]}
-        ]
-      },
-      [
-        {
-          $set: {
-            reductions: {
-              $cond: {
-                if: {
-                  $and: [
-                    { $gt: ["$reducedLessonsPerWeek", 0] },
-                    { $gt: ["$reducedWeeks", 0] },
-                    { $ne: ["$reductionReason", ""] }
-                  ]
-                },
-                then: [{
-                  reducedLessonsPerWeek: "$reducedLessonsPerWeek",
-                  reducedWeeks: "$reducedWeeks",
-                  reductionReason: "$reductionReason",
-                  reducedLessons: { $multiply: ["$reducedLessonsPerWeek", "$reducedWeeks"] }
-                }],
-                else: []
-              }
-            },
-            totalReducedLessons: {
-              $multiply: [
-                { $ifNull: ["$reducedLessonsPerWeek", 0] },
-                { $ifNull: ["$reducedWeeks", 0] }
-              ]
-            },
-            reducedLessonsPerWeek: "$$REMOVE",
-            reducedWeeks: "$$REMOVE",
-            reductionReason: "$$REMOVE"
-          }
-        }
-      ]
-    );
-
-    res.json({
-      success: true,
-      message: 'Đã chuyển đổi dữ liệu giảm trừ thành công',
-      modifiedCount: updates.modifiedCount
-    });
-
-  } catch (error) {
-    res.status(500).json({ success: false, error: error.message });
   }
 });
 

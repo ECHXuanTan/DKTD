@@ -14,6 +14,7 @@ const AdminDepartment = lazy(() => import('./pages/user/AdminDepartment'));
 const MinistryDeclare = lazy(() => import('./pages/Ministry/MinistryDeclareScreen'));
 const ClassScreen = lazy(() => import('./pages/Ministry/ClassScreen'));
 const TeacherScreen = lazy(() => import('./pages/Ministry/TeacherScreen'));
+const SubjectScreen  = lazy(() => import('./pages/Ministry/SubjectScreen'));
 const LeaderDeclare = lazy(() => import('./pages/Leader/LeaderDeclareScrenn'));
 const TeacherDeclareScreen = lazy(() => import('./pages/Leader/TeacherDeclareScreen'));
 const LeaderClassScreen = lazy(() => import('./pages/Leader/LeaderClassScreen'));
@@ -64,6 +65,7 @@ const App = () => {
             <Route path="/ministry-declare" element={<MinistryDeclare />} />
             <Route path="/ministry-class" element={<ClassScreen />} />
             <Route path="/ministry-teacher" element={<TeacherScreen />} />
+            <Route path="/ministry-subject" element={<SubjectScreen />} />
             <Route path="/ministry/teacher-statistics" element={<MinistryTeacherStatic />} />
             <Route path="/ministry/class-statistics" element={<MinistryClassStatistics />} />
             <Route path="/ministry/subject-statistics" element={<MinistrySubjectStatistics />} />

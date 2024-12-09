@@ -186,6 +186,175 @@
     border-radius: 4px;
 }
 
+.popup {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: rgba(0, 0, 0, 0.5);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 1000;
+}
+
+.popupContent {
+    background-color: white;
+    padding: 2rem;
+    border-radius: 8px;
+    width: 90%;
+    max-width: 600px;
+    max-height: 70vh;
+    overflow-y: auto;
+}
+
+.assignForm {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+    margin-top: 1.5rem;
+}
+
+.formGroup {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.formGroup label {
+    font-weight: 500;
+    color: #333;
+}
+
+.formInput,
+.formSelect {
+    padding: 0.5rem;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+}
+
+.formInput:focus,
+.formSelect:focus {
+    border-color: #4CAF50;
+    outline: none;
+}
+
+.formInput[readonly] {
+    background-color: #f5f5f5;
+    cursor: not-allowed;
+}
+
+.totalLessons {
+    padding: 0.5rem;
+    background-color: #f5f5f5;
+    border-radius: 4px;
+    font-weight: 500;
+}
+
+.popupActions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 1rem;
+    margin-top: 1.5rem;
+}
+
+.submitButton,
+.cancelButton {
+    padding: 0.5rem 1rem;
+    border-radius: 4px;
+    cursor: pointer;
+    font-weight: 500;
+}
+
+.submitButton {
+    background-color: #4CAF50;
+    color: white;
+    border: none;
+}
+
+.submitButton:hover {
+    background-color: #45a049;
+}
+
+.cancelButton {
+    background-color: #f44336;
+    color: white;
+    border: none;
+}
+
+.cancelButton:hover {
+    background-color: #da190b;
+}
+
+.formActions {
+    display: flex;
+    justify-content: flex-end;
+    margin-top: 1rem;
+}
+
+/* Add these new styles to your existing CSS file */
+
+.formRow {
+    display: flex;
+    gap: 1rem;
+    margin-bottom: 1rem;
+    align-items: flex-start;
+}
+
+.formRow .formGroup {
+    flex: 1;
+    margin-bottom: 0;
+}
+
+.formGroup label {
+    display: block;
+    margin-bottom: 0.5rem;
+    font-weight: 500;
+    color: #333;
+}
+
+.totalLessonsGroup {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+}
+
+.totalLessonsGroup label {
+    font-weight: 500;
+    color: #333;
+    margin: 0;
+}
+
+.buttonGroup {
+    flex: 1;
+    display: flex;
+    justify-content: flex-end;
+    gap: 1rem;
+    align-items: center;
+}
+
+.totalLessons {
+    padding: 0.5rem;
+    background-color: #f5f5f5;
+    border-radius: 4px;
+    font-weight: 500;
+    display: inline-block;
+    min-width: 60px;
+    text-align: center;
+}
+
+.submitButton,
+.cancelButton {
+    padding: 0.5rem 1rem;
+    border-radius: 26px;
+    cursor: pointer;
+    font-weight: 500;
+    min-width: 100px;
+    margin: 0 !important;
+}
+
 :global(.Toastify__toast-container) {
     z-index: 10001 !important;
 }

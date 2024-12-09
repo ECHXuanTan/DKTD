@@ -2,71 +2,89 @@ import React, { useState, useEffect } from 'react';
 import Modal from 'react-modal';
 import { toast } from 'react-toastify';
 import { getTeachersWithoutHomeroom, assignHomeroom } from '../../../../services/teacherService';
-import { getUnassignedHomerooms } from '../../../../services/classServices';
 import { getDepartmentNames } from '../../../../services/departmentService';
 import styles from '../../../../css/Ministry/components/HomeroomAssignmentModal.module.css';
 
 const HomeroomAssignmentModal = ({ isOpen, onClose, onAssignmentComplete }) => {
     const [teachers, setTeachers] = useState([]);
-    const [classes, setClasses] = useState([]);
     const [departments, setDepartments] = useState([]);
     const [selectedTeacher, setSelectedTeacher] = useState(null);
-    const [selectedClass, setSelectedClass] = useState('');
-    const [reducedLessonsPerWeek, setReducedLessonsPerWeek] = useState(0);
-    const [reducedWeeks, setReducedWeeks] = useState(0);
     const [showAssignPopup, setShowAssignPopup] = useState(false);
     const [searchQuery, setSearchQuery] = useState('');
     const [selectedDepartment, setSelectedDepartment] = useState('');
-    const [selectedGrade, setSelectedGrade] = useState('');
+    
+    const [classForm, setClassForm] = useState({
+        name: '',
+        grade: '10',
+        campus: 'Quận 5',
+        size: ''
+    });
+    const [reducedLessonsPerWeek, setReducedLessonsPerWeek] = useState(4);
+    const [reducedWeeks, setReducedWeeks] = useState(18);
+
+    const grades = ['10', '11', '12'];
+    const campuses = ['Quận 5', 'Thủ Đức'];
 
     useEffect(() => {
         if (isOpen) {
-            fetchTeachersAndClasses();
-            fetchDepartments();
+            fetchTeachersAndDepartments();
         }
     }, [isOpen]);
 
-    const fetchTeachersAndClasses = async () => {
+    const fetchTeachersAndDepartments = async () => {
         try {
             const teachersData = await getTeachersWithoutHomeroom();
-            const classesData = await getUnassignedHomerooms();
-            setTeachers(teachersData);
-            setClasses(classesData);
-        } catch (error) {
-            console.error('Error fetching data:', error);
-            toast.error('Không thể tải danh sách giáo viên và lớp học');
-        }
-    };
-
-    const fetchDepartments = async () => {
-        try {
             const departmentData = await getDepartmentNames();
+            setTeachers(teachersData);
             setDepartments(departmentData);
         } catch (error) {
-            console.error('Error fetching departments:', error);
-            toast.error('Không thể tải danh sách tổ chuyên môn');
+            console.error('Error fetching data:', error);
+            toast.error('Không thể tải danh sách giáo viên và tổ chuyên môn');
         }
     };
 
     const handleAssign = (teacher) => {
         setSelectedTeacher(teacher);
-        setSelectedGrade('');
-        setSelectedClass('');
+        setClassForm({
+            name: '',
+            grade: '10',
+            campus: 'Quận 5',
+            size: ''
+        });
+        setReducedLessonsPerWeek(4);
+        setReducedWeeks(18);
         setShowAssignPopup(true);
+    };
+
+    const handleClassFormChange = (e) => {
+        const { name, value } = e.target;
+        setClassForm(prev => ({
+            ...prev,
+            [name]: value
+        }));
     };
 
     const handleAssignSubmit = async (e) => {
         e.preventDefault();
-        if (!selectedClass) {
-            toast.error('Vui lòng chọn lớp học');
+        
+        if (!classForm.name || !classForm.grade || !classForm.campus || !classForm.size) {
+            toast.error('Vui lòng điền đầy đủ thông tin lớp học');
             return;
         }
+
         try {
-            await assignHomeroom(selectedTeacher._id, selectedClass, reducedLessonsPerWeek, reducedWeeks);
+            await assignHomeroom(
+                selectedTeacher._id, 
+                classForm,
+                reducedLessonsPerWeek, 
+                reducedWeeks
+            );
+            
             toast.success('Phân công chủ nhiệm thành công');
             setShowAssignPopup(false);
-            await fetchTeachersAndClasses();
+            await fetchTeachersAndDepartments();
             onAssignmentComplete();
+            
             if (teachers.length === 1) {
                 onClose();
             }
@@ -84,20 +102,9 @@ const HomeroomAssignmentModal = ({ isOpen, onClose, onAssignmentComplete }) => {
         setSelectedDepartment(event.target.value);
     };
 
-    const handleGradeChange = (event) => {
-        setSelectedGrade(event.target.value);
-        setSelectedClass('');
-    };
-
     const filteredTeachers = teachers.filter(teacher => 
         teacher.name.toLowerCase().includes(searchQuery.toLowerCase()) &&
         (selectedDepartment ? teacher.department._id === selectedDepartment : true)
-    );
-
-    const grades = [...new Set(classes.map(cls => cls.grade))].sort((a, b) => a - b);
-
-    const filteredClasses = classes.filter(cls => 
-        selectedGrade ? cls.grade === parseInt(selectedGrade) : true
     );
 
     return (
@@ -164,65 +171,110 @@ const HomeroomAssignmentModal = ({ isOpen, onClose, onAssignmentComplete }) => {
                 <div className={styles.popup}>
                     <div className={styles.popupContent}>
                         <h3>Phân Công Chủ Nhiệm cho {selectedTeacher?.name}</h3>
-                        <form onSubmit={handleAssignSubmit}>
-                            <div className={styles.formGroup}>
-                                <label htmlFor="grade">Khối:</label>
-                                <select
-                                    id="grade"
-                                    value={selectedGrade}
-                                    onChange={handleGradeChange}
-                                    required
-                                >
-                                    <option value="">Chọn khối</option>
-                                    {grades.map((grade) => (
-                                        <option key={grade} value={grade}>{grade}</option>
-                                    ))}
-                                </select>
+                        <form onSubmit={handleAssignSubmit} className={styles.assignForm}>
+                            <div className={styles.formRow}>
+                                <div className={styles.formGroup}>
+                                    <label htmlFor="name">Tên lớp:</label>
+                                    <input
+                                        type="text"
+                                        id="name"
+                                        name="name"
+                                        value={classForm.name}
+                                        onChange={handleClassFormChange}
+                                        required
+                                        className={styles.formInput}
+                                    />
+                                </div>
+                                <div className={styles.formGroup}>
+                                    <label htmlFor="grade">Khối:</label>
+                                    <select
+                                        id="grade"
+                                        name="grade"
+                                        value={classForm.grade}
+                                        onChange={handleClassFormChange}
+                                        required
+                                        className={styles.formSelect}
+                                    >
+                                        {grades.map(grade => (
+                                            <option key={grade} value={grade}>{grade}</option>
+                                        ))}
+                                    </select>
+                                </div>
                             </div>
-                            <div className={styles.formGroup}>
-                                <label htmlFor="class">Lớp học:</label>
-                                <select
-                                    id="class"
-                                    value={selectedClass}
-                                    onChange={(e) => setSelectedClass(e.target.value)}
-                                    required
-                                    disabled={!selectedGrade}
-                                >
-                                    <option value="">Chọn lớp học</option>
-                                    {filteredClasses.map((cls) => (
-                                        <option key={cls._id} value={cls._id}>{cls.name}</option>
-                                    ))}
-                                </select>
+
+                            <div className={styles.formRow}>
+                                <div className={styles.formGroup}>
+                                    <label htmlFor="campus">Cơ sở:</label>
+                                    <select
+                                        id="campus"
+                                        name="campus"
+                                        value={classForm.campus}
+                                        onChange={handleClassFormChange}
+                                        required
+                                        className={styles.formSelect}
+                                    >
+                                        {campuses.map(campus => (
+                                            <option key={campus} value={campus}>{campus}</option>
+                                        ))}
+                                    </select>
+                                </div>
+                                <div className={styles.formGroup}>
+                                    <label htmlFor="size">Sĩ số:</label>
+                                    <input
+                                        type="number"
+                                        id="size"
+                                        name="size"
+                                        value={classForm.size}
+                                        onChange={handleClassFormChange}
+                                        required
+                                        min="1"
+                                        className={styles.formInput}
+                                    />
+                                </div>
                             </div>
-                            <div className={styles.formGroup}>
-                                <label htmlFor="reducedLessonsPerWeek">Số tiết chủ nhiệm một tuần:</label>
-                                <input
-                                    type="number"
-                                    id="reducedLessonsPerWeek"
-                                    value={reducedLessonsPerWeek}
-                                    onChange={(e) => setReducedLessonsPerWeek(Number(e.target.value))}
-                                    required
-                                    min="0"
-                                />
+
+                            <div className={styles.formRow}>
+                                <div className={styles.formGroup}>
+                                    <label htmlFor="reducedLessonsPerWeek">Số tiết chủ nhiệm một tuần:</label>
+                                    <input
+                                        type="number"
+                                        id="reducedLessonsPerWeek"
+                                        value={reducedLessonsPerWeek}
+                                        onChange={(e) => setReducedLessonsPerWeek(Number(e.target.value))}
+                                        required
+                                        min="0"
+                                        className={styles.formInput}
+                                        readOnly
+                                    />
+                                </div>
+                                <div className={styles.formGroup}>
+                                    <label htmlFor="reducedWeeks">Số tuần chủ nhiệm:</label>
+                                    <input
+                                        type="number"
+                                        id="reducedWeeks"
+                                        value={reducedWeeks}
+                                        onChange={(e) => setReducedWeeks(Number(e.target.value))}
+                                        required
+                                        min="0"
+                                        className={styles.formInput}
+                                        readOnly
+                                    />
+                                </div>
                             </div>
-                            <div className={styles.formGroup}>
-                                <label htmlFor="reducedWeeks">Số tuần chủ nhiệm:</label>
-                                <input
-                                    type="number"
-                                    id="reducedWeeks"
-                                    value={reducedWeeks}
-                                    onChange={(e) => setReducedWeeks(Number(e.target.value))}
-                                    required
-                                    min="0"
-                                />
-                            </div>
-                            <div className={styles.formGroup}>
-                                <label>Tổng số tiết chủ nhiệm:</label>
-                                <span>{reducedLessonsPerWeek * reducedWeeks}</span>
-                            </div>
-                            <div className={styles.popupActions}>
-                                <button type="submit" className={styles.submitButton}>Phân Công</button>
-                                <button type="button" onClick={() => setShowAssignPopup(false)} className={styles.cancelButton}>Hủy</button>
+
+                            <div className={styles.formRow}>
+                                <div className={styles.totalLessonsGroup}>
+                                    <label>Tổng số tiết chủ nhiệm:</label>
+                                    <span className={styles.totalLessons}>
+                                        {reducedLessonsPerWeek * reducedWeeks}
+                                    </span>
+                                </div>
+                                <div className={styles.buttonGroup}>
+                                    <button type="submit" className={styles.submitButton}>Phân Công</button>
+                                    <button type="button" onClick={() => setShowAssignPopup(false)} className={styles.cancelButton}>
+                                        Hủy
+                                    </button>
+                                </div>
                             </div>
                         </form>
                     </div>

@@ -26,16 +26,15 @@ export const getUser = async () => {
 };
 
 export const authService = {
-  checkUser: async (userData) => {
+  googleLogin: async (data) => {
     try {
-      const response = await api.post('/api/auth/check-user', userData);
+      const response = await api.post('/api/auth/google-login', data);
       if (response.data.success && response.data.token) {
         localStorage.setItem('userToken', response.data.token);
       }
       return response.data;
     } catch (error) {
-      console.error('Error checking user:', error);
       throw error;
     }
-  },
+  }
 };

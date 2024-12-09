@@ -116,4 +116,61 @@ subjectRouter.get('/department/:departmentId', isAuth, async (req, res) => {
     }
 });
 
+subjectRouter.put('/:id', isAuth, async (req, res) => {
+  try {
+    const { name, department, isSpecialized } = req.body;
+    const subjectId = req.params.id;
+
+    if (!mongoose.Types.ObjectId.isValid(subjectId)) {
+      return res.status(400).json({ message: 'Invalid subject ID' });
+    }
+
+    const updatedSubject = await Subject.findByIdAndUpdate(
+      subjectId,
+      {
+        name,
+        department,
+        isSpecialized: isSpecialized || false
+      },
+      { new: true }
+    ).populate('department', 'name');
+
+    if (!updatedSubject) {
+      return res.status(404).json({ message: 'Subject not found' });
+    }
+
+    res.json({
+      message: 'Subject updated successfully',
+      subject: updatedSubject
+    });
+  } catch (error) {
+    console.error('Error updating subject:', error);
+    res.status(500).json({ message: 'Error updating subject', error: error.message });
+  }
+});
+
+subjectRouter.delete('/:id', isAuth, async (req, res) => {
+  try {
+    const subjectId = req.params.id;
+
+    if (!mongoose.Types.ObjectId.isValid(subjectId)) {
+      return res.status(400).json({ message: 'Invalid subject ID' });
+    }
+
+    const deletedSubject = await Subject.findByIdAndDelete(subjectId);
+
+    if (!deletedSubject) {
+      return res.status(404).json({ message: 'Subject not found' });
+    }
+
+    res.json({
+      message: 'Subject deleted successfully',
+      subject: deletedSubject
+    });
+  } catch (error) {
+    console.error('Error deleting subject:', error);
+    res.status(500).json({ message: 'Error deleting subject', error: error.message });
+  }
+});
+
 export default subjectRouter;

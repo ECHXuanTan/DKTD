@@ -311,11 +311,16 @@ export const getTeachersWithoutHomeroom = async () => {
   }
 };
 
-export const assignHomeroom = async (teacherId, classId, reducedLessonsPerWeek, reducedWeeks) => {
+export const assignHomeroom = async (teacherId, classData, reducedLessonsPerWeek, reducedWeeks) => {
   try {
     const userToken = localStorage.getItem('userToken');
     const response = await api.post('api/teachers/assign-homeroom', 
-      { teacherId, classId, reducedLessonsPerWeek, reducedWeeks },
+      { 
+        teacherId, 
+        classData, 
+        reducedLessonsPerWeek, 
+        reducedWeeks 
+      },
       {
         headers: {
           'Content-Type': 'application/json',

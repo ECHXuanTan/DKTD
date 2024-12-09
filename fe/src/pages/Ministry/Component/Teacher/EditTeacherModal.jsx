@@ -3,6 +3,7 @@ import Modal from 'react-modal';
 import { toast } from 'react-toastify';
 import { updateTeacher } from '../../../../services/teacherService';
 import { deleteHomeroom } from '../../../../services/homeroomService';
+import { deleteClass } from '../../../../services/classServices';
 import styles from '../../../../css/Ministry/components/EditTeacherModalStyles.module.css';
 
 const EditTeacherModal = ({ 
@@ -148,6 +149,8 @@ const EditTeacherModal = ({
             
             if (!isHomeroom && teacher.homeroom) {
                 await deleteHomeroom(teacher._id);
+                await deleteClass(teacher.homeroom.classId);
+                updatedTeacherData.homeroom = null;
             }
             
             onClose();

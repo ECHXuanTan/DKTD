@@ -293,13 +293,13 @@ const TeacherScreen = () => {
                             >
                                 Tạo nhiều giáo viên
                             </Button>
-                            {/* <Button 
+                            <Button 
                                 onClick={() => setShowHomeroomAssignmentModal(true)}
                                 variant="contained"
                                 style={{ backgroundColor: '#4caf50', fontWeight: '600', borderRadius: '26px' }}
                             >
                                 Phân công chủ nhiệm
-                            </Button> */}
+                            </Button>
                         </Box>
                     </Box>
                     <div className={styles.tableWrapper}>

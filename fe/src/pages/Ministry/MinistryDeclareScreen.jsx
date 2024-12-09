@@ -10,7 +10,6 @@ import Header from '../../components/Header.js';
 import Footer from '../../components/Footer.js';
 import { getAllDepartment } from '../../services/departmentService.js';
 import { getUser } from '../../services/authServices.js';
-import { getTeacherByEmail } from '../../services/teacherService.js';
 import { Box, Typography, MenuItem, Select, Paper, Table, TableBody, TableCell, TableContainer, TableHead, TableRow } from '@mui/material';
 
 Modal.setAppElement('#root');
@@ -65,6 +64,8 @@ const MinistryDeclare = () => {
             navigate('/ministry-class');
         } else if (event.target.value === 'teacher') {
             navigate('/ministry-teacher');
+        } else if (event.target.value === 'subject') {
+            navigate('/ministry-subject');
         }
     };
 
@@ -127,6 +128,7 @@ const MinistryDeclare = () => {
                         <MenuItem value="" disabled>Khai báo</MenuItem>
                         <MenuItem value="class">Lớp học</MenuItem>
                         <MenuItem value="teacher">Giáo viên</MenuItem>
+                        <MenuItem value="subject">Môn học</MenuItem>
                     </Select>
                     <Select
                         value={statisticsOption}

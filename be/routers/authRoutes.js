@@ -1,50 +1,51 @@
 import express from 'express';
 import User from '../models/userModel.js';
 import { generateToken, generateKeyPair } from '../utils.js';
+import { OAuth2Client } from 'google-auth-library';
 
+const client = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
 const authRoutes = express.Router();
 
-authRoutes.post('/check-user', async (req, res) => {
+authRoutes.post('/google-login', async (req, res) => {
     try {
-        const { email, googleId, name, password } = req.body;
-
-        let user = await User.findOne({ email });
-
-        if (user) {
-            if (googleId && user.googleId !== googleId) {
-                user.googleId = googleId;
-                await user.save();
-            }
-
-            if (password) {
-                const isMatch = await user.matchPassword(password);
-                if (!isMatch) {
-                    return res.status(401).json({ 
-                        success: false, 
-                        message: 'Invalid credentials'
-                    });
-                }
-            }
-
-            const token = generateToken(user);
-            return res.json({ 
-                success: true, 
-                token: token,
-                role: user.role
-            });
+      const { credential } = req.body;
+      
+      // Verify Google ID token
+      const ticket = await client.verifyIdToken({
+        idToken: credential,
+        audience: process.env.GOOGLE_CLIENT_ID
+      });
+      
+      const payload = ticket.getPayload();
+      const { email, name, sub: googleId } = payload;
+  
+      // Tìm user trong database
+      let user = await User.findOne({ email });
+      if (user) {
+        if (googleId && user.googleId !== googleId) {
+          user.googleId = googleId;
+          await user.save();
         }
-
-        return res.status(404).json({ 
-            success: false, 
-            message: 'User not found',
-            userInfo: { name, email }
+        
+        const token = generateToken(user);
+        return res.json({
+          success: true,
+          token,
+          role: user.role
         });
-
+      }
+  
+      return res.status(404).json({
+        success: false,
+        message: 'User not found',
+        userInfo: { name, email }
+      });
+  
     } catch (error) {
-        console.error('Error checking user:', error);
-        res.status(500).json({ success: false, message: 'Server error' });
+      console.error('Google login error:', error);
+      res.status(500).json({ success: false, message: 'Server error' });
     }
-});
+  });
 
 authRoutes.post('/create-user', async (req, res) => {
     try {
