@@ -102,7 +102,7 @@ const AdminDashboard = () => {
     .reduce((sum, dept) => sum + dept.teachersBelowBasic, 0);
 
   const handleViewDepartmentDetail = (departmentId) => {
-    navigate(`/admin-dashboard/department/${departmentId}`);
+    navigate(`/admin/${departmentId}`);
   };
 
   if (loading) {

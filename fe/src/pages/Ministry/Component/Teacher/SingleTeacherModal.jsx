@@ -214,14 +214,16 @@ const SingleTeacherModal = ({ isOpen, onClose, departments, nonSpecializedSubjec
                             value={newTeacher.teachingSubjects}
                             onChange={handleInputChange}
                             required
-                        >
+                            >
                             <option value="">Chọn môn học</option>
-                            {nonSpecializedSubjects.map((subject) => (
-                                <option key={subject._id} value={subject._id}>
-                                    {subject.name}
-                                </option>
-                            ))}
-                        </select>
+                            {nonSpecializedSubjects
+                                .filter(subject => !['HT', 'PHT', 'HTQT', 'GVĐT', 'VP'].includes(subject.name))
+                                .map((subject) => (
+                                    <option key={subject._id} value={subject._id}>
+                                        {subject.name}
+                                    </option>
+                                ))}
+                            </select>
                     </div>
                     <div className={styles.formGroup}>
                         <label htmlFor="type">Hình thức giáo viên:</label>

@@ -12,6 +12,7 @@ import CloudUploadIcon from '@mui/icons-material/CloudUpload';
 import EditIcon from '@mui/icons-material/Edit';
 import SaveIcon from '@mui/icons-material/Save';
 import CancelIcon from '@mui/icons-material/Cancel';
+import ExportTeacherTemplate from './ExportTeacherTemplate';
 
 Modal.setAppElement('#root');
 
@@ -456,9 +457,7 @@ const MultiTeacherModal = ({ isOpen, onClose, onTeachersAdded }) => {
                     </div>
                 )}
                 <div className={styles.formActions}>
-                    <button type="button" onClick={handleDownloadTemplate} className={styles.downloadButton}>
-                        Tải xuống mẫu Excel
-                    </button>
+                    <ExportTeacherTemplate/>
                     {editingData && (
                         <button type="button" onClick={handleExcelUpload} className={styles.submitButton} disabled={isUploadingExcel || isEditing}>
                             {isUploadingExcel ? (

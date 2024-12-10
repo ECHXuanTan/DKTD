@@ -2,8 +2,8 @@ import React, { useState } from 'react';
 import Modal from 'react-modal';
 import { Circles } from 'react-loader-spinner';
 import { toast } from 'react-toastify';
-import { createClass } from '../../../services/classServices';
-import styles from '../../../css/Ministry/components/SingleClassModal.module.css';
+import { createClass } from '../../../../services/classServices';
+import styles from '../../../../css/Ministry/components/SingleClassModal.module.css';
 
 Modal.setAppElement('#root');
 

@@ -60,7 +60,20 @@ const EditTeacherModal = ({
 
     const handleInputChange = (e) => {
         const { name, value } = e.target;
-        setTeacher(prev => ({ ...prev, [name]: value }));
+        
+        if (name === 'department') {
+            // Tìm department object từ departments array
+            const selectedDepartment = departments.find(dept => dept._id === value);
+            setTeacher(prev => ({ ...prev, department: selectedDepartment }));
+        }
+        else if (name === 'teachingSubjects') {
+            // Tìm subject object từ nonSpecializedSubjects array  
+            const selectedSubject = nonSpecializedSubjects.find(subject => subject._id === value);
+            setTeacher(prev => ({ ...prev, teachingSubjects: selectedSubject }));
+        }
+        else {
+            setTeacher(prev => ({ ...prev, [name]: value }));
+        }
         
         if (name === 'phone') {
             if (value && !validatePhoneNumber(value)) {
@@ -69,7 +82,7 @@ const EditTeacherModal = ({
                 setPhoneError('');
             }
         }
-
+    
         if (name === 'lessonsPerWeek' || name === 'teachingWeeks') {
             const newLessonsPerWeek = name === 'lessonsPerWeek' ? parseInt(value) || 0 : parseInt(teacher.lessonsPerWeek) || 0;
             const newTeachingWeeks = name === 'teachingWeeks' ? parseInt(value) || 0 : parseInt(teacher.teachingWeeks) || 0;
@@ -228,10 +241,12 @@ const EditTeacherModal = ({
                             required
                         >
                             <option value="">Chọn tổ chuyên môn</option>
-                            {departments.map((dept) => (
-                                <option key={dept._id} value={dept._id}>
-                                    {dept.name}
-                                </option>
+                            {departments
+                                .filter(dept => dept.name !== 'Tổ GVĐT')
+                                .map((dept) => (
+                                    <option key={dept._id} value={dept._id}>
+                                        {dept.name}
+                                    </option>
                             ))}
                         </select>
                     </div>

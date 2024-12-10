@@ -1,6 +1,6 @@
 import React from 'react';
 import Modal from 'react-modal';
-import styles from '../../../css/Ministry/components/ModalStyles.module.css';
+import styles from '../../../../css/Ministry/components/ModalStyles.module.css';
 
 const DeleteClassModal = ({ isOpen, onClose, onDeleteClass, classItem }) => {
     return (

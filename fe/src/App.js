@@ -15,6 +15,8 @@ const MinistryDeclare = lazy(() => import('./pages/Ministry/MinistryDeclareScree
 const ClassScreen = lazy(() => import('./pages/Ministry/ClassScreen'));
 const TeacherScreen = lazy(() => import('./pages/Ministry/TeacherScreen'));
 const SubjectScreen  = lazy(() => import('./pages/Ministry/SubjectScreen'));
+
+//Leader
 const LeaderDeclare = lazy(() => import('./pages/Leader/LeaderDeclareScrenn'));
 const LeaderClassScreen = lazy(() => import('./pages/Leader/LeaderClassScreen'));
 
@@ -59,7 +61,7 @@ const App = () => {
             <Route path="/admin-result" element={<AdminActionResultScreen />} />
             <Route path="/admin-action-result/:id" element={<AdminResultDetail />} />
             <Route path="/admin/class-statistics" element={<AdminClassScreen />} />
-            <Route path="/admin-dashboard/department/:departmentId" element={<AdminDepartment />} />
+            <Route path="/admin/:departmentId" element={<AdminDepartment />} />
 
             <Route path="/ministry-declare" element={<MinistryDeclare />} />
             <Route path="/ministry-class" element={<ClassScreen />} />
@@ -70,7 +72,7 @@ const App = () => {
             <Route path="/ministry/subject-statistics" element={<MinistrySubjectStatistics />} />
 
             <Route path="/leader-declare" element={<LeaderDeclare />} />
-            <Route path="/leader/class-statistics" element={<LeaderClassScreen />} />
+            <Route path="/class-statistics" element={<LeaderClassScreen />} />
           </Routes>
         </Suspense>
       </Router>

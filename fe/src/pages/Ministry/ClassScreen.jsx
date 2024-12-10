@@ -20,10 +20,10 @@ import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import useDebounce from '../../hooks/useDebounce'; 
 
 // Lazy loaded components
-const SingleClassModal = lazy(() => import('./Component/SingleClassModal.jsx'));
-const MultiClassModal = lazy(() => import('./Component/MultiClassModal.jsx'));
-const EditSubjectModal = lazy(() => import('./Component/EditSubjectModal.jsx'));
-const DeleteClassModal = lazy(() => import('./Component/DeleteClassModal.jsx'));
+const SingleClassModal = lazy(() => import('./Component/Class/SingleClassModal.jsx'));
+const MultiClassModal = lazy(() => import('./Component/Class/MultiClassModal.jsx'));
+const EditSubjectModal = lazy(() => import('./Component/Class/EditSubjectModal.jsx'));
+const DeleteClassModal = lazy(() => import('./Component/Class/DeleteClassModal.jsx'));
 
 const ClassScreen = () => {
   // State Management

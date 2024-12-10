@@ -627,7 +627,7 @@ const LeaderDashboard = () => {
                                 departmentId={teacher?.department?._id} 
                                 departmentName={currentDepartment}
                             />
-                            <Link to="/leader/class-statistics" style={{ textDecoration: 'none', marginLeft: '10px' }}>
+                            <Link to="/class-statistics" style={{ textDecoration: 'none', marginLeft: '10px' }}>
                                 <Button startIcon={<SchoolIcon />} style={{backgroundColor: '#41a06f',borderRadius: '26px', fontWeight: 'bold'}} variant="contained">
                                   Thống kê theo lớp
                                 </Button>

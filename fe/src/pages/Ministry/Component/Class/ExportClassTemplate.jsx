@@ -47,17 +47,17 @@ const ExportClassTemplate = () => {
       validationSheet.getColumn('A').values = ['Subjects', ...subjects.map(s => s.name)];
       const subjectRange = `ValidationLists!$A$2:$A$${subjects.length + 1}`;
 
-      // Add grade list to validation sheet
-      validationSheet.getColumn('B').values = ['Grade', '10', '11', '12'];
-      const gradeRange = 'ValidationLists!$B$2:$B$4';
-
       // Add campus list to validation sheet
-      validationSheet.getColumn('C').values = ['Campus', 'Quận 5', 'Thủ Đức'];
-      const campusRange = 'ValidationLists!$C$2:$C$3';
+      validationSheet.getColumn('B').values = ['Campus', 'Quận 5', 'Thủ Đức'];
+      const campusRange = 'ValidationLists!$B$2:$B$3';
+
+      // Add grade list to validation sheet
+      validationSheet.getColumn('C').values = ['Grade', '10', '11', '12'];
+      const gradeRange = 'ValidationLists!$C$2:$C$4';
 
       const headers = ['Tên lớp', 'Khối', 'Sĩ số', 'Cơ sở', 'Môn học', 'Số tiết/tuần', 'Số tuần'];
       mainSheet.addRow(headers);
-      
+
       // Style header row
       const headerRow = mainSheet.getRow(1);
       headerRow.eachCell((cell) => {
@@ -77,30 +77,22 @@ const ExportClassTemplate = () => {
         };
       });
 
-      // Add sample data using fetched subjects
-      const sampleMainSubjects = subjects
-        .filter(subject => !subject.isSpecialized && !subject.name.includes('CĐ') && !subject.name.includes('Ch'))
-        .slice(0, 5);
-
+      // Add sample data
       const sampleData = [
-        ...sampleMainSubjects.map(subject => 
-          ['10 ANH TEST', '10', '40', 'Quận 5', subject.name, '2', '35']
-        ),
-        ...sampleMainSubjects.map(subject => 
-          ['11 SINH TEST', '11', '45', 'Thủ Đức', subject.name, '2', '35']
-        )
+        ['10 ANH TEST', '10', '40', 'Quận 5', 'TOÁN', '3', '15'],
+        ['10 ANH TEST', '10', '40', 'Quận 5', 'NGỮ VĂN', '2', '20'],
+        ['10 ANH TEST', '10', '40', 'Quận 5', 'TIẾNG ANH', '3', '15'],
+        ['11 SINH TEST', '11', '45', 'Thủ Đức', 'SINH HỌC', '2', '15'],
+        ['11 SINH TEST', '11', '45', 'Thủ Đức', 'HÓA HỌC', '2', '15']
       ];
 
       sampleData.forEach(row => mainSheet.addRow(row));
 
-      // Add remaining empty rows with styling
-      for (let i = sampleData.length + 2; i <= 1000; i++) {
-        const row = mainSheet.addRow([]);
+      // Style all cells and add validations
+      for (let i = 2; i <= 1000; i++) {
+        const row = mainSheet.getRow(i);
         row.eachCell((cell) => {
-          cell.alignment = {
-            vertical: 'middle',
-            horizontal: 'center'
-          };
+          cell.alignment = { vertical: 'middle', horizontal: 'center' };
         });
       }
 
@@ -144,6 +136,7 @@ const ExportClassTemplate = () => {
         error: 'Vui lòng chọn từ danh sách'
       });
 
+      // Add number validations
       mainSheet.dataValidations.add('C2:C1000', {
         type: 'whole',
         allowBlank: false,
