@@ -4,6 +4,7 @@ import Teacher from '../models/teacherModel.js';
 import User from '../models/userModel.js';
 import Class from '../models/classModels.js';
 import Subject from '../models/subjectModels.js';
+import Department from '../models/departmentModel.js';
 import { isAuth, isAdmin } from '../utils.js';
 
 const resultRoutes = express.Router();
@@ -14,7 +15,6 @@ resultRoutes.get('/all', isAuth, isAdmin, async (req, res) => {
     const limit = 100;
     const skip = (page - 1) * limit;
 
-    // Get total count for pagination
     const totalCount = await Result.countDocuments({});
     
     const existingResult = await Result.find({})
@@ -86,7 +86,6 @@ resultRoutes.get('/all', isAuth, isAdmin, async (req, res) => {
 resultRoutes.get('/:id', isAuth, isAdmin, async (req, res) => {
   try {
     const resultId = req.params.id;
-
     const result = await Result.findById(resultId)
       .populate('user', 'name email role')
       .lean();
@@ -95,9 +94,8 @@ resultRoutes.get('/:id', isAuth, isAdmin, async (req, res) => {
       return res.status(404).json({ message: 'Không tìm thấy kết quả với ID đã cho.' });
     }
 
-    let transformedResult = result;
+    let transformedResult = { ...result };
 
-    // Populate teacher info for user
     if (result.user.role === 1) {
       transformedResult.user.teacher = {
         position: "Giáo vụ",
@@ -120,7 +118,34 @@ resultRoutes.get('/:id', isAuth, isAdmin, async (req, res) => {
       };
     }
 
-    // For Class creation, populate subject names
+    if (result.entityType === 'Teacher') {
+      if (result.dataBefore) {
+        const [departmentBefore, subjectBefore] = await Promise.all([
+          Department.findById(result.dataBefore.department).lean(),
+          Subject.findById(result.dataBefore.teachingSubjects).lean()
+        ]);
+
+        transformedResult.dataBefore = {
+          ...result.dataBefore,
+          department: departmentBefore?.name || 'Unknown Department',
+          teachingSubjects: subjectBefore?.name || 'Unknown Subject'
+        };
+      }
+
+      if (result.dataAfter) {
+        const [departmentAfter, subjectAfter] = await Promise.all([
+          Department.findById(result.dataAfter.department).lean(),
+          Subject.findById(result.dataAfter.teachingSubjects).lean()
+        ]);
+
+        transformedResult.dataAfter = {
+          ...result.dataAfter,
+          department: departmentAfter?.name || 'Unknown Department',
+          teachingSubjects: subjectAfter?.name || 'Unknown Subject'
+        };
+      }
+    }
+
     if (result.entityType === 'Class' && result.dataAfter) {
       if (Array.isArray(result.dataAfter)) {
         const classesWithSubjects = await Promise.all(result.dataAfter.map(async (classData) => {
@@ -139,7 +164,6 @@ resultRoutes.get('/:id', isAuth, isAdmin, async (req, res) => {
       }
     }
 
-    // Populate details for TeacherAssignment CREATE action
     if (result.entityType === 'TeacherAssignment' && result.action === 'CREATE' && result.dataAfter) {
       const [classData, subjectData, teacherData] = await Promise.all([
         Class.findById(result.dataAfter.class).lean(),
@@ -165,7 +189,7 @@ resultRoutes.get('/:id', isAuth, isAdmin, async (req, res) => {
         } : { name: 'Unknown Teacher' }
       };
     }
-    
+
     res.status(200).json({ result: transformedResult });
   } catch (error) {
     console.error('Error in getting result by ID:', error);

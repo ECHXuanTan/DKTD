@@ -83,16 +83,16 @@ if (process.env.NODE_ENV === 'production') {
 app.use(session(sessionConfig));
 
 // Use routes
-app.use('/auth', authRoutes);
-app.use('/results', resultRoutes);
-app.use('/users', userRoutes);
-app.use('/departments', departmentRoutes);
-app.use('/teachers', teacherRoutes);
-app.use('/subjects', subjectRouter);
-app.use('/class', classRouter);
-app.use('/assignment', assignmentRouter);
-app.use('/statistics', statisticsRouter);
-app.use('/homerooms', homeroomRouters);
+app.use('/api/auth', authRoutes);
+app.use('/api/results', resultRoutes);
+app.use('/api/users', userRoutes);
+app.use('/api/departments', departmentRoutes);
+app.use('/api/teachers', teacherRoutes);
+app.use('/api/subjects', subjectRouter);
+app.use('/api/class', classRouter);
+app.use('/api/assignment', assignmentRouter);
+app.use('/api/statistics', statisticsRouter);
+app.use('/api/homerooms', homeroomRouters);
 
 app.get('/', (req, res) => {
   res.status(200).json({

@@ -50,31 +50,41 @@ const AdminDashboard = () => {
   }, [navigate]);
 
   const renderAdminInfo = () => {
-    if (admin.email === 'dnvu.ctv@ptnk.edu.vn') {
-      return (
-        <>
-          <Typography variant="body1"><strong>Họ và tên:</strong> Đặng Nguyên Vũ</Typography>
-          <Typography variant="body1"><strong>Email:</strong> dnvu.ctv@ptnk.edu.vn</Typography>
-          <Typography variant="body1"><strong>Chức vụ:</strong> Cộng tác viên Tổ Phát triển chương trình đào tạo và Đảm bảo chất lượng</Typography>
-        </>
-      );
-    } else if (admin.email === 'hmthong@ptnk.edu.vn') {
-      return (
-        <>
-          <Typography variant="body1"><strong>Họ và tên:</strong> Hoàng Minh Thông</Typography>
-          <Typography variant="body1"><strong>Email:</strong> hmthong@ptnk.edu.vn</Typography>
-          <Typography variant="body1"><strong>Chức vụ:</strong> Tổ trưởng Tổ Phát triển chương trình đào tạo và Đảm bảo chất lượng</Typography>
-        </>
-      );
-    } else {
-      return (
-        <>
-          <Typography variant="body1"><strong>Họ và tên:</strong> {admin.name}</Typography>
-          <Typography variant="body1"><strong>Email:</strong> {admin.email}</Typography>
-        </>
-      );
+    switch (admin.email) {
+      case 'tvu@ptnk.edu.vn':
+        return (
+          <>
+            <Typography variant="h5" gutterBottom><strong>Thông tin Ban giám hiệu:</strong></Typography>
+            <Typography variant="body1">Thầy Trần Vũ - Phó Hiệu trưởng Trường Phổ thông Năng khiếu</Typography>
+          </>
+        );
+        
+      case 'nttmai@ptnk.edu.vn':
+        return (
+          <>
+            <Typography variant="h5" gutterBottom><strong>Thông tin Ban giám hiệu:</strong></Typography>  
+            <Typography variant="body1">Cô Nguyễn Thị Thanh Mai - Hiệu trưởng Trường Phổ thông Năng khiếu</Typography>
+          </>
+        );
+        
+      case 'tndung@ptnk.edu.vn':
+        return (
+          <>
+            <Typography variant="h5" gutterBottom><strong>Thông tin Ban giám hiệu:</strong></Typography>
+            <Typography variant="body1">Thầy Trần Nam Dũng - Phó Hiệu trưởng Trường Phổ thông Năng khiếu</Typography>
+          </>
+        );
+        
+      default:
+        return (
+          <>
+            <Typography variant="h5" gutterBottom><strong>Thông tin quản trị viên:</strong></Typography>
+            <Typography variant="body1"><strong>Họ và tên:</strong> {admin.name}</Typography>
+            <Typography variant="body1"><strong>Email:</strong> {admin.email}</Typography>
+          </>
+        );
     }
-  };
+   };
 
   const handleSearchChange = (event) => {
     setSearchQuery(event.target.value);
@@ -112,6 +122,8 @@ const AdminDashboard = () => {
       </div>
     );
   }
+
+  
 
   return (
     <>

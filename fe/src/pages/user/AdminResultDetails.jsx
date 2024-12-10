@@ -254,13 +254,19 @@ const AdminResultDetail = () => {
               <strong>Chức vụ:</strong> {data.position}
             </p>
             <p className={styles.changeItem}>
-              <strong>Loại giáo viên:</strong> {data.type}
+              <strong>Tổ bộ môn:</strong> {data.department}
+            </p>
+            <p className={styles.changeItem}>
+              <strong>Hình thức giáo viên:</strong> {data.type}
             </p>
           </div>
         </div>
         <div className={styles.infoColumn}>
           <div className={styles.infoCard}>
             <h4>Thông tin giảng dạy</h4>
+            <p className={styles.changeItem}>
+              <strong>Môn học giảng dạy:</strong> {data.teachingSubjects}
+            </p>
             <p className={styles.changeItem}>
               <strong>Số tiết cơ bản:</strong> {data.basicTeachingLessons}
             </p>
