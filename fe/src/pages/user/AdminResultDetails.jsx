@@ -132,29 +132,6 @@ const AdminResultDetail = () => {
     }
   };
 
-  const translateField = (field) => {
-    const translations = {
-      name: 'Tên',
-      email: 'Email',
-      phone: 'Số điện thoại',
-      position: 'Chức vụ',
-      department: 'Tổ bộ môn',
-      isLeader: 'Là tổ trưởng',
-      type: 'Loại giáo viên',
-      totalAssignment: 'Tổng số tiết được phân công',
-      lessonsPerWeek: 'Số tiết/tuần',
-      teachingWeeks: 'Số tuần dạy',
-      basicTeachingLessons: 'Số tiết cơ bản',
-      grade: 'Khối',
-      campus: 'Cơ sở',
-      subject: 'Môn học',
-      completedLessons: 'Số tiết được phân công',
-      class: 'Lớp',
-      lessonCount: 'Số tiết'
-    };
-    return translations[field] || field;
-  };
-
   const formatDate = (dateString) => {
     const options = { 
       year: 'numeric', 
@@ -169,54 +146,109 @@ const AdminResultDetail = () => {
 
   const renderSingleClassChanges = (data) => {
     if (!data) return <p>Không có dữ liệu</p>;
-  
+   
+    if (Array.isArray(data)) {
+      return (
+        <>
+          <Helmet>
+            <title>Kết quả khai báo tiết dạy</title>
+            <meta name="description" content="Trang quản trị kết quả khai báo tiết dạy" />
+          </Helmet>
+          {data.map((classData, index) => (
+            <div key={index}>
+              <h3>Lớp {index + 1}</h3>
+              <div className={styles.classGrid}>
+                <div className={styles.infoColumn}>
+                  <div className={styles.infoCard}>
+                    <h4>Thông tin cơ bản</h4>
+                    <p className={styles.changeItem}>
+                      <strong>Tên lớp:</strong> {classData.name}
+                    </p>
+                    <p className={styles.changeItem}>
+                      <strong>Khối:</strong> {classData.grade}
+                    </p>
+                    <p className={styles.changeItem}>
+                      <strong>Cơ sở:</strong> {classData.campus}
+                    </p>
+                    <p className={styles.changeItem}>
+                      <strong>Sĩ số:</strong> {classData.size}
+                    </p>
+                  </div>
+                </div>
+                <div className={styles.infoColumn}>
+                  <div className={styles.infoCard}>
+                    <h4>Thông tin môn học</h4>
+                    {classData.subjects?.map((subjectData, idx) => (
+                      <div key={idx}>
+                        <p className={styles.changeItem}>
+                          <strong>Môn học:</strong> {subjectData.subjectName}
+                        </p>
+                        <p className={styles.changeItem}>
+                          <strong>Tổng số tiết:</strong> {subjectData.lessonCount}
+                        </p>
+                        <p className={styles.changeItem}>
+                          <strong>Số tiết/tuần:</strong> {subjectData.periodsPerWeek}
+                        </p>
+                        <p className={styles.changeItem}>
+                          <strong>Số tuần:</strong> {subjectData.numberOfWeeks}
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </div>
+          ))}
+        </>
+      );
+    }
+   
     return (
       <>
-      <Helmet>
-        <title>Kết quả khai báo tiết dạy</title>
-        <meta name="description" content="Trang quản trị kết quả khai báo tiết dạy" />
-      </Helmet>
-      <div className={styles.classGrid}>
-        <div className={styles.infoColumn}>
-          <div className={styles.infoCard}>
-            <h4>Thông tin cơ bản</h4>
-            <p className={styles.changeItem}>
-              <strong>Khối:</strong> {data.grade}
-            </p>
-            <p className={styles.changeItem}>
-              <strong>Cơ sở:</strong> {data.campus}
-            </p>
-            <p className={styles.changeItem}>
-              <strong>Sĩ số:</strong> {data.size}
-            </p>
+        <Helmet>
+          <title>Kết quả khai báo tiết dạy</title>
+          <meta name="description" content="Trang quản trị kết quả khai báo tiết dạy" />
+        </Helmet>
+        <div className={styles.classGrid}>
+          <div className={styles.infoColumn}>
+            <div className={styles.infoCard}>
+              <h4>Thông tin cơ bản</h4>
+              <p className={styles.changeItem}>
+                <strong>Khối:</strong> {data.grade}
+              </p>
+              <p className={styles.changeItem}>
+                <strong>Cơ sở:</strong> {data.campus}
+              </p>
+              <p className={styles.changeItem}>
+                <strong>Sĩ số:</strong> {data.size}
+              </p>
+            </div>
+          </div>
+          <div className={styles.infoColumn}>
+            <div className={styles.infoCard}>
+              <h4>Thông tin môn học</h4>
+              {data.subjects?.map((subjectData, index) => (
+                <div key={index}>
+                  <p className={styles.changeItem}>
+                    <strong>Môn học:</strong> {subjectData.subjectName}
+                  </p>
+                  <p className={styles.changeItem}>
+                    <strong>Tổng số tiết:</strong> {subjectData.lessonCount}
+                  </p>
+                  <p className={styles.changeItem}>
+                    <strong>Số tiết/tuần:</strong> {subjectData.periodsPerWeek}
+                  </p>
+                  <p className={styles.changeItem}>
+                    <strong>Số tuần:</strong> {subjectData.numberOfWeeks}
+                  </p>
+                </div>
+              ))}
+            </div>
           </div>
         </div>
-        <div className={styles.infoColumn}>
-          <div className={styles.infoCard}>
-            <h4>Thông tin môn học</h4>
-            {data.subjects?.map((subjectData, index) => (
-              <div key={index}>
-                <p className={styles.changeItem}>
-                  <strong>Môn học:</strong> {subjectData.subjectName}
-                </p>
-                <p className={styles.changeItem}>
-                  <strong>Tổng số tiết:</strong> {subjectData.lessonCount}
-                </p>
-                <p className={styles.changeItem}>
-                  <strong>Số tiết/tuần:</strong> {subjectData.periodsPerWeek}
-                </p>
-                <p className={styles.changeItem}>
-                  <strong>Số tuần:</strong> {subjectData.numberOfWeeks}
-                </p>
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
       </>
-      
     );
-  };
+   };
 
   const renderTeacherChanges = (data) => {
     if (!data) return <p>Không có dữ liệu</p>;

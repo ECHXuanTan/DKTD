@@ -23,7 +23,6 @@ const AdminDashboard = () => {
       try {
         const userData = await getUser();
         if (!userData || userData.user.role !== 2) {
-          // Redirect based on user role
           switch(userData.user.role) {
             case 1:
               navigate('/ministry-dashboard');
@@ -84,7 +83,7 @@ const AdminDashboard = () => {
           </>
         );
     }
-   };
+  };
 
   const handleSearchChange = (event) => {
     setSearchQuery(event.target.value);
@@ -103,9 +102,9 @@ const AdminDashboard = () => {
     .filter(dept => dept.name !== "Tổ GVĐT")
     .reduce((sum, dept) => sum + dept.declaredTeachingLessons, 0);
   
-  const totalAboveThreshold = departmentStats
+  const totalAssignmentTime = departmentStats
     .filter(dept => dept.name !== "Tổ GVĐT")
-    .reduce((sum, dept) => sum + dept.teachersAboveThreshold, 0);
+    .reduce((sum, dept) => sum + dept.totalAssignmentTime, 0);
   
   const totalBelowBasic = departmentStats
     .filter(dept => dept.name !== "Tổ GVĐT")
@@ -123,8 +122,6 @@ const AdminDashboard = () => {
     );
   }
 
-  
-
   return (
     <>
       <Helmet>
@@ -140,7 +137,6 @@ const AdminDashboard = () => {
           </Typography>
           {admin && (
             <Box className={styles.adminInfo}>
-              <Typography variant="h5" gutterBottom><strong>Thông tin quản trị viên:</strong></Typography>
               {renderAdminInfo()}
             </Box>
           )}
@@ -153,14 +149,14 @@ const AdminDashboard = () => {
             </Grid>
             <Grid item xs={12} sm={6} md={3}>
               <Paper className={`${styles.statBox} ${styles.greenBox}`}>
-                <Typography variant="h6">Tổng số tiết đã khai báo của toàn trường</Typography>
+                <Typography variant="h6">Tổng tiết Tổ giáo vụ đã khai báo cho các lớp</Typography>
                 <Typography variant="h4">{totalDeclaredLessons}</Typography>
               </Paper>
             </Grid>
             <Grid item xs={12} sm={6} md={3}>
               <Paper className={`${styles.statBox} ${styles.orangeBox}`}>
-                <Typography variant="h6">Giáo viên vượt quá 25% số tiết cơ bản</Typography>
-                <Typography variant="h4">{totalAboveThreshold}</Typography>
+                <Typography variant="h6">Tổng tiết các TCM đã phân công</Typography>
+                <Typography variant="h4">{totalAssignmentTime}</Typography>
               </Paper>
             </Grid>
             <Grid item xs={12} sm={6} md={3}>

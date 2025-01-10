@@ -15,7 +15,7 @@ const SingleTeacherModal = ({ isOpen, onClose, departments, nonSpecializedSubjec
         type: '',
         lessonsPerWeek: '',
         teachingWeeks: '',
-    });
+    })
 
     const [reductions, setReductions] = useState([]);
     const [basicTeachingLessons, setBasicTeachingLessons] = useState(0);

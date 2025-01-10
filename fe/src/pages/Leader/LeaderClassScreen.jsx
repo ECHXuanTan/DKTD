@@ -23,6 +23,24 @@ import CreateClassAssignmentModal from './Component/CreateClassAssignmentModal.j
 import ExportDepartmentTeachersExcel from './Component/Class/ExportDepartmentTeachersExcel.jsx';
 import ImportAssignmentsModal from './Component/Class/ImportAssignmentsModal.jsx';
 
+const ProgressCell = ({ current, total }) => {
+  const percentage = Math.floor((current / total) * 100);
+  const isComplete = percentage === 100;
+  
+  return (
+    <div className={styles.progressContainer}>
+      <div>{current}</div>
+      <div className={styles.progressBar}>
+        <div 
+          className={`${styles.progressFill} ${isComplete ? styles.progressComplete : styles.progressIncomplete}`}
+          style={{ width: `${percentage}%` }}
+        />
+      </div>
+      <div className={styles.progressText}>{percentage}%</div>
+    </div>
+  );
+};
+
 const LeaderClassScreen = () => {
     const [user, setUser] = useState(null);
     const [classes, setClasses] = useState([]);
@@ -203,14 +221,17 @@ const LeaderClassScreen = () => {
         );
     };
 
+    const handleSubjectFilterChange = (event) => {
+        setSubjectFilter(event.target.value);
+        setPage(0);
+    };
+
     const filteredClasses = classes.filter((classItem) => {
         const nameMatch = classItem.name.toLowerCase().includes(searchQuery.toLowerCase());
         const gradeMatch = gradeFilter === '' || classItem.grade === parseInt(gradeFilter);
         const subjectMatch = subjectFilter === '' || classItem.subjects.some(
             subject => subject.subject.name === subjectFilter
         );
-
-        // Add status filter logic
         const statusMatch = statusFilter === '' || classItem.subjects.every(subject => {
             const totalDeclaredLessons = subject.assignments?.reduce((sum, a) => sum + a.completedLessons, 0) || 0;
             const remainingLessons = subject.lessonCount - totalDeclaredLessons;
@@ -221,12 +242,7 @@ const LeaderClassScreen = () => {
     });
 
     const paginatedClasses = filteredClasses.slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage);
-    const uniqueGrades = [...new Set(classes.map(classItem => classItem.grade))];
-
-    const handleSubjectFilterChange = (event) => {
-        setSubjectFilter(event.target.value);
-        setPage(0);
-    };
+    const uniqueGrades = [...new Set(classes.map(classItem => classItem.grade))].sort();
 
     if (loading) {
         return (
@@ -253,279 +269,288 @@ const LeaderClassScreen = () => {
                     <Box mb={2}>
                         <Typography>Tổng số lớp: {classes.length}</Typography>
                     </Box>
-                    <Box display="flex" justifyContent="space-between" mb={3}>
-                        <Box display="flex" alignItems="center" gap="10px">
-                        <TextField
-                            value={searchQuery}
-                            onChange={handleSearchChange}
-                            placeholder="Tìm kiếm theo tên lớp"
-                            style={{ flexGrow: 1 }}
-                            InputProps={{
-                                startAdornment: (
-                                    <InputAdornment position="start">
-                                        <SearchIcon />
-                                    </InputAdornment>
-                                ),
-                            }}
-                        />
-                        <Select
-                            value={gradeFilter}
-                            onChange={handleGradeFilterChange}
-                            displayEmpty
-                            style={{ width: '200px'}}
-                        >
-                            <MenuItem value="">Tất cả khối</MenuItem>
-                            {uniqueGrades.map((grade) => (
-                                <MenuItem key={grade} value={grade}>Khối {grade}</MenuItem>
-                            ))}
-                        </Select>
-                        <Select
-                            value={subjectFilter}
-                            onChange={handleSubjectFilterChange}
-                            displayEmpty
-                            style={{ minWidth: '180px' }}
-                        >
-                            <MenuItem value="">Tất cả môn học</MenuItem>
-                            {uniqueSubjects.map((subject) => (
-                                <MenuItem key={subject} value={subject}>{subject}</MenuItem>
-                            ))}
-                        </Select>
-                        <Select
-                            value={statusFilter}
-                            onChange={handleStatusFilterChange}
-                            displayEmpty
-                            style={{ minWidth: '180px' }}
-                        >
-                            <MenuItem value="">Tất cả trạng thái</MenuItem>
-                            <MenuItem value="completed">Đã hoàn thành</MenuItem>
-                            <MenuItem value="incomplete">Chưa hoàn thành</MenuItem>
-                        </Select>
+                    <div className={styles.filterContainer}>
+                        <Box flex={1}>
+                            <TextField
+                                fullWidth
+                                value={searchQuery}
+                                onChange={handleSearchChange}
+                                placeholder="Tìm kiếm theo tên lớp"
+                                InputProps={{
+                                    startAdornment: (
+                                        <InputAdornment position="start">
+                                            <SearchIcon />
+                                        </InputAdornment>
+                                    ),
+                                }}
+                            />
                         </Box>
-
-                        <Box display="flex" alignItems="center">
+                        <Box flex={1}>
+                            <Select
+                                fullWidth
+                                value={gradeFilter}
+                                onChange={handleGradeFilterChange}
+                                displayEmpty
+                            >
+                                <MenuItem value="">Tất cả khối</MenuItem>
+                                {uniqueGrades.map((grade) => (
+                                    <MenuItem key={grade} value={grade}>Khối {grade}</MenuItem>
+                                ))}
+                            </Select>
+                        </Box>
+                        <Box flex={1}>
+                            <Select
+                                fullWidth
+                                value={subjectFilter}
+                                onChange={handleSubjectFilterChange}
+                                displayEmpty
+                            >
+                                <MenuItem value="">Tất cả môn học</MenuItem>
+                                {uniqueSubjects.map((subject) => (
+                                    <MenuItem key={subject} value={subject}>{subject}</MenuItem>
+                                ))}
+                            </Select>
+                        </Box>
+                        <Box flex={1}>
+                            <Select
+                                fullWidth
+                                value={statusFilter}
+                                onChange={handleStatusFilterChange}
+                                displayEmpty
+                            >
+                                <MenuItem value="">Tất cả trạng thái</MenuItem>
+                                <MenuItem value="completed">Đã hoàn thành</MenuItem>
+                                <MenuItem value="incomplete">Chưa hoàn thành</MenuItem>
+                            </Select>
+                        </Box>
+                        <Box display="flex" gap={1}>
                             <Button
                                 variant="contained"
                                 color="primary"
                                 onClick={() => setIsImportModalOpen(true)}
                                 startIcon={<CloudUploadIcon />}
-                                style={{ marginRight: '10px', fontWeight: 'bold', borderRadius: '26px' }}
+                                style={{ fontWeight: 'bold', borderRadius: '26px' }}
                             >
                                 Tạo phân công
                             </Button>
                             <ExportDepartmentTeachersExcel />
                         </Box>
-                    </Box>
+                    </div>
                     <div className={styles.tableWrapper}>
-                    <TableContainer component={Paper} className={styles.tableContainer}>
-                        <Table stickyHeader className={styles.table}>
-                            <TableHead>
-                                <TableRow>
-                                    <TableCell style={{width: '30px', textAlign: 'center'}}>STT</TableCell>
-                                    <TableCell>Mã lớp</TableCell>
-                                    <TableCell>Môn học</TableCell>
-                                    <TableCell style={{textAlign: 'center'}}>Số tiết</TableCell>
-                                    <TableCell style={{width: '80px', textAlign: 'center'}}>Tổng số tiết khai báo</TableCell>
-                                    <TableCell style={{width: '80px', textAlign: 'center'}}>Số tiết còn lại</TableCell>
-                                    <TableCell>Giáo viên</TableCell>
-                                    {editingClass && <TableCell style={{width: '50px', textAlign: 'center'}}>Số tiết tối đa</TableCell>}
-                                    <TableCell style={{width: '70px', textAlign: 'center'}}>Số tiết khai báo</TableCell>
-                                    {deletingClass && <TableCell align="center">Chọn</TableCell>}
-                                    <TableCell align="center" style={{width: '130px', textAlign: 'center'}}>Thao tác</TableCell>
-                                </TableRow>
-                            </TableHead>
-                            <TableBody>
-                                {paginatedClasses.flatMap((classItem, index) => {
-                                    const rowSpan = classItem.subjects?.reduce((sum, subject) =>
-                                        sum + ((subject.assignments?.length || 0) || 1), 0) || 1;
-                                    return (classItem.subjects || []).flatMap((subject, subjectIndex) => {
-                                        const subjectRowSpan = subject.assignments?.length || 1;
-                                        const totalDeclaredLessons = subject.assignments?.reduce((sum, a) => sum + a.completedLessons, 0) || 0;
-                                        const remainingLessons = subject.lessonCount - totalDeclaredLessons;
-                                        const isEditing = editingClass === classItem._id && editingSubject === subject.subject._id;
-                                        const isDeleting = deletingClass === classItem._id;
+                        <TableContainer component={Paper} className={styles.tableContainer}>
+                            <Table stickyHeader className={styles.table}>
+                                <TableHead>
+                                    <TableRow>
+                                        <TableCell style={{width: '30px', textAlign: 'center'}}>STT</TableCell>
+                                        <TableCell>Mã lớp</TableCell>
+                                        <TableCell>Môn học</TableCell>
+                                        <TableCell style={{textAlign: 'center'}}>Số tiết</TableCell>
+                                        <TableCell style={{width: '80px', textAlign: 'center'}}>Tổng số tiết khai báo</TableCell>
+                                        <TableCell style={{width: '80px', textAlign: 'center'}}>Số tiết còn lại</TableCell>
+                                        <TableCell>Giáo viên</TableCell>
+                                        {editingClass && <TableCell style={{width: '50px', textAlign: 'center'}}>Số tiết tối đa</TableCell>}
+                                        <TableCell style={{width: '70px', textAlign: 'center'}}>Số tiết khai báo</TableCell>
+                                        {deletingClass && <TableCell align="center">Chọn</TableCell>}
+                                        <TableCell align="center" style={{width: '130px', textAlign: 'center'}}>Thao tác</TableCell>
+                                    </TableRow>
+                                </TableHead>
+                                <TableBody>
+                                    {paginatedClasses.flatMap((classItem, index) => {
+                                        const rowSpan = classItem.subjects?.reduce((sum, subject) =>
+                                            sum + ((subject.assignments?.length || 0) || 1), 0) || 1;
+                                        return (classItem.subjects || []).flatMap((subject, subjectIndex) => {
+                                            const subjectRowSpan = subject.assignments?.length || 1;
+                                            const totalDeclaredLessons = subject.assignments?.reduce((sum, a) => sum + a.completedLessons, 0) || 0;
+                                            const remainingLessons = subject.lessonCount - totalDeclaredLessons;
+                                            const isEditing = editingClass === classItem._id && editingSubject === subject.subject._id;
+                                            const isDeleting = deletingClass === classItem._id;
 
-                                        return (subject.assignments?.length > 0 ? (
-                                            (subject.assignments || []).map((assignment, assignmentIndex) => {
-                                                return (
-                                                    <TableRow key={`${classItem._id}-${subject.subject.name}-${assignmentIndex}`}>
-                                                        {subjectIndex === 0 && assignmentIndex === 0 && (
-                                                            <>
-                                                                <TableCell style={{textAlign: 'center'}} rowSpan={rowSpan}>{page * rowsPerPage + index + 1}</TableCell>
-                                                                <TableCell rowSpan={rowSpan}>{classItem.name}</TableCell>
-                                                            </>
-                                                        )}
-                                                        {assignmentIndex === 0 && (
-                                                            <>
-                                                                <TableCell rowSpan={subjectRowSpan}>{subject.subject.name}</TableCell>
-                                                                <TableCell rowSpan={subjectRowSpan} style={{textAlign: 'center'}}>{subject.lessonCount}</TableCell>
-                                                                <TableCell rowSpan={subjectRowSpan} style={{textAlign: 'center'}}>{totalDeclaredLessons}</TableCell>
-                                                                <TableCell rowSpan={subjectRowSpan} style={{textAlign: 'center'}}>{remainingLessons}</TableCell>
-                                                            </>
-                                                        )}
-                                                        <TableCell>{assignment.teacherName}</TableCell>
-                                                        {editingClass && (
+                                            return (subject.assignments?.length > 0 ? (
+                                                (subject.assignments || []).map((assignment, assignmentIndex) => {
+                                                    return (
+                                                        <TableRow key={`${classItem._id}-${subject.subject.name}-${assignmentIndex}`}>
+                                                            {subjectIndex === 0 && assignmentIndex === 0 && (
+                                                                <>
+                                                                    <TableCell style={{textAlign: 'center'}} rowSpan={rowSpan}>{page * rowsPerPage + index + 1}</TableCell>
+                                                                    <TableCell rowSpan={rowSpan}>{classItem.name}</TableCell>
+                                                                </>
+                                                            )}
+                                                            {assignmentIndex === 0 && (
+                                                                <>
+                                                                    <TableCell rowSpan={subjectRowSpan}>{subject.subject.name}</TableCell>
+                                                                    <TableCell rowSpan={subjectRowSpan} style={{textAlign: 'center'}}>{subject.lessonCount}</TableCell>
+                                                                    <TableCell rowSpan={subjectRowSpan}>
+                                                                        <ProgressCell current={totalDeclaredLessons} total={subject.lessonCount} />
+                                                                    </TableCell>
+                                                                    <TableCell rowSpan={subjectRowSpan} style={{textAlign: 'center'}}>{remainingLessons}</TableCell>
+                                                                </>
+                                                            )}
+                                                            <TableCell>{assignment.teacherName}</TableCell>
+                                                            {editingClass && (
+                                                                <TableCell style={{textAlign: 'center'}}>
+                                                                    {isEditing ? remainingLessons + assignment.completedLessons : ''}
+                                                                </TableCell>
+                                                            )}
                                                             <TableCell style={{textAlign: 'center'}}>
-                                                                {isEditing ? remainingLessons + assignment.completedLessons : ''}
-                                                            </TableCell>
-                                                        )}
-                                                        <TableCell style={{textAlign: 'center'}}>
-                                                            {isEditing ? (
-                                                                <Box>
-                                                                    <TextField
-                                                                        type="number"
-                                                                        className={styles.editInput}
-                                                                        value={editValues[`${assignment.teacherName}-completedLessons`] || ''}
-                                                                        onChange={(e) => {
-                                                                            const value = e.target.value;
-                                                                            const numValue = parseInt(value);
-                                                                            const maxLessons = remainingLessons + assignment.completedLessons;
-                                                                            
-                                                                            if (value === '' || (numValue >= 0 && numValue <= maxLessons)) {
-                                                                                setEditValues(prev => ({
-                                                                                    ...prev,
-                                                                                    [`${assignment.teacherName}-completedLessons`]: value
-                                                                                }));
-                                                                            }
-                                                                        }}
-                                                                        size="small"
-                                                                        inputProps={{ min: 1, max: remainingLessons + assignment.completedLessons }}
-                                                                    />
-                                                                </Box>
-                                                            ) : assignment.completedLessons}
-                                                        </TableCell>
-                                                        {deletingClass && (
-                                                            <TableCell align="center">
-                                                                {isDeleting && (
-                                                                    <Checkbox
-                                                                        checked={selectedAssignments.includes(assignment.id)}
-                                                                        onChange={() => handleCheckAssignment(assignment.id)}
-                                                                        disabled={actionLoading && loadingClassId === classItem._id}
-                                                                    />
-                                                                )}
-                                                            </TableCell>
-                                                        )}
-                                                        {subjectIndex === 0 && assignmentIndex === 0 && (
-                                                            <TableCell rowSpan={rowSpan} align="center" style={{textAlign: 'center'}}>
                                                                 {isEditing ? (
-                                                                    <div className={styles.buttonsContainer}>
-                                                                        <IconButton
-                                                                            className={styles.actionIcon}
-                                                                            onClick={() => handleSaveEdit(classItem, subject)}
-                                                                            disabled={actionLoading && loadingClassId === classItem._id}
-                                                                        >
-                                                                            {actionLoading && loadingClassId === classItem._id ? (
-                                                                                <div style={{ width: 24, height: 24 }}>
-                                                                                    <Circles color="#1976d2" height={24} width={24} />
-                                                                                </div>
-                                                                            ) : (
-                                                                                <SaveIcon style={{ color: "#4caf50" }} />
-                                                                            )}
-                                                                        </IconButton>
-                                                                        <IconButton
-                                                                            className={styles.actionIcon}
-                                                                            onClick={() => {
-                                                                                setEditingClass(null);
-                                                                                setEditingSubject(null);
-                                                                                setEditValues({});
+                                                                    <Box>
+                                                                        <TextField
+                                                                            type="number"
+                                                                            className={styles.editInput}
+                                                                            value={editValues[`${assignment.teacherName}-completedLessons`] || ''}
+                                                                            onChange={(e) => {
+                                                                                const value = e.target.value;
+                                                                                const numValue = parseInt(value);
+                                                                                const maxLessons = remainingLessons + assignment.completedLessons;
+                                                                                
+                                                                                if (value === '' || (numValue >= 0 && numValue <= maxLessons)) {
+                                                                                    setEditValues(prev => ({
+                                                                                        ...prev,
+                                                                                        [`${assignment.teacherName}-completedLessons`]: value
+                                                                                    }));
+                                                                                }
                                                                             }}
-                                                                            disabled={actionLoading && loadingClassId === classItem._id}
-                                                                        >
-                                                                            <CancelIcon style={{ color: "#ccc" }} />
-                                                                        </IconButton>
-                                                                    </div>
-                                                                ) : isDeleting ? (
-                                                                    <div className={styles.buttonsContainer}>
-                                                                        <IconButton
-                                                                            className={`${styles.actionIcon} ${styles.deleteIcon}`}
-                                                                            onClick={handleDeleteSelected}
-                                                                            disabled={actionLoading && loadingClassId === classItem._id}
-                                                                        >
-                                                                            {actionLoading && loadingClassId === classItem._id ? (
-                                                                                <div style={{ width: 24, height: 24 }}>
-                                                                                    <Circles color="#d32f2f" height={24} width={24} />
-                                                                                </div>
-                                                                            ) : (
-                                                                                <DeleteIcon style={{ color: "#f44336" }} />
-                                                                            )}
-                                                                        </IconButton>
-                                                                        <IconButton
-                                                                            className={styles.actionIcon}
-                                                                            onClick={() => setDeletingClass(null)}
-                                                                            disabled={actionLoading && loadingClassId === classItem._id}
-                                                                        >
-                                                                            <CancelIcon style={{ color: "#ccc" }} />
-                                                                        </IconButton>
-                                                                    </div>
-                                                                ) : (
-                                                                    <div className={styles.buttonsContainer}>
-                                                                        <IconButton
-                                                                            className={styles.actionIcon}
-                                                                            onClick={() => handleStartEdit(classItem, subject)}
-                                                                            disabled={actionLoading && loadingClassId === classItem._id}
-                                                                        >
-                                                                            {actionLoading && loadingClassId === classItem._id ? (
-                                                                                <div style={{ width: 24, height: 24 }}>
-                                                                                    <Circles color="#1976d2" height={24} width={24} />
-                                                                                </div>
-                                                                            ) : (
-                                                                                <EditIcon style={{ color: "#4caf50" }} />
-                                                                            )}
-                                                                        </IconButton>
-                                                                        <IconButton
-                                                                            className={`${styles.actionIcon} ${styles.deleteIcon}`}
-                                                                            onClick={() => handleStartDelete(classItem)}
-                                                                            disabled={actionLoading}
-                                                                        >
-                                                                            <DeleteIcon style={{ color: "#f44336" }} />
-                                                                        </IconButton>
-                                                                        <IconButton
-                                                                            className={styles.actionIcon}
-                                                                            onClick={() => handleOpenModal(classItem, subject)}
-                                                                            disabled={actionLoading}
-                                                                        >
-                                                                            <AddCircleIcon style={{ color: "#113f67" }} />
-                                                                        </IconButton>
-                                                                    </div>
-                                                                )}
+                                                                            size="small"
+                                                                            inputProps={{ min: 1, max: remainingLessons + assignment.completedLessons }}
+                                                                        />
+                                                                    </Box>
+                                                                ) : assignment.completedLessons}
                                                             </TableCell>
-                                                        )}
-                                                    </TableRow>
-                                                );
-                                            })
-                                        ) : (
-                                            <TableRow key={`${classItem._id}-${subject.subject.name}`}>
-                                                {subjectIndex === 0 && (
-                                                    <>
-                                                        <TableCell style={{textAlign: 'center'}} rowSpan={rowSpan}>{page * rowsPerPage + index + 1}</TableCell>
-                                                        <TableCell rowSpan={rowSpan}>{classItem.name}</TableCell>
-                                                    </>
-                                                )}
-                                                <TableCell>{subject.subject.name}</TableCell>
-                                                <TableCell style={{textAlign: 'center'}}>{subject.lessonCount}</TableCell>
-                                                <TableCell style={{textAlign: 'center'}}>0</TableCell>
-                                                <TableCell style={{textAlign: 'center'}}>{subject.lessonCount}</TableCell>
-                                                <TableCell>Chưa phân công</TableCell>
-                                                {editingClass && <TableCell></TableCell>}
-                                                <TableCell style={{textAlign: 'center'}}>0</TableCell>
-                                                {deletingClass && <TableCell></TableCell>}
-                                                {subjectIndex === 0 && (
-                                                    <TableCell rowSpan={rowSpan} align="center" style={{textAlign: 'center'}}>
-                                                        <IconButton
-                                                            className={styles.actionIcon}
-                                                            onClick={() => handleOpenModal(classItem, subject)}
-                                                            disabled={actionLoading}
-                                                        >
-                                                            <AddCircleIcon style={{ color: "#113f67" }} />
-                                                        </IconButton>
+                                                            {deletingClass && (
+                                                                <TableCell align="center">
+                                                                    {isDeleting && (
+                                                                        <Checkbox
+                                                                            checked={selectedAssignments.includes(assignment.id)}
+                                                                            onChange={() => handleCheckAssignment(assignment.id)}
+                                                                            disabled={actionLoading && loadingClassId === classItem._id}
+                                                                        />
+                                                                    )}
+                                                                </TableCell>
+                                                            )}
+                                                            {subjectIndex === 0 && assignmentIndex === 0 && (
+                                                                <TableCell rowSpan={rowSpan} align="center" style={{textAlign: 'center'}}>
+                                                                    {isEditing ? (
+                                                                        <div className={styles.buttonsContainer}>
+                                                                            <IconButton
+                                                                                className={styles.actionIcon}
+                                                                                onClick={() => handleSaveEdit(classItem, subject)}
+                                                                                disabled={actionLoading && loadingClassId === classItem._id}
+                                                                            >
+                                                                                {actionLoading && loadingClassId === classItem._id ? (
+                                                                                    <div style={{ width: 24, height: 24 }}>
+                                                                                        <Circles color="#1976d2" height={24} width={24} />
+                                                                                    </div>
+                                                                                ) : (
+                                                                                    <SaveIcon style={{ color: "#4caf50" }} />
+                                                                                )}
+                                                                            </IconButton>
+                                                                            <IconButton
+                                                                                className={styles.actionIcon}
+                                                                                onClick={() => {
+                                                                                    setEditingClass(null);
+                                                                                    setEditingSubject(null);
+                                                                                    setEditValues({});
+                                                                                }}
+                                                                                disabled={actionLoading && loadingClassId === classItem._id}
+                                                                            >
+                                                                                <CancelIcon style={{ color: "#ccc" }} />
+                                                                            </IconButton>
+                                                                        </div>
+                                                                    ) : isDeleting ? (
+                                                                        <div className={styles.buttonsContainer}>
+                                                                            <IconButton
+                                                                                className={`${styles.actionIcon} ${styles.deleteIcon}`}
+                                                                                onClick={handleDeleteSelected}
+                                                                                disabled={actionLoading && loadingClassId === classItem._id}
+                                                                            >
+                                                                                {actionLoading && loadingClassId === classItem._id ? (
+                                                                                    <div style={{ width: 24, height: 24 }}>
+                                                                                        <Circles color="#d32f2f" height={24} width={24} />
+                                                                                    </div>
+                                                                                ) : (
+                                                                                    <DeleteIcon style={{ color: "#f44336" }} />
+                                                                                )}
+                                                                            </IconButton>
+                                                                            <IconButton
+                                                                                className={styles.actionIcon}
+                                                                                onClick={() => setDeletingClass(null)}
+                                                                                disabled={actionLoading && loadingClassId === classItem._id}
+                                                                            >
+                                                                                <CancelIcon style={{ color: "#ccc" }} />
+                                                                            </IconButton>
+                                                                        </div>
+                                                                    ) : (
+                                                                        <div className={styles.buttonsContainer}>
+                                                                            <IconButton
+                                                                                className={styles.actionIcon}
+                                                                                onClick={() => handleStartEdit(classItem, subject)}
+                                                                                disabled={actionLoading && loadingClassId === classItem._id}
+                                                                            >
+                                                                                {actionLoading && loadingClassId === classItem._id ? (
+                                                                                    <div style={{ width: 24, height: 24 }}>
+                                                                                        <Circles color="#1976d2" height={24} width={24} />
+                                                                                    </div>
+                                                                                ) : (
+                                                                                    <EditIcon style={{ color: "#4caf50" }} />
+                                                                                )}
+                                                                            </IconButton>
+                                                                            <IconButton
+                                                                                className={`${styles.actionIcon} ${styles.deleteIcon}`}
+                                                                                onClick={() => handleStartDelete(classItem)}
+                                                                                disabled={actionLoading}
+                                                                            >
+                                                                                <DeleteIcon style={{ color: "#f44336" }} />
+                                                                            </IconButton>
+                                                                            <IconButton
+                                                                                className={styles.actionIcon}
+                                                                                onClick={() => handleOpenModal(classItem, subject)}
+                                                                                disabled={actionLoading}
+                                                                            >
+                                                                                <AddCircleIcon style={{ color: "#113f67" }} />
+                                                                            </IconButton>
+                                                                        </div>
+                                                                    )}
+                                                                </TableCell>
+                                                            )}
+                                                        </TableRow>
+                                                    );
+                                                })
+                                            ) : (
+                                                <TableRow key={`${classItem._id}-${subject.subject.name}`}>
+                                                    {subjectIndex === 0 && (
+                                                        <>
+                                                            <TableCell style={{textAlign: 'center'}} rowSpan={rowSpan}>{page * rowsPerPage + index + 1}</TableCell>
+                                                            <TableCell rowSpan={rowSpan}>{classItem.name}</TableCell>
+                                                        </>
+                                                    )}
+                                                    <TableCell>{subject.subject.name}</TableCell>
+                                                    <TableCell style={{textAlign: 'center'}}>{subject.lessonCount}</TableCell>
+                                                    <TableCell>
+                                                        <ProgressCell current={0} total={subject.lessonCount} />
                                                     </TableCell>
-                                                )}
-                                            </TableRow>
-                                        ));
-                                    });
-                                })}
-                            </TableBody>
-                        </Table>
-                    </TableContainer>
+                                                    <TableCell style={{textAlign: 'center'}}>{subject.lessonCount}</TableCell>
+                                                    <TableCell>Chưa phân công</TableCell>
+                                                    {editingClass && <TableCell></TableCell>}
+                                                    <TableCell style={{textAlign: 'center'}}>0</TableCell>
+                                                    {deletingClass && <TableCell></TableCell>}
+                                                    {subjectIndex === 0 && (
+                                                        <TableCell rowSpan={rowSpan} align="center" style={{textAlign: 'center'}}>
+                                                            <IconButton
+                                                                className={styles.actionIcon}
+                                                                onClick={() => handleOpenModal(classItem, subject)}
+                                                                disabled={actionLoading}
+                                                            >
+                                                                <AddCircleIcon style={{ color: "#113f67" }} />
+                                                            </IconButton>
+                                                        </TableCell>
+                                                    )}
+                                                </TableRow>
+                                            ));
+                                        });
+                                    })}
+                                </TableBody>
+                            </Table>
+                        </TableContainer>
                         <TablePagination
                             rowsPerPageOptions={[25, 50, 100]}
                             component="div"
@@ -534,7 +559,8 @@ const LeaderClassScreen = () => {
                             page={page}
                             onPageChange={handleChangePage}
                             onRowsPerPageChange={handleChangeRowsPerPage}
-                            style={{ overflow: 'unset' }}
+                            labelRowsPerPage="Số hàng mỗi trang:"
+                            labelDisplayedRows={({ from, to, count }) => `${from}-${to} của ${count}`}
                         />
                     </div>
                 </Box>
@@ -562,8 +588,8 @@ const LeaderClassScreen = () => {
                 onAssignmentCreate={async () => {
                     const classesData = await getDepartmentClasses();
                     if (Array.isArray(classesData) && classesData.length > 0) {
-                    const sortedClasses = classesData.sort((a, b) => a.name.localeCompare(b.name));
-                    setClasses(sortedClasses);
+                        const sortedClasses = classesData.sort((a, b) => a.name.localeCompare(b.name));
+                        setClasses(sortedClasses);
                     }
                 }}
             />

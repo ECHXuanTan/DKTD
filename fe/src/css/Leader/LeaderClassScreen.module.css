@@ -1,10 +1,12 @@
-/* LeaderClassScreen.module.css */
 .dashboardLeader {
   padding: 20px;
   max-width: 1370px;
   margin: 0 auto;
   width: 95%;
   min-height: 75vh;
+  background-color: #fff;
+  border-radius: 8px;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
 }
 
 .loadingContainer {
@@ -14,19 +16,26 @@
   height: 100vh;
 }
 
+/* Table Container Styles */
 .tableWrapper {
   display: flex;
   flex-direction: column;
   max-height: 900px;
-  position: relative;  /* Add this */
+  position: relative;
+  background: #fff;
+  border-radius: 8px;
+  overflow: hidden;
+  margin-top: 1rem;
 }
 
 .tableContainer {
   flex: 1;
-  overflow-y: auto;
-  margin-bottom: 0;
+  overflow-x: auto;
+  min-width: 320px;
+  -webkit-overflow-scrolling: touch;
 }
 
+/* Table Styles */
 .table {
   width: 100%;
   border-collapse: collapse;
@@ -37,45 +46,192 @@
   border: 1px solid #ddd;
   padding: 12px;
   text-align: left;
-  vertical-align: top;
+  vertical-align: middle;
+  font-size: 0.9rem;
 }
 
 .table th {
-  background-color: #f2f2f2;
-  font-weight: bold;
+  background-color: #f8f9fa;
+  font-weight: 600;
   position: sticky;
   top: 0;
-  z-index: 1;  /* Lowered z-index */
+  z-index: 10;
+  white-space: nowrap;
 }
 
-.table tr:nth-child(even) {
-  background-color: #f9f9f9;
+/* Filter Container */
+.filterContainer {
+  display: flex;
+  gap: 1rem;
+  flex-wrap: wrap;
+  margin-bottom: 1.5rem;
+  background: #f8f9fa;
+  padding: 1rem;
+  border-radius: 8px;
 }
 
-.tableContainer::-webkit-scrollbar {
-  width: 10px;
+/* Progress Bar Styles */
+.progressContainer {
+  text-align: center;
+  padding: 4px;
 }
 
-.tableContainer::-webkit-scrollbar-track {
-  background: #f1f1f1;
+.progressBar {
+  height: 6px;
+  background-color: #e9ecef;
+  border-radius: 3px;
+  overflow: hidden;
+  margin: 4px 0;
 }
 
-.tableContainer::-webkit-scrollbar-thumb {
-  background: #888;
-  border-radius: 5px;
+.progressFill {
+  height: 100%;
+  transition: width 0.3s ease;
+  border-radius: 3px;
 }
 
-.tableContainer::-webkit-scrollbar-thumb:hover {
-  background: #555;
+.progressComplete {
+  background-color: #28a745;
 }
 
+.progressIncomplete {
+  background-color: #dc3545;
+}
+
+.progressText {
+  font-size: 0.75rem;
+  color: #6c757d;
+}
+
+/* Button Container */
+.buttonsContainer {
+  display: flex;
+  gap: 8px;
+  justify-content: center;
+  flex-wrap: nowrap;
+}
+
+/* Form Controls */
 .editInput {
   width: 100%;
+  min-width: 60px;
+}
+
+/* Responsive Design */
+@media (max-width: 1200px) {
+  .dashboardLeader {
+    padding: 15px;
+    width: 98%;
+  }
+
+  .filterContainer {
+    flex-direction: column;
+  }
+
+  .filterContainer > div {
+    width: 100%;
+  }
+
+  .tableWrapper {
+    max-height: 700px;
+  }
 }
 
 @media (max-width: 768px) {
   .dashboardLeader {
     padding: 10px;
     width: 100%;
+    border-radius: 0;
+  }
+
+  .table th,
+  .table td {
+    padding: 8px;
+    font-size: 0.85rem;
+  }
+
+  .buttonsContainer {
+    flex-direction: row;
+    justify-content: space-around;
+  }
+
+  .progressBar {
+    height: 4px;
+  }
+
+  .filterContainer {
+    padding: 10px;
+    gap: 0.5rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .dashboardLeader {
+    padding: 5px;
+  }
+
+  .table th,
+  .table td {
+    padding: 6px;
+    font-size: 0.8rem;
+  }
+
+  .buttonsContainer {
+    gap: 4px;
+  }
+
+  .actionIcon {
+    padding: 4px !important;
+  }
+
+  .progressText {
+    font-size: 0.7rem;
+  }
+
+  .filterContainer {
+    padding: 8px;
+    margin-bottom: 1rem;
+  }
+}
+
+/* Custom Scrollbar */
+.tableContainer::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+.tableContainer::-webkit-scrollbar-track {
+  background: #f1f1f1;
+  border-radius: 4px;
+}
+
+.tableContainer::-webkit-scrollbar-thumb {
+  background: #888;
+  border-radius: 4px;
+}
+
+.tableContainer::-webkit-scrollbar-thumb:hover {
+  background: #666;
+}
+
+/* Touch Device Optimization */
+@media (hover: none) {
+  .tableContainer {
+    scrollbar-width: thin;
+  }
+}
+
+/* Print Optimization */
+@media print {
+  .dashboardLeader {
+    width: 100%;
+    padding: 0;
+    box-shadow: none;
+  }
+
+  .filterContainer,
+  .buttonsContainer,
+  .tableWrapper {
+    break-inside: avoid;
   }
 }
