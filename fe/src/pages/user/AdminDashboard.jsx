@@ -189,7 +189,7 @@ const AdminDashboard = () => {
               <Link to="/admin-result" style={{ textDecoration: 'none' }}>
                 <Button variant="contained" className={styles.actionButton2}>Lịch sử hoạt động</Button>
               </Link>
-              <Link to="/admin/class-statistics" style={{ textDecoration: 'none', marginLeft: '10px' }}>
+              <Link to="/admin-class-statistics" style={{ textDecoration: 'none', marginLeft: '10px' }}>
                 <Button variant="contained" className={styles.actionButton}>Thống kê theo lớp</Button>
               </Link>
             </Box>

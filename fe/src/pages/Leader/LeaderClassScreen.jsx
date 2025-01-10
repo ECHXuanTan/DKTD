@@ -22,22 +22,55 @@ import styles from '../../css/Leader/LeaderClassScreen.module.css';
 import CreateClassAssignmentModal from './Component/CreateClassAssignmentModal.jsx';
 import ExportDepartmentTeachersExcel from './Component/Class/ExportDepartmentTeachersExcel.jsx';
 import ImportAssignmentsModal from './Component/Class/ImportAssignmentsModal.jsx';
+import styled from 'styled-components';
+
+const ProgressContainer = styled.div`
+  text-align: center;
+  padding: 4px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+`;
+
+const ProgressBar = styled.div`
+  height: 6px;
+  background-color: #e9ecef;
+  border-radius: 3px;
+  overflow: hidden;
+  margin: 4px 0;
+  position: relative;
+  width: 100%;
+`;
+
+const ProgressFill = styled.div`
+  height: 100%;
+  width: ${props => props.percentage}%;
+  background-color: ${props => props.isComplete ? '#28a745' : '#dc3545'};
+  transition: width 0.3s ease;
+  border-radius: 3px;
+  position: absolute;
+  left: 0;
+  top: 0;
+`;
+
+const ProgressText = styled.div`
+  font-size: 0.75rem;
+  color: #6c757d;
+  margin-top: 2px;
+`;
 
 const ProgressCell = ({ current, total }) => {
   const percentage = Math.floor((current / total) * 100);
   const isComplete = percentage === 100;
   
   return (
-    <div className={styles.progressContainer}>
+    <ProgressContainer>
       <div>{current}</div>
-      <div className={styles.progressBar}>
-        <div 
-          className={`${styles.progressFill} ${isComplete ? styles.progressComplete : styles.progressIncomplete}`}
-          style={{ width: `${percentage}%` }}
-        />
-      </div>
-      <div className={styles.progressText}>{percentage}%</div>
-    </div>
+      <ProgressBar>
+        <ProgressFill percentage={percentage} isComplete={isComplete} />
+      </ProgressBar>
+      <ProgressText>{percentage}%</ProgressText>
+    </ProgressContainer>
   );
 };
 

@@ -71,9 +71,14 @@
 }
 
 /* Progress Bar Styles */
+/* Cập nhật CSS với selector cụ thể hơn */
 .progressContainer {
   text-align: center;
   padding: 4px;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
 }
 
 .progressBar {
@@ -82,25 +87,31 @@
   border-radius: 3px;
   overflow: hidden;
   margin: 4px 0;
+  position: relative;
+  width: 100%;
 }
 
 .progressFill {
   height: 100%;
   transition: width 0.3s ease;
   border-radius: 3px;
+  position: absolute;
+  left: 0;
+  top: 0;
 }
 
 .progressComplete {
-  background-color: #28a745;
+  background-color: #28a745 !important;
 }
 
 .progressIncomplete {
-  background-color: #dc3545;
+  background-color: #dc3545 !important;
 }
 
 .progressText {
   font-size: 0.75rem;
   color: #6c757d;
+  margin-top: 2px;
 }
 
 /* Button Container */
