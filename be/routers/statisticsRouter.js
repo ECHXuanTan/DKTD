@@ -361,6 +361,214 @@ statisticsRouter.get('/teacher-details', isAuth, async (req, res) => {
   }
 });
 
+statisticsRouter.get('/department-teacher-details', isAuth, async (req, res) => {
+  try {
+    // First find the teacher and their department based on authenticated user's email
+    const currentTeacher = await Teacher.findOne({ email: req.user.email });
+    
+    if (!currentTeacher) {
+      return res.status(404).json({
+        message: 'Không tìm thấy thông tin giáo viên với email này'
+      });
+    }
+
+    const teachers = await Teacher.aggregate([
+      // Filter by department
+      {
+        $match: {
+          department: currentTeacher.department
+        }
+      },
+      // Rest of the aggregation pipeline remains identical
+      {
+        $lookup: {
+          from: 'departments',
+          localField: 'department',
+          foreignField: '_id',
+          as: 'departmentInfo'
+        }
+      },
+      {
+        $unwind: '$departmentInfo'
+      },
+      {
+        $lookup: {
+          from: 'subjects',
+          localField: 'teachingSubjects',
+          foreignField: '_id',
+          as: 'teachingSubjectsInfo'
+        }
+      },
+      {
+        $unwind: {
+          path: '$teachingSubjectsInfo',
+          preserveNullAndEmptyArrays: true
+        }
+      },
+      {
+        $lookup: {
+          from: 'homerooms',
+          localField: '_id',
+          foreignField: 'teacher',
+          as: 'homeroomInfo'
+        }
+      },
+      {
+        $unwind: {
+          path: '$homeroomInfo',
+          preserveNullAndEmptyArrays: true
+        }
+      },
+      {
+        $lookup: {
+          from: 'classes',
+          localField: 'homeroomInfo.class',
+          foreignField: '_id',
+          as: 'homeroomClassInfo'
+        }
+      },
+      {
+        $unwind: {
+          path: '$homeroomClassInfo',
+          preserveNullAndEmptyArrays: true
+        }
+      },
+      {
+        $lookup: {
+          from: 'teacherassignments',
+          let: { teacherId: '$_id' },
+          pipeline: [
+            {
+              $match: {
+                $expr: { $eq: ['$teacher', '$$teacherId'] }
+              }
+            },
+            {
+              $lookup: {
+                from: 'classes',
+                localField: 'class',
+                foreignField: '_id',
+                as: 'classInfo'
+              }
+            },
+            {
+              $unwind: '$classInfo'
+            },
+            {
+              $lookup: {
+                from: 'subjects',
+                localField: 'subject',
+                foreignField: '_id',
+                as: 'subjectInfo'
+              }
+            },
+            {
+              $unwind: '$subjectInfo'
+            },
+            {
+              $addFields: {
+                subjectDetails: {
+                  $arrayElemAt: [
+                    {
+                      $filter: {
+                        input: '$classInfo.subjects',
+                        as: 'subject',
+                        cond: { $eq: ['$$subject.subject', '$subject'] }
+                      }
+                    },
+                    0
+                  ]
+                }
+              }
+            },
+            {
+              $project: {
+                _id: 1,
+                completedLessons: 1,
+                class: {
+                  _id: '$classInfo._id',
+                  name: '$classInfo.name',
+                  grade: '$classInfo.grade',
+                  campus: '$classInfo.campus',
+                  size: '$classInfo.size'
+                },
+                subject: {
+                  _id: '$subjectInfo._id',
+                  name: '$subjectInfo.name',
+                  isSpecialized: '$subjectInfo.isSpecialized'
+                },
+                lessonsPerWeek: { $ifNull: [
+                  '$lessonsPerWeek',
+                  { $round: [{ $divide: ['$completedLessons', '$subjectDetails.numberOfWeeks'] }, 1] }
+                ]},
+                numberOfWeeks: { $ifNull: ['$numberOfWeeks', '$subjectDetails.numberOfWeeks'] }
+              }
+            }
+          ],
+          as: 'assignments'
+        }
+      },
+      {
+        $addFields: {
+          homeroomAssignment: {
+            $cond: {
+              if: { $ifNull: ['$homeroomInfo', false] },
+              then: [{
+                _id: { $toString: '$_id' },
+                completedLessons: 36,
+                lessonsPerWeek: 2,
+                numberOfWeeks: 18,
+                class: {
+                  _id: '$homeroomClassInfo._id',
+                  name: '$homeroomClassInfo.name',
+                  grade: '$homeroomClassInfo.grade',
+                  campus: '$homeroomClassInfo.campus',
+                  size: '$homeroomClassInfo.size'
+                },
+                subject: {
+                  name: 'CCSHL',
+                  isSpecialized: false
+                }
+              }],
+              else: []
+            }
+          }
+        }
+      },
+      {
+        $project: {
+          _id: 1,
+          email: 1,
+          name: 1,
+          phone: 1,
+          position: 1,
+          type: 1,
+          teachingSubjects: '$teachingSubjectsInfo.name',
+          assignments: { $concatArrays: ['$assignments', '$homeroomAssignment'] }
+        }
+      },
+      {
+        $sort: {
+          name: 1
+        }
+      }
+    ]);
+
+    const sortedTeachers = sortTeachersByName(teachers);
+
+    res.status(200).json({
+      count: sortedTeachers.length,
+      teachers: sortedTeachers
+    });
+  } catch (error) {
+    console.error('Error in getting department teacher details:', error);
+    res.status(500).json({ 
+      message: 'Lỗi server khi lấy thông tin chi tiết giáo viên trong tổ/khoa',
+      error: error.message 
+    });
+  }
+});
+
 statisticsRouter.get('/department-classes-remaining-lessons', isAuth, async (req, res) => {
   try {
     // Get user info from token
