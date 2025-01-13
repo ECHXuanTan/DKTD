@@ -14,6 +14,7 @@ import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import styles from '../../css/Ministry/MinistryTeacherStatic.module.css';
 import ExportTeachersExcel from './Component/Statistics/ExportTeachersExcel.jsx';
 
+// Helper functions remain unchanged
 const calculateCompletionPercentage = (declaredTeachingLessons, finalBasicTeachingLessons) => {
     if (finalBasicTeachingLessons === 0) return 0;
     const percentage = (declaredTeachingLessons / finalBasicTeachingLessons) * 100;
@@ -38,7 +39,8 @@ const updateTeachersWithCorrectReductions = (teachers) => {
     }));
 };
 
-const MinistryTeacherStatic = () => { 
+const MinistryTeacherStatic = () => {
+    // State declarations and other logic remain unchanged
     const [user, setUser] = useState(null);
     const [teachers, setTeachers] = useState([]);
     const [loading, setLoading] = useState(true);
@@ -48,41 +50,42 @@ const MinistryTeacherStatic = () => {
     const [rowsPerPage, setRowsPerPage] = useState(25);
     const navigate = useNavigate();
 
+    // useEffect and other functions remain unchanged
     useEffect(() => {
         const fetchUserAndTeachers = async () => {
-          try {
-            const userData = await getUser();
-            setUser(userData);
-            
-            if (userData) {
-                if (!userData || userData.user.role !== 1) {
-                    switch(userData.user.role) {
-                      case 2:
-                        navigate('/admin-dashboard');
-                        break;
-                      case 0:
-                        navigate('/user-dashboard');
-                        break;
-                      default:
-                        navigate('/login');
+            try {
+                const userData = await getUser();
+                setUser(userData);
+                
+                if (userData) {
+                    if (!userData || userData.user.role !== 1) {
+                        switch(userData.user.role) {
+                            case 2:
+                                navigate('/admin-dashboard');
+                                break;
+                            case 0:
+                                navigate('/user-dashboard');
+                                break;
+                            default:
+                                navigate('/login');
+                        }
+                    }
+                    const teachersData = await getAllTeachers();
+                    if (Array.isArray(teachersData) && teachersData.length > 0) {
+                        const filteredTeachers = teachersData.filter(teacher => teacher.departmentName !== "Tổ Giáo vụ – Đào tạo");
+                        const updatedTeachers = updateTeachersWithCorrectReductions(filteredTeachers);
+                        setTeachers(updatedTeachers);
+                    } else {
+                        console.error('Invalid teachers data:', teachersData);
+                        toast.error('Định dạng dữ liệu giáo viên không hợp lệ. Vui lòng thử lại sau.');
                     }
                 }
-                const teachersData = await getAllTeachers();
-                if (Array.isArray(teachersData) && teachersData.length > 0) {
-                    const filteredTeachers = teachersData.filter(teacher => teacher.departmentName !== "Tổ Giáo vụ – Đào tạo");
-                    const updatedTeachers = updateTeachersWithCorrectReductions(filteredTeachers);
-                    setTeachers(updatedTeachers);
-                } else {
-                    console.error('Invalid teachers data:', teachersData);
-                    toast.error('Định dạng dữ liệu giáo viên không hợp lệ. Vui lòng thử lại sau.');
-                }
+            } catch (error) {
+                console.error('Error fetching data:', error);
+                toast.error('Đã xảy ra lỗi khi tải dữ liệu. Vui lòng thử lại sau.');
+            } finally {
+                setLoading(false);
             }
-          } catch (error) {
-            console.error('Error fetching data:', error);
-            toast.error('Đã xảy ra lỗi khi tải dữ liệu. Vui lòng thử lại sau.');
-          } finally {
-            setLoading(false);
-          }
         };
     
         fetchUserAndTeachers();
@@ -137,11 +140,11 @@ const MinistryTeacherStatic = () => {
                         <>
                             <TableCell rowSpan={rowSpan} className={`${styles.stickyColumn} ${styles.firstColumn}`}>{page * rowsPerPage + index + 1}</TableCell>
                             <TableCell rowSpan={rowSpan} className={`${styles.stickyColumn} ${styles.secondColumn}`}>{teacher.name}</TableCell>
-                            <TableCell rowSpan={rowSpan} style={{textAlign: 'center'}}>{teacher.teachingSubjects}</TableCell>
-                            <TableCell rowSpan={rowSpan} style={{textAlign: 'center'}}>{teacher.type}</TableCell>
-                            <TableCell rowSpan={rowSpan} style={{textAlign: 'center'}}>{isThinhGiang ? '-' : teacher.basicTeachingLessons}</TableCell>
-                            <TableCell rowSpan={rowSpan} style={{textAlign: 'center'}}>{isThinhGiang ? '-' : teacher.totalReductions}</TableCell>
-                            <TableCell rowSpan={rowSpan} className={styles.reductionCell}>
+                            <TableCell style={{textAlign: 'center'}} rowSpan={rowSpan}>{teacher.teachingSubjects}</TableCell>
+                            <TableCell style={{textAlign: 'center'}} rowSpan={rowSpan}>{teacher.type}</TableCell>
+                            <TableCell style={{textAlign: 'center'}} rowSpan={rowSpan}>{isThinhGiang ? '-' : teacher.basicTeachingLessons}</TableCell>
+                            <TableCell style={{textAlign: 'center'}} rowSpan={rowSpan}>{isThinhGiang ? '-' : teacher.totalReductions}</TableCell>
+                            <TableCell className={styles.reductionCell} rowSpan={rowSpan}>
                                 {!isThinhGiang && teacher.reductions && teacher.reductions.map((reduction, rIndex) => (
                                     <div key={rIndex} className={styles.reductionRow}>
                                         {reduction.reductionReason}: {reduction.reducedLessons}
@@ -153,11 +156,11 @@ const MinistryTeacherStatic = () => {
                                     </div>
                                 )}
                             </TableCell>
-                            <TableCell rowSpan={rowSpan} style={{textAlign: 'center'}}>{isThinhGiang ? '-' : teacher.finalBasicTeachingLessons}</TableCell>
-                            <TableCell rowSpan={rowSpan} style={{textAlign: 'center'}}>{teacher.totalAssignment || "Chưa khai báo"}</TableCell>
-                            <TableCell rowSpan={rowSpan} style={{textAlign: 'center'}}>{isThinhGiang ? '-' : (teacher.declaredTeachingLessons || "Chưa khai báo")}</TableCell>
-                            <TableCell rowSpan={rowSpan} style={{textAlign: 'center'}}>{isThinhGiang ? '-' : `${calculateCompletionPercentage(teacher.declaredTeachingLessons, teacher.finalBasicTeachingLessons)}%`}</TableCell>
-                            <TableCell rowSpan={rowSpan} style={{textAlign: 'center'}}>{isThinhGiang ? '-' : calculateExcessLessons(teacher.declaredTeachingLessons, teacher.finalBasicTeachingLessons)}</TableCell>
+                            <TableCell style={{textAlign: 'center'}} rowSpan={rowSpan} className={styles.fixedWidth3}>{isThinhGiang ? '-' : teacher.finalBasicTeachingLessons}</TableCell>
+                            <TableCell style={{textAlign: 'center'}} rowSpan={rowSpan} className={styles.fixedWidth3}>{isThinhGiang ? '-' : (teacher.declaredTeachingLessons || "Chưa khai báo")}</TableCell>
+                            <TableCell style={{textAlign: 'center'}} rowSpan={rowSpan}>{isThinhGiang ? '-' : `${calculateCompletionPercentage(teacher.declaredTeachingLessons, teacher.finalBasicTeachingLessons)}%`}</TableCell>
+                            <TableCell style={{textAlign: 'center'}} rowSpan={rowSpan}>{isThinhGiang ? '-' : calculateExcessLessons(teacher.declaredTeachingLessons, teacher.finalBasicTeachingLessons)}</TableCell>
+                            <TableCell style={{textAlign: 'center'}} rowSpan={rowSpan} className={styles.fixedWidth3}>{teacher.totalAssignment || "Chưa khai báo"}</TableCell>
                         </>
                     )}
                     <TableCell style={{textAlign: 'center'}}>{assignment.className}</TableCell>
@@ -186,9 +189,9 @@ const MinistryTeacherStatic = () => {
                             </div>
                         )}
                     </TableCell>
-                    <TableCell style={{textAlign: 'center'}}>{isThinhGiang ? '-' : teacher.finalBasicTeachingLessons}</TableCell>
-                    <TableCell style={{textAlign: 'center'}}>Chưa khai báo</TableCell>
-                    <TableCell style={{textAlign: 'center'}}>{isThinhGiang ? '-' : "Chưa khai báo"}</TableCell>
+                    <TableCell style={{textAlign: 'center'}} className={styles.fixedWidth3}>{isThinhGiang ? '-' : teacher.finalBasicTeachingLessons}</TableCell>
+                    <TableCell style={{textAlign: 'center'}} className={styles.fixedWidth3}>Chưa khai báo</TableCell>
+                    <TableCell style={{textAlign: 'center'}} className={styles.fixedWidth3}>{isThinhGiang ? '-' : "Chưa khai báo"}</TableCell>
                     <TableCell style={{textAlign: 'center'}}>{isThinhGiang ? '-' : "0%"}</TableCell>
                     <TableCell style={{textAlign: 'center'}}>{isThinhGiang ? '-' : "0"}</TableCell>
                     <TableCell style={{textAlign: 'center'}}>-</TableCell>
@@ -198,188 +201,6 @@ const MinistryTeacherStatic = () => {
             );
         }
     };
-    
-    return(
-        <>
-        <Helmet>
-            <title>Thống kê giáo viên</title>
-        </Helmet>
-        <Header/>
-        <div className={styles.dashboardMinistry}>
-            <Box m="20px">
-                <Link to="/ministry-declare" style={{ textDecoration: 'none', paddingBottom: '5px', fontSize: '20px'}}>
-                     <ArrowBackIcon/>
-                </Link>
-                <Typography variant="h4" mb={2} style={{ marginTop: '10px'}}>
-                    Thống kê giáo viên
-                </Typography>
-                <Box mb={2}>
-                    <Typography>Tổng số giáo viên: {teachers.length}</Typography>
-                </Box>
-                <Box display="flex" justifyContent="space-between" mb={3}>
-                    <TextField
-                        value={searchQuery}
-                        onChange={handleSearchChange}
-                        placeholder="Tìm kiếm theo tên hoặc tổ bộ môn"
-                        style={{ width: '30%' }}
-                        InputProps={{
-                            startAdornment: (
-                                <InputAdornment position="start">
-                                    <SearchIcon />
-                                </InputAdornment>
-                            ),
-                        }}
-                    />
-                    <Box display="flex" alignItems="center">
-                        <Select
-                            value={departmentFilter}
-                            onChange={handleDepartmentFilterChange}
-                            displayEmpty
-                            style={{ width: '200px', marginRight: '10px' }}
-                        >
-                            <MenuItem value="">Tất cả tổ bộ môn</MenuItem>
-                            {uniqueDepartments.map((dept) => (
-                                <MenuItem key={dept} value={dept}>{dept}</MenuItem>
-                            ))}
-                        </Select>
-                        <ExportTeachersExcel teachers={teachers} />
-                    </Box>
-                </Box>
-                <div className={styles.tableWrapper}>
-                    <TableContainer component={Paper} className={styles.tableContainer}>
-                        <Table stickyHeader className={styles.table}>
-                            <TableHead>
-                                <TableRow>
-                                    <TableCell className={`${styles.tableHeader} ${styles.stickyColumn} ${styles.firstColumn} ${styles.headerFirstColumn}`}>STT</TableCell>
-                                    <TableCell className={`${styles.tableHeader} ${styles.stickyColumn} ${styles.secondColumn} ${styles.headerSecondColumn}`}>Tên giáo viên</TableCell>
-                                    <TableCell className={`${styles.tableHeader} ${styles.fixedWidth}`}>Bộ môn</TableCell>
-                                    <TableCell className={`${styles.tableHeader} ${styles.fixedWidth}`}>Hình thức GV</TableCell>
-                                    <TableCell className={`${styles.tableHeader} ${styles.fixedWidth}`}>Số tiết chuẩn</TableCell>
-                                    <TableCell className={`${styles.tableHeader} ${styles.fixedWidth}`}>Số tiết giảm trừ</TableCell>
-                                    <TableCell className={`${styles.tableHeader} ${styles.mediumWidth}`}>Nội dung giảm</TableCell>
-                                    <TableCell className={`${styles.tableHeader} ${styles.fixedWidth}`}>Số tiết chuẩn sau khi giảm trừ</TableCell>
-                                    <TableCell className={`${styles.tableHeader} ${styles.fixedWidth2}`}>Tổng số tiết được phân công</TableCell>
-                                    <TableCell className={`${styles.tableHeader} ${styles.fixedWidth2}`}>Số tiết hoàn thành nhiệm vụ</TableCell>
-                                    <TableCell className={`${styles.tableHeader} ${styles.fixedWidth}`}>Tỉ lệ hoàn thành</TableCell>
-                                    <TableCell className={`${styles.tableHeader} ${styles.fixedWidth}`}>Số tiết dư</TableCell>
-                                    <TableCell className={`${styles.tableHeader} ${styles.mediumWidth}`}>Mã lớp</TableCell>
-                                    <TableCell className={`${styles.tableHeader} ${styles.mediumWidth}`}>Môn học</TableCell>
-                                    <TableCell className={`${styles.tableHeader} ${styles.fixedWidth}`}>Số tiết khai báo</TableCell>
-                                </TableRow>
-                            </TableHead>
-                            <TableBody>
-                                {paginatedTeachers.map((teacher, index) => renderAssignments(teacher, index))}
-                            </TableBody>
-                        </Table>
-                    </TableContainer>
-                    <TablePagination
-                        rowsPerPageOptions={[25, 50, 100]}
-                        component="div"
-                        count={filteredTeachers.length}
-                        rowsPerPage={rowsPerPage}
-                        page={page}
-                        onPageChange={handleChangePage}
-                        onRowsPerPageChange={handleChangeRowsPerPage}
-                        style={{overflow: 'unset'}}
-                    />
-                </div>
-            </Box>
-        </div>
-        <Footer/>
-        <ToastContainer />
-        </>
-    );
-    
-    return(
-        <>
-        <Helmet>
-            <title>Thống kê giáo viên</title>
-        </Helmet>
-        <Header/>
-        <div className={styles.dashboardMinistry}>
-            <Box m="20px">
-                <Link to="/ministry-declare" style={{ textDecoration: 'none', paddingBottom: '5px', fontSize: '20px'}}>
-                     <ArrowBackIcon/>
-                </Link>
-                <Typography variant="h4" mb={2} style={{ marginTop: '10px'}}>
-                    Thống kê giáo viên
-                </Typography>
-                <Box mb={2}>
-                    <Typography>Tổng số giáo viên: {teachers.length}</Typography>
-                </Box>
-                <Box display="flex" justifyContent="space-between" mb={3}>
-                    <TextField
-                        value={searchQuery}
-                        onChange={handleSearchChange}
-                        placeholder="Tìm kiếm theo tên hoặc tổ bộ môn"
-                        style={{ width: '30%' }}
-                        InputProps={{
-                            startAdornment: (
-                                <InputAdornment position="start">
-                                    <SearchIcon />
-                                </InputAdornment>
-                            ),
-                        }}
-                    />
-                    <Box display="flex" alignItems="center">
-                        <Select
-                            value={departmentFilter}
-                            onChange={handleDepartmentFilterChange}
-                            displayEmpty
-                            style={{ width: '200px', marginRight: '10px' }}
-                        >
-                            <MenuItem value="">Tất cả tổ bộ môn</MenuItem>
-                            {uniqueDepartments.map((dept) => (
-                                <MenuItem key={dept} value={dept}>{dept}</MenuItem>
-                            ))}
-                        </Select>
-                        <ExportTeachersExcel teachers={teachers} />
-                    </Box>
-                </Box>
-                <div className={styles.tableWrapper}>
-                    <TableContainer component={Paper} className={styles.tableContainer}>
-                        <Table stickyHeader className={styles.table}>
-                            <TableHead>
-                                <TableRow>
-                                    <TableCell className={`${styles.tableHeader} ${styles.stickyColumn} ${styles.firstColumn} ${styles.headerFirstColumn}`}>STT</TableCell>
-                                    <TableCell className={`${styles.tableHeader} ${styles.stickyColumn} ${styles.secondColumn} ${styles.headerSecondColumn}`}>Tên giáo viên</TableCell>
-                                    <TableCell className={`${styles.tableHeader} ${styles.fixedWidth}`}>Bộ môn</TableCell>
-                                    <TableCell className={`${styles.tableHeader} ${styles.fixedWidth}`}>Hình thức GV</TableCell>
-                                    <TableCell className={`${styles.tableHeader} ${styles.fixedWidth}`}>Số tiết chuẩn</TableCell>
-                                    <TableCell className={`${styles.tableHeader} ${styles.fixedWidth}`}>Số tiết giảm trừ</TableCell>
-                                    <TableCell className={`${styles.tableHeader} ${styles.mediumWidth}`}>Nội dung giảm</TableCell>
-                                    <TableCell className={`${styles.tableHeader} ${styles.fixedWidth}`}>Số tiết chuẩn sau khi giảm trừ</TableCell>
-                                    <TableCell className={`${styles.tableHeader} ${styles.fixedWidth2}`}>Tổng số tiết được phân công</TableCell>
-                                    <TableCell className={`${styles.tableHeader} ${styles.fixedWidth2}`}>Số tiết hoàn thành nhiệm vụ</TableCell>
-                                    <TableCell className={`${styles.tableHeader} ${styles.fixedWidth}`}>Tỉ lệ hoàn thành</TableCell>
-                                    <TableCell className={`${styles.tableHeader} ${styles.fixedWidth}`}>Số tiết dư</TableCell>
-                                    <TableCell className={`${styles.tableHeader} ${styles.mediumWidth}`}>Mã lớp</TableCell>
-                                    <TableCell className={`${styles.tableHeader} ${styles.mediumWidth}`}>Môn học</TableCell>
-                                    <TableCell className={`${styles.tableHeader} ${styles.fixedWidth}`}>Số tiết khai báo</TableCell>
-                                </TableRow>
-                            </TableHead>
-                            <TableBody>
-                                {paginatedTeachers.map((teacher, index) => renderAssignments(teacher, index))}
-                            </TableBody>
-                        </Table>
-                    </TableContainer>
-                    <TablePagination
-                        rowsPerPageOptions={[25, 50, 100]}
-                        component="div"
-                        count={filteredTeachers.length}
-                        rowsPerPage={rowsPerPage}
-                        page={page}
-                        onPageChange={handleChangePage}
-                        onRowsPerPageChange={handleChangeRowsPerPage}
-                        style={{overflow: 'unset'}}
-                    />
-                </div>
-            </Box>
-        </div>
-        <Footer/>
-        <ToastContainer />
-        </>
-    );
 
     return(
         <>
@@ -439,11 +260,11 @@ const MinistryTeacherStatic = () => {
                                     <TableCell className={`${styles.tableHeader} ${styles.fixedWidth}`}>Số tiết chuẩn</TableCell>
                                     <TableCell className={`${styles.tableHeader} ${styles.fixedWidth}`}>Số tiết giảm trừ</TableCell>
                                     <TableCell className={`${styles.tableHeader} ${styles.mediumWidth}`}>Nội dung giảm</TableCell>
-                                    <TableCell className={`${styles.tableHeader} ${styles.fixedWidth}`}>Số tiết chuẩn sau khi giảm trừ</TableCell>
-                                    <TableCell className={`${styles.tableHeader} ${styles.fixedWidth2}`}>Tổng số tiết được phân công</TableCell>
-                                    <TableCell className={`${styles.tableHeader} ${styles.fixedWidth2}`}>Số tiết hoàn thành nhiệm vụ</TableCell>
+                                    <TableCell className={`${styles.tableHeader} ${styles.fixedWidth3}`}>Số tiết chuẩn sau khi giảm trừ</TableCell>
+                                    <TableCell className={`${styles.tableHeader} ${styles.fixedWidth3}`}>Số tiết hoàn thành nhiệm vụ (Tiết chuẩn x3)</TableCell>
                                     <TableCell className={`${styles.tableHeader} ${styles.fixedWidth}`}>Tỉ lệ hoàn thành</TableCell>
-                                    <TableCell className={`${styles.tableHeader} ${styles.fixedWidth}`}>Số tiết dư</TableCell>
+                                    <TableCell className={`${styles.tableHeader} ${styles.fixedWidth}`}>Số tiết nhiệm vụ dư</TableCell>
+                                    <TableCell className={`${styles.tableHeader} ${styles.fixedWidth3}`}>Tổng số tiết được trả thù lao</TableCell>
                                     <TableCell className={`${styles.tableHeader} ${styles.mediumWidth}`}>Mã lớp</TableCell>
                                     <TableCell className={`${styles.tableHeader} ${styles.mediumWidth}`}>Môn học</TableCell>
                                     <TableCell className={`${styles.tableHeader} ${styles.fixedWidth}`}>Số tiết khai báo</TableCell>

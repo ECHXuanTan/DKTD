@@ -19,37 +19,35 @@ const ExportTeachersExcel = ({ teachers }) => {
   const getReductionReasons = (teacher) => {
     const reasons = [];
     
-    // Add GVCN if teacher has homeroom
-    if (teacher.homeroomInfo) {
-      reasons.push('GVCN');
-    }
-  
-    // Add other reduction reasons
-    if (teacher.reductions && teacher.reductions.length > 0) {
-      const otherReasons = teacher.reductions.map(reduction => reduction.reductionReason);
-      reasons.push(...otherReasons);
+    if (teacher.type === "Cơ hữu") {
+      if (teacher.homeroomInfo) {
+        reasons.push('GVCN');
+      }
+    
+      if (teacher.reductions && teacher.reductions.length > 0) {
+        const otherReasons = teacher.reductions.map(reduction => reduction.reductionReason);
+        reasons.push(...otherReasons);
+      }
     }
   
     return reasons.join(' + ') || '-';
   };
 
   const processTeacherData = (teachers) => {
-    // Create a map to store aggregated teacher data by email
     const teacherMap = new Map();
 
     teachers.forEach(teacher => {
+      if (teacher.totalAssignment === 0) return;
+      
       if (teacherMap.has(teacher.email)) {
-        // Get existing teacher data
         const existingTeacher = teacherMap.get(teacher.email);
 
-        // Aggregate numeric fields
         existingTeacher.totalLessonsQ5S = (existingTeacher.totalLessonsQ5S || 0) + (teacher.totalLessonsQ5S || 0);
         existingTeacher.totalLessonsQ5NS = (existingTeacher.totalLessonsQ5NS || 0) + (teacher.totalLessonsQ5NS || 0);
         existingTeacher.totalLessonsTDS = (existingTeacher.totalLessonsTDS || 0) + (teacher.totalLessonsTDS || 0);
         existingTeacher.totalLessonsTDNS = (existingTeacher.totalLessonsTDNS || 0) + (teacher.totalLessonsTDNS || 0);
         existingTeacher.totalAssignment = (existingTeacher.totalAssignment || 0) + (teacher.totalAssignment || 0);
 
-        // Combine teaching details if they exist
         if (teacher.teachingDetails) {
           existingTeacher.teachingDetails = [
             ...(existingTeacher.teachingDetails || []),
@@ -57,24 +55,20 @@ const ExportTeachersExcel = ({ teachers }) => {
           ];
         }
 
-        // Combine teaching subjects if different
         if (teacher.teachingSubjects && !existingTeacher.teachingSubjects.includes(teacher.teachingSubjects)) {
           existingTeacher.teachingSubjects = `${existingTeacher.teachingSubjects}, ${teacher.teachingSubjects}`;
         }
 
         teacherMap.set(teacher.email, existingTeacher);
       } else {
-        // Create new entry
         teacherMap.set(teacher.email, { ...teacher });
       }
     });
 
-    // Convert map back to array
     return Array.from(teacherMap.values());
   };
 
   const handleExport = async () => {
-    // Process and aggregate teacher data
     const processedTeachers = processTeacherData(teachers);
 
     const data = processedTeachers.map((teacher, index) => ({
@@ -97,7 +91,6 @@ const ExportTeachersExcel = ({ teachers }) => {
 
     const worksheet = XLSX.utils.json_to_sheet([], { skipHeader: true });
 
-    // Add custom headers
     XLSX.utils.sheet_add_aoa(worksheet, [
       ['STT', 'Họ và tên', 'Tên', 'Số lớp', 'Hình thức giáo viên', 'Trong học kỳ 1_18 tuần', '', '', '', 'Bộ môn', 'Tổng số tiết', 'Số tiết chuẩn', 'Số tiết giảm', 'Nội dung giảm', 'Ghi chú'],
       ['', '', '', '', '', 'KC CS1', 'Ch CS1', 'KC CS2', 'Ch CS2', '', '', '', '', '', ''],
@@ -110,26 +103,23 @@ const ExportTeachersExcel = ({ teachers }) => {
       ]
     ], { origin: 'A1' });
 
-    // Add data starting from the fourth row
     XLSX.utils.sheet_add_json(worksheet, data, { origin: 'A4', skipHeader: true });
 
-    // Merge cells for the custom headers
     worksheet['!merges'] = [
-      { s: { r: 0, c: 5 }, e: { r: 0, c: 8 } }, // Merge "Trong học kỳ 1_18 tuần"
-      { s: { r: 0, c: 0 }, e: { r: 2, c: 0 } }, // Merge "STT"
-      { s: { r: 0, c: 1 }, e: { r: 2, c: 1 } }, // Merge "Họ và tên"
-      { s: { r: 0, c: 2 }, e: { r: 2, c: 2 } }, // Merge "Tên"
-      { s: { r: 0, c: 3 }, e: { r: 2, c: 3 } }, // Merge "Số lớp"
-      { s: { r: 0, c: 4 }, e: { r: 2, c: 4 } }, // Merge "Hình thức giáo viên"
-      { s: { r: 0, c: 9 }, e: { r: 2, c: 9 } }, // Merge "Bộ môn"
-      { s: { r: 0, c: 10 }, e: { r: 2, c: 10 } }, // Merge "Tổng số tiết"
-      { s: { r: 0, c: 11 }, e: { r: 2, c: 11 } }, // Merge "Số tiết chuẩn"
-      { s: { r: 0, c: 12 }, e: { r: 2, c: 12 } }, // Merge "Số tiết giảm"
-      { s: { r: 0, c: 13 }, e: { r: 2, c: 13 } }, // Merge "Nội dung giảm"
-      { s: { r: 0, c: 14 }, e: { r: 2, c: 14 } }  // Merge "Ghi chú"
+      { s: { r: 0, c: 5 }, e: { r: 0, c: 8 } },
+      { s: { r: 0, c: 0 }, e: { r: 2, c: 0 } },
+      { s: { r: 0, c: 1 }, e: { r: 2, c: 1 } },
+      { s: { r: 0, c: 2 }, e: { r: 2, c: 2 } },
+      { s: { r: 0, c: 3 }, e: { r: 2, c: 3 } },
+      { s: { r: 0, c: 4 }, e: { r: 2, c: 4 } },
+      { s: { r: 0, c: 9 }, e: { r: 2, c: 9 } },
+      { s: { r: 0, c: 10 }, e: { r: 2, c: 10 } },
+      { s: { r: 0, c: 11 }, e: { r: 2, c: 11 } },
+      { s: { r: 0, c: 12 }, e: { r: 2, c: 12 } },
+      { s: { r: 0, c: 13 }, e: { r: 2, c: 13 } },
+      { s: { r: 0, c: 14 }, e: { r: 2, c: 14 } }
     ];
 
-    // Apply font to all cells
     const range = XLSX.utils.decode_range(worksheet['!ref']);
     for (let R = range.s.r; R <= range.e.r; ++R) {
       for (let C = range.s.c; C <= range.e.c; ++C) {
