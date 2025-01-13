@@ -14,7 +14,8 @@ import {
     getClassSubjectInfo, 
     getAllAssignmentTeachers,
     batchEditAssignments 
-} from '../../services/assignmentServices.js';import { toast, ToastContainer } from 'react-toastify';
+} from '../../services/assignmentServices.js';
+import { toast, ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import { Box, Typography, TextField, Button, InputAdornment, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Paper, Grid, Checkbox, IconButton } from '@mui/material';
 import SearchIcon from '@mui/icons-material/Search';
@@ -30,6 +31,10 @@ import FilterButton from './Component/FilterButton.jsx';
 import CreateAssignmentModal from './Component/CreateAssignmentModal.jsx';
 import ImportTeacherAssignmentsModal from './Component/Teacher/ImportTeacherAssignmentsModal.jsx';
 import styles from '../../css/Leader/LeaderDeclare.module.css';
+
+const excludedIds = ["67801209b2349d98214e33b0", "6720a875ecc34e29a4c2642c", "677feb6ab2349d98214e175b", 
+                    "678079b1b2349d98214e7848", "67807f9cb2349d98214e7f5c", "67808309b2349d98214e85cf", 
+                    "678088aeb2349d98214e8ac3", "6710730c6ad80da90b6489ff", "6746e4e5153d5710f1c1a64c"];
 
 const calculateCompletionPercentage = (declaredTeachingLessons, finalBasicTeachingLessons) => {
     if (finalBasicTeachingLessons === 0) return 0;
@@ -51,7 +56,6 @@ const updateTeachersWithCorrectReductions = (teachers) => {
     return teachers.map(teacher => ({
         ...teacher,
         totalReducedLessons: calculateTotalReducedLessons(teacher),
-        // Update finalBasicTeachingLessons based on new total
         finalBasicTeachingLessons: teacher.basicTeachingLessons - calculateTotalReducedLessons(teacher)
     }));
 };
@@ -81,7 +85,6 @@ const LeaderDashboard = () => {
     const [maxLessons, setMaxLessons] = useState({});
     const [isEditMode, setIsEditMode] = useState(false);
 
-
     useEffect(() => {
         const fetchInitialData = async () => {
             try {
@@ -97,8 +100,8 @@ const LeaderDashboard = () => {
                 setUser(userData);
                 setTeacher(teacherData);
                 
-                // Update teachers with correct reductions before setting state
-                const updatedTeachers = updateTeachersWithCorrectReductions(teachersData);
+                const filteredTeachers = teachersData.filter(t => !excludedIds.includes(t._id));
+                const updatedTeachers = updateTeachersWithCorrectReductions(filteredTeachers);
                 setTeachers(updatedTeachers);
     
                 if (Array.isArray(updatedTeachers) && updatedTeachers.length > 0) {
@@ -190,7 +193,6 @@ const LeaderDashboard = () => {
             setActionLoading(true);
             setLoadingTeacherId(deletingTeacherId);
     
-            // Delete all selected assignments
             await batchDeleteAssignments(selectedAssignments);
             
             const [teachersData, newAssignments] = await Promise.all([
@@ -198,7 +200,9 @@ const LeaderDashboard = () => {
                 getAllAssignmentTeachers(deletingTeacherId)
             ]);
     
-            setTeachers(teachersData);
+            const filteredTeachers = teachersData.filter(t => !excludedIds.includes(t._id));
+            const updatedTeachers = updateTeachersWithCorrectReductions(filteredTeachers);
+            setTeachers(updatedTeachers);
             setTeacherAssignments(prev => ({
                 ...prev,
                 [deletingTeacherId]: newAssignments
@@ -213,7 +217,7 @@ const LeaderDashboard = () => {
             setActionLoading(false);
             setLoadingTeacherId(null);
         }
-    }, [deletingTeacherId, selectedAssignments, getAllAssignmentTeachers, getDepartmentTeachers]);
+    }, [deletingTeacherId, selectedAssignments]);
 
     const handleCreateAssignment = useCallback(async (assignments) => {
         try {
@@ -227,7 +231,10 @@ const LeaderDashboard = () => {
                 selectedTeacherId ? getAllAssignmentTeachers(selectedTeacherId) : Promise.resolve(null)
             ]);
     
-            setTeachers(teachersData);
+            const filteredTeachers = teachersData.filter(t => !excludedIds.includes(t._id));
+            const updatedTeachers = updateTeachersWithCorrectReductions(filteredTeachers);
+            setTeachers(updatedTeachers);
+            
             if (selectedTeacherId && newAssignments) {
                 setTeacherAssignments(prev => ({
                     ...prev,
@@ -322,7 +329,9 @@ const LeaderDashboard = () => {
                 getAllAssignmentTeachers(teacherId)
             ]);
             
-            setTeachers(teachersData);
+            const filteredTeachers = teachersData.filter(t => !excludedIds.includes(t._id));
+            const updatedTeachers = updateTeachersWithCorrectReductions(filteredTeachers);
+            setTeachers(updatedTeachers);
             setTeacherAssignments(prev => ({
                 ...prev,
                 [teacherId]: newAssignments
@@ -342,158 +351,170 @@ const LeaderDashboard = () => {
 
     const renderAssignments = (teacher, index) => {
         const assignments = teacherAssignments[teacher._id] || [];
-        const rowSpan = Math.max(assignments.length || 1, 1);
+        const hasHomeroom = teacher.homeroomInfo ? 1 : 0;
+        const rowSpan = Math.max(assignments.length + hasHomeroom || 1, 1);
         const isDeleting = deletingTeacherId === teacher._id;
         const isEditing = editingAssignment === teacher._id;
         const isThinhGiang = teacher.type === "Thỉnh giảng";
-    
-        if (assignments.length > 0) {
-            return assignments.map((assignment, idx) => (
-                <TableRow key={assignment.id} className={index % 2 === 0 ? styles.evenRow : styles.oddRow}>
-                    {idx === 0 && (
-                        <>
-                            <TableCell rowSpan={rowSpan} className={`${styles.stickyColumn} ${styles.firstColumn}`}>{index + 1}</TableCell>
-                            <TableCell rowSpan={rowSpan} className={`${styles.stickyColumn} ${styles.secondColumn}`}>{teacher.name}</TableCell>
-                            <TableCell rowSpan={rowSpan} style={{textAlign: 'center'}}>{teacher.teachingSubjects}</TableCell>
-                            <TableCell rowSpan={rowSpan} style={{textAlign: 'center'}}>{teacher.type}</TableCell>
-                            <TableCell rowSpan={rowSpan} style={{textAlign: 'center'}}>{isThinhGiang ? '-' : teacher.basicTeachingLessons}</TableCell>
-                            <TableCell rowSpan={rowSpan} style={{textAlign: 'center'}}>{isThinhGiang ? '-' : teacher.totalReducedLessons}</TableCell>
-                            <TableCell rowSpan={rowSpan} className={styles.reductionCell}>
-                                {!isThinhGiang && teacher.reductions && teacher.reductions.map((reduction, rIndex) => (
-                                    <div key={rIndex} className={styles.reductionRow}>
-                                        {reduction.reductionReason}: {reduction.reducedLessons}
-                                    </div>
-                                ))}
-                                {!isThinhGiang && teacher.homeroomInfo?.reductionReason && (
-                                    <div className={styles.reductionRow}>
-                                        {teacher.homeroomInfo.reductionReason}: {teacher.homeroomInfo.totalReducedLessons}
-                                    </div>
-                                )}
-                            </TableCell>
-                            <TableCell rowSpan={rowSpan} style={{textAlign: 'center'}}>{isThinhGiang ? '-' : teacher.finalBasicTeachingLessons}</TableCell>
-                            <TableCell rowSpan={rowSpan} style={{textAlign: 'center'}}>{teacher.totalAssignment || "Chưa khai báo"}</TableCell>
-                            <TableCell rowSpan={rowSpan} style={{textAlign: 'center'}}>{isThinhGiang ? '-' : (teacher.declaredTeachingLessons || "Chưa khai báo")}</TableCell>
-                            <TableCell rowSpan={rowSpan} style={{textAlign: 'center'}}>{isThinhGiang ? '-' : `${calculateCompletionPercentage(teacher.declaredTeachingLessons, teacher.finalBasicTeachingLessons)}%`}</TableCell>
-                            <TableCell rowSpan={rowSpan} style={{textAlign: 'center'}}>{isThinhGiang ? '-' : calculateExcessLessons(teacher.declaredTeachingLessons, teacher.finalBasicTeachingLessons)}</TableCell>
-                        </>
-                    )}
-                    <TableCell>{assignment.className}</TableCell>
-                    <TableCell>{assignment.subjectName}</TableCell>
-                    <TableCell style={{textAlign: 'center'}}>
-                        {isEditing ? (
-                            <TextField
-                                value={editValue[assignment.id] || ''}
-                                onChange={(e) => setEditValue(prev => ({
-                                    ...prev,
-                                    [assignment.id]: e.target.value
-                                }))}
-                                type="number"
-                                size="small"
-                                style={{ width: '80px' }}
-                                InputProps={{
-                                    inputProps: { 
-                                        min: 0,
-                                        max: maxLessons[assignment.id] || 0 
-                                    }
-                                }}
-                            />
-                        ) : (
-                            assignment.completedLessons
+     
+        if (assignments.length > 0 || hasHomeroom) {
+            return [
+                ...assignments.map((assignment, idx) => (
+                    <TableRow key={assignment.id} className={index % 2 === 0 ? styles.evenRow : styles.oddRow}>
+                        {idx === 0 && (
+                            <>
+                                <TableCell rowSpan={rowSpan} className={`${styles.stickyColumn} ${styles.firstColumn}`}>{index + 1}</TableCell>
+                                <TableCell rowSpan={rowSpan} className={`${styles.stickyColumn} ${styles.secondColumn}`}>{teacher.name}</TableCell>
+                                <TableCell rowSpan={rowSpan} style={{textAlign: 'center'}}>{teacher.teachingSubjects}</TableCell>
+                                <TableCell rowSpan={rowSpan} style={{textAlign: 'center'}}>{teacher.type}</TableCell>
+                                <TableCell rowSpan={rowSpan} style={{textAlign: 'center'}}>{isThinhGiang ? '-' : teacher.basicTeachingLessons}</TableCell>
+                                <TableCell rowSpan={rowSpan} style={{textAlign: 'center'}}>{isThinhGiang ? '-' : teacher.totalReducedLessons}</TableCell>
+                                <TableCell rowSpan={rowSpan} className={styles.reductionCell}>
+                                    {!isThinhGiang && teacher.reductions && teacher.reductions.map((reduction, rIndex) => (
+                                        <div key={rIndex} className={styles.reductionRow}>
+                                            {reduction.reductionReason}: {reduction.reducedLessons}
+                                        </div>
+                                    ))}
+                                    {!isThinhGiang && teacher.homeroomInfo?.reductionReason && (
+                                        <div className={styles.reductionRow}>
+                                            {teacher.homeroomInfo.reductionReason}: {teacher.homeroomInfo.totalReducedLessons}
+                                        </div>
+                                    )}
+                                </TableCell>
+                                <TableCell rowSpan={rowSpan} style={{textAlign: 'center'}}>{isThinhGiang ? '-' : teacher.finalBasicTeachingLessons}</TableCell>
+                                <TableCell rowSpan={rowSpan} style={{textAlign: 'center'}}>{isThinhGiang ? '-' : (teacher.declaredTeachingLessons || "Chưa khai báo")}</TableCell>
+                                <TableCell rowSpan={rowSpan} style={{textAlign: 'center'}}>{isThinhGiang ? '-' : `${calculateCompletionPercentage(teacher.declaredTeachingLessons, teacher.finalBasicTeachingLessons)}%`}</TableCell>
+                                <TableCell rowSpan={rowSpan} style={{textAlign: 'center'}}>{isThinhGiang ? '-' : calculateExcessLessons(teacher.declaredTeachingLessons, teacher.finalBasicTeachingLessons)}</TableCell>
+                                <TableCell rowSpan={rowSpan} style={{textAlign: 'center'}}>{teacher.totalAssignment || "Chưa khai báo"}</TableCell>
+                            </>
                         )}
-                    </TableCell>
-                    {isEditMode && (
+                        <TableCell>{assignment.className}</TableCell>
+                        <TableCell>{assignment.subjectName}</TableCell>
                         <TableCell style={{textAlign: 'center'}}>
-                            {maxLessons[assignment.id] || '-'}
-                        </TableCell>
-                    )}
-                    {deletingTeacherId && (
-                        <TableCell style={{ width: '60px', textAlign: 'center' }}>
-                            {isDeleting && (
-                                <Checkbox
-                                    checked={selectedAssignments.includes(assignment.id)}
-                                    onChange={() => handleCheckAssignment(assignment.id)}
-                                    disabled={actionLoading && loadingTeacherId === teacher._id}
+                            {isEditing ? (
+                                <TextField
+                                    value={editValue[assignment.id] || ''}
+                                    onChange={(e) => setEditValue(prev => ({
+                                        ...prev,
+                                        [assignment.id]: e.target.value
+                                    }))}
+                                    type="number"
+                                    size="small"
+                                    style={{ width: '80px' }}
+                                    InputProps={{
+                                        inputProps: { 
+                                            min: 0,
+                                            max: maxLessons[assignment.id] || 0 
+                                        }
+                                    }}
                                 />
+                            ) : (
+                                assignment.completedLessons
                             )}
                         </TableCell>
-                    )}
-                    {idx === 0 && (
-                        <TableCell rowSpan={rowSpan}>
-                            <div className={styles.actionButtons}>
-                                {isEditing ? (
-                                    <div className={styles.buttonsContainer}>
-                                        <IconButton
-                                            size="small"
-                                            onClick={() => handleSaveEdit(teacher._id)}
-                                            disabled={actionLoading}
-                                        >
-                                            <SaveIcon style={{ color: "#4caf50" }}/>
-                                        </IconButton>
-                                        <IconButton
-                                            size="small"
-                                            onClick={() => {
-                                                setEditingAssignment(null);
-                                                setEditValue({});
-                                                setIsEditMode(false);
-                                            }}
-                                            disabled={actionLoading}
-                                        >
-                                            <CancelIcon style={{ color: "#f44336" }}/>
-                                        </IconButton>
-                                    </div>
-                                ) : isDeleting ? (
-                                    <div className={styles.buttonsContainer}>
-                                        <IconButton
-                                            className={`${styles.actionIcon} ${styles.deleteIcon}`}
-                                            onClick={handleDeleteSelected}
-                                            disabled={actionLoading && loadingTeacherId === teacher._id}
-                                        >
-                                            {actionLoading && loadingTeacherId === teacher._id ? (
-                                                <div style={{ width: 24, height: 24 }}>
-                                                    <Circles color="#d32f2f" height={24} width={24} />
-                                                </div>
-                                            ) : (
-                                                <DeleteIcon style={{ color: "#f44336" }}/>
-                                            )}
-                                        </IconButton>
-                                        <IconButton
-                                            className={styles.actionIcon}
-                                            onClick={() => setDeletingTeacherId(null)}
-                                            disabled={actionLoading && loadingTeacherId === teacher._id}
-                                        >
-                                            <CancelIcon style={{ color: "#f44336" }}/>
-                                        </IconButton>
-                                    </div>
-                                ) : (
-                                    <div className={styles.buttonsContainer}>
-                                        <IconButton
-                                            size="small"
-                                            onClick={() => handleStartEdit(teacher._id)}
-                                            disabled={actionLoading}
-                                        >
-                                            <EditIcon style={{ color: "#2196f3" }}/>
-                                        </IconButton>
-                                        <IconButton
-                                            className={`${styles.actionIcon} ${styles.deleteIcon}`}
-                                            onClick={() => handleStartDelete(teacher._id)}
-                                            disabled={actionLoading}
-                                        >
-                                            <DeleteIcon style={{ color: "#f44336" }}/>
-                                        </IconButton>
-                                        <IconButton
-                                            className={styles.actionIcon}
-                                            onClick={() => handleOpenAssignmentModal(teacher._id)}
-                                            disabled={actionLoading}
-                                        >
-                                            <AddCircleIcon style={{ color: "#113f67" }}/>
-                                        </IconButton>
-                                    </div>
+                        {isEditMode && (
+                            <TableCell style={{textAlign: 'center'}}>
+                                {maxLessons[assignment.id] || '-'}
+                            </TableCell>
+                        )}
+                        {deletingTeacherId && (
+                            <TableCell style={{ width: '60px', textAlign: 'center' }}>
+                                {isDeleting && (
+                                    <Checkbox
+                                        checked={selectedAssignments.includes(assignment.id)}
+                                        onChange={() => handleCheckAssignment(assignment.id)}
+                                        disabled={actionLoading && loadingTeacherId === teacher._id}
+                                    />
                                 )}
-                            </div>
-                        </TableCell>
-                    )}
-                </TableRow>
-            ));
+                            </TableCell>
+                        )}
+                        {idx === 0 && (
+                            <TableCell rowSpan={rowSpan}>
+                                <div className={styles.actionButtons}>
+                                    {isEditing ? (
+                                        <div className={styles.buttonsContainer}>
+                                            <IconButton
+                                                size="small"
+                                                onClick={() => handleSaveEdit(teacher._id)}
+                                                disabled={actionLoading}
+                                            >
+                                                <SaveIcon style={{ color: "#4caf50" }}/>
+                                            </IconButton>
+                                            <IconButton
+                                                size="small"
+                                                onClick={() => {
+                                                    setEditingAssignment(null);
+                                                    setEditValue({});
+                                                    setIsEditMode(false);
+                                                }}
+                                                disabled={actionLoading}
+                                            >
+                                                <CancelIcon style={{ color: "#f44336" }}/>
+                                            </IconButton>
+                                        </div>
+                                    ) : isDeleting ? (
+                                        <div className={styles.buttonsContainer}>
+                                            <IconButton
+                                                className={`${styles.actionIcon} ${styles.deleteIcon}`}
+                                                onClick={handleDeleteSelected}
+                                                disabled={actionLoading && loadingTeacherId === teacher._id}
+                                            >
+                                                {actionLoading && loadingTeacherId === teacher._id ? (
+                                                    <div style={{ width: 24, height: 24 }}>
+                                                        <Circles color="#d32f2f" height={24} width={24} />
+                                                    </div>
+                                                ) : (
+                                                    <DeleteIcon style={{ color: "#f44336" }}/>
+                                                )}
+                                            </IconButton>
+                                            <IconButton
+                                                className={styles.actionIcon}
+                                                onClick={() => setDeletingTeacherId(null)}
+                                                disabled={actionLoading && loadingTeacherId === teacher._id}
+                                            >
+                                                <CancelIcon style={{ color: "#f44336" }}/>
+                                            </IconButton>
+                                        </div>
+                                    ) : (
+                                        <div className={styles.buttonsContainer}>
+                                            <IconButton
+                                                size="small"
+                                                onClick={() => handleStartEdit(teacher._id)}
+                                                disabled={actionLoading}
+                                            >
+                                                <EditIcon style={{ color: "#2196f3" }}/>
+                                            </IconButton>
+                                            <IconButton
+                                                className={`${styles.actionIcon} ${styles.deleteIcon}`}
+                                                onClick={() => handleStartDelete(teacher._id)}
+                                                disabled={actionLoading}
+                                            >
+                                                <DeleteIcon style={{ color: "#f44336" }}/>
+                                            </IconButton>
+                                            <IconButton
+                                                className={styles.actionIcon}
+                                                onClick={() => handleOpenAssignmentModal(teacher._id)}
+                                                disabled={actionLoading}
+                                            >
+                                                <AddCircleIcon style={{ color: "#113f67" }}/>
+                                            </IconButton>
+                                        </div>
+                                    )}
+                                </div>
+                            </TableCell>
+                        )}
+                    </TableRow>
+                )),
+                teacher.homeroomInfo && (
+                    <TableRow key={`homeroom-${teacher._id}`} className={index % 2 === 0 ? styles.evenRow : styles.oddRow}>
+                        <TableCell>{teacher.homeroomInfo.className}</TableCell>
+                        <TableCell>CC-SHL</TableCell>
+                        <TableCell style={{textAlign: 'center'}}>36</TableCell>
+                        {isEditMode && <TableCell style={{textAlign: 'center'}}>-</TableCell>}
+                        {deletingTeacherId && <TableCell style={{textAlign: 'center'}}></TableCell>}
+                    </TableRow>
+                )
+            ].filter(Boolean);
         } else {
             return (
                 <TableRow className={index % 2 === 0 ? styles.evenRow : styles.oddRow}>
@@ -575,7 +596,7 @@ const LeaderDashboard = () => {
                         <Grid item xs={12} sm={6} md={3}>
                             <Paper className={`${styles.statBox} ${styles.greenBox}`}>
                                 <Typography variant="h6">Tổng số tiết đã khai báo của Tổ bộ môn</Typography>
-                                <Typography variant="h4">{teachers.reduce((sum, teacher) => sum + teacher.totalAssignment, 0)}</Typography>
+                                <Typography variant="h4">{teachers.reduce((sum, teacher) => sum + (teacher.totalAssignment || 0), 0)}</Typography>
                             </Paper>
                         </Grid>
                         <Grid item xs={12} sm={6} md={3}>
@@ -646,10 +667,10 @@ const LeaderDashboard = () => {
                                 <TableCell className={`${styles.tableHeader} ${styles.fixedWidth}`}>Số tiết giảm trừ</TableCell>
                                 <TableCell className={`${styles.tableHeader} ${styles.mediumWidth}`}>Nội dung giảm</TableCell>
                                 <TableCell className={`${styles.tableHeader} ${styles.fixedWidth}`}>Số tiết chuẩn sau khi giảm trừ</TableCell>
-                                <TableCell className={`${styles.tableHeader} ${styles.fixedWidth2}`}>Tổng số tiết được phân công</TableCell>
                                 <TableCell className={`${styles.tableHeader} ${styles.fixedWidth2}`}>Số tiết hoàn thành nhiệm vụ (Tiết chuẩn x3)</TableCell>
                                 <TableCell className={`${styles.tableHeader} ${styles.fixedWidth}`}>Tỉ lệ hoàn thành</TableCell>
-                                <TableCell className={`${styles.tableHeader} ${styles.fixedWidth}`}>Số tiết dư</TableCell>
+                                <TableCell className={`${styles.tableHeader} ${styles.fixedWidth}`}>Số tiết hoàn thành nhiệm vụ dư</TableCell>
+                                <TableCell className={`${styles.tableHeader} ${styles.fixedWidth2}`}>Tổng số tiết được phân công để tính thù lao</TableCell>
                                 <TableCell className={`${styles.tableHeader} ${styles.mediumWidth}`}>Mã lớp</TableCell>
                                 <TableCell className={`${styles.tableHeader} ${styles.mediumWidth}`}>Môn học</TableCell>
                                 <TableCell className={`${styles.tableHeader} ${styles.fixedWidth}`}>Số tiết khai báo</TableCell>
@@ -684,25 +705,27 @@ const LeaderDashboard = () => {
                 isOpen={isImportModalOpen}
                 onClose={() => setIsImportModalOpen(false)}
                 onAssignmentCreate={async () => {
-                const [teachersData, aboveCount, belowCount] = await Promise.all([
-                    getDepartmentTeachers(),
-                    getTeachersAboveThresholdCount(teacher.department._id), 
-                    getTeachersBelowBasicCount(teacher.department._id)
-                ]);
+                    const [teachersData, aboveCount, belowCount] = await Promise.all([
+                        getDepartmentTeachers(),
+                        getTeachersAboveThresholdCount(teacher.department._id),
+                        getTeachersBelowBasicCount(teacher.department._id)
+                    ]);
 
-                setTeachers(teachersData);
-                setAboveThresholdCount(aboveCount);
-                setBelowThresholdCount(belowCount);
+                    const filteredTeachers = teachersData.filter(t => !excludedIds.includes(t._id));
+                    const updatedTeachers = updateTeachersWithCorrectReductions(filteredTeachers);
+                    setTeachers(updatedTeachers);
+                    setAboveThresholdCount(aboveCount);
+                    setBelowThresholdCount(belowCount);
 
-                const assignmentsPromises = teachersData.map(teacher => 
-                    getAllAssignmentTeachers(teacher._id)
-                );
-                const assignmentsResults = await Promise.all(assignmentsPromises);
-                const assignmentsMap = {};
-                teachersData.forEach((teacher, index) => {
-                    assignmentsMap[teacher._id] = assignmentsResults[index];
-                });
-                setTeacherAssignments(assignmentsMap);
+                    const assignmentsPromises = updatedTeachers.map(teacher => 
+                        getAllAssignmentTeachers(teacher._id)
+                    );
+                    const assignmentsResults = await Promise.all(assignmentsPromises);
+                    const assignmentsMap = {};
+                    updatedTeachers.forEach((teacher, index) => {
+                        assignmentsMap[teacher._id] = assignmentsResults[index];
+                    });
+                    setTeacherAssignments(assignmentsMap);
                 }}
             />
             <Footer/>

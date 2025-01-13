@@ -8,28 +8,54 @@ import { toast } from 'react-toastify';
 const ExportDepartmentTeachers = ({ departmentId, departmentName }) => {
   const [loading, setLoading] = useState(false);
 
+  const excludedIds = [
+    "67801209b2349d98214e33b0",
+    "6720a875ecc34e29a4c2642c",
+    "677feb6ab2349d98214e175b",
+    "678079b1b2349d98214e7848",
+    "67807f9cb2349d98214e7f5c",
+    "67808309b2349d98214e85cf",
+    "678088aeb2349d98214e8ac3",
+    "6710730c6ad80da90b6489ff",
+    "6746e4e5153d5710f1c1a64c"
+  ];
+
   const getLastName = (fullName) => {
     const nameParts = fullName.trim().split(' ');
     return nameParts[nameParts.length - 1];
   };
 
-  const getTotalClasses = (teachingDetails) => {
-    return teachingDetails.length;
+  const getTotalClasses = (teachingDetails, hasHomeroom) => {
+    return teachingDetails.length + (hasHomeroom ? 1 : 0);
   };
 
   const getTotalReducedLessons = (teacher) => {
-    return (teacher.homeroom?.totalReducedLessons || 0) + (teacher.totalReducedLessons || 0);
+    return (
+      (teacher.homeroomReduction?.totalReducedLessons || 0) +
+      teacher.reductions.reduce((sum, reduction) => sum + (reduction.reducedLessons || 0), 0)
+    );
   };
 
   const getReductionReasons = (teacher) => {
     const reasons = [];
-    if (teacher.homeroom?.reductionReason) reasons.push(teacher.homeroom.reductionReason);
-    if (teacher.reductionReason && teacher.reductionReason.includes(', ')) {
-      reasons.push(...teacher.reductionReason.split(', '));
-    } else if (teacher.reductionReason) {
-      reasons.push(teacher.reductionReason);
-    }
+    if (teacher.homeroomReduction?.reductionReason) reasons.push(teacher.homeroomReduction.reductionReason);
+    teacher.reductions.forEach((reduction) => {
+      if (reduction.reductionReason) reasons.push(reduction.reductionReason);
+    });
     return reasons.filter(Boolean).join(' + ');
+  };
+
+  const adjustHomeroomLessons = (teacher) => {
+    let homeroomAdjustment = { KC_CS1: 0, KC_CS2: 0 };
+    if (teacher.homeroomReduction?.className) {
+      const prefix = teacher.homeroomReduction.className.slice(0, 2);
+      if (prefix === 'Q5') {
+        homeroomAdjustment.KC_CS1 += 36;
+      } else if (prefix === 'TĐ') {
+        homeroomAdjustment.KC_CS2 += 36;
+      }
+    }
+    return homeroomAdjustment;
   };
 
   const handleExport = async () => {
@@ -37,22 +63,29 @@ const ExportDepartmentTeachers = ({ departmentId, departmentName }) => {
       setLoading(true);
       const teachers = await getExportDepartmentTeachers(departmentId);
 
-      const data = teachers.map((teacher, index) => ({
-        STT: index + 1,
-        'Họ và tên': teacher.name,
-        Tên: getLastName(teacher.name),
-        'Số lớp': getTotalClasses(teacher.teachingDetails),
-        'Hình thức giáo viên': teacher.type,
-        'KC CS1': teacher.totalLessonsQ5NS,
-        'Ch CS1': teacher.totalLessonsQ5S,
-        'KC CS2': teacher.totalLessonsTDNS,
-        'Ch CS2': teacher.totalLessonsTDS,
-        'Tổng số tiết': teacher.totalAssignment,
-        'Số tiết chuẩn': teacher.basicTeachingLessons,
-        'Số tiết giảm': getTotalReducedLessons(teacher),
-        'Nội dung giảm': getReductionReasons(teacher),
-        'Ghi chú': ''
-      }));
+      const filteredTeachers = teachers.filter(
+        (teacher) => !excludedIds.includes(String(teacher.id))
+      );
+
+      const data = filteredTeachers.map((teacher, index) => {
+        const homeroomAdjustment = adjustHomeroomLessons(teacher);
+        return {
+          STT: index + 1,
+          'Họ và tên': teacher.name,
+          Tên: getLastName(teacher.name),
+          'Số lớp': getTotalClasses(teacher.teachingDetails, Boolean(teacher.homeroomReduction)),
+          'Hình thức giáo viên': teacher.type,
+          'KC CS1': teacher.totalLessonsQ5NS + homeroomAdjustment.KC_CS1,
+          'Ch CS1': teacher.totalLessonsQ5S,
+          'KC CS2': teacher.totalLessonsTDNS + homeroomAdjustment.KC_CS2,
+          'Ch CS2': teacher.totalLessonsTDS,
+          'Tổng số tiết': teacher.totalAssignment,
+          'Số tiết chuẩn': teacher.type === 'Cơ hữu' ? teacher.basicTeachingLessons : '',
+          'Số tiết giảm': teacher.type === 'Cơ hữu' ? getTotalReducedLessons(teacher) : '',
+          'Nội dung giảm': teacher.type === 'Cơ hữu' ? getReductionReasons(teacher) : '',
+          'Ghi chú': ''
+        };
+      });
 
       const worksheet = XLSX.utils.json_to_sheet([], { skipHeader: true });
 
@@ -86,18 +119,6 @@ const ExportDepartmentTeachers = ({ departmentId, departmentName }) => {
         { s: { r: 0, c: 12 }, e: { r: 2, c: 12 } }, // Merge "Nội dung giảm"
         { s: { r: 0, c: 13 }, e: { r: 2, c: 13 } }  // Merge "Ghi chú"
       ];
-
-      // Apply font to all cells
-      const range = XLSX.utils.decode_range(worksheet['!ref']);
-      for (let R = range.s.r; R <= range.e.r; ++R) {
-        for (let C = range.s.c; C <= range.e.c; ++C) {
-          const cell_address = { c: C, r: R };
-          const cell_ref = XLSX.utils.encode_cell(cell_address);
-          if (!worksheet[cell_ref]) continue;
-          if (!worksheet[cell_ref].s) worksheet[cell_ref].s = {};
-          worksheet[cell_ref].s.font = { name: 'Times New Roman' };
-        }
-      }
 
       const workbook = XLSX.utils.book_new();
       XLSX.utils.book_append_sheet(workbook, worksheet, 'Department Teachers');
