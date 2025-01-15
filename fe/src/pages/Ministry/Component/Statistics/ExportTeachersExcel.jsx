@@ -19,7 +19,7 @@ const ExportTeachersExcel = ({ teachers }) => {
   const getReductionReasons = (teacher) => {
     const reasons = [];
     
-    if (teacher.type === "Cơ hữu") {
+    if (teacher.type === "Cơ hữu" || teacher.type === "BHG-HT") {
       if (teacher.homeroomInfo) {
         reasons.push('GVCN');
       }
@@ -37,7 +37,7 @@ const ExportTeachersExcel = ({ teachers }) => {
     const teacherMap = new Map();
 
     teachers.forEach(teacher => {
-      if (teacher.totalAssignment === 0) return;
+      if (teacher.type !== "Cơ hữu" && teacher.totalAssignment === 0) return;
       
       if (teacherMap.has(teacher.email)) {
         const existingTeacher = teacherMap.get(teacher.email);

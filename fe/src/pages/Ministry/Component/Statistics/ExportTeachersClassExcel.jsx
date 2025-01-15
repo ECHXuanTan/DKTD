@@ -24,7 +24,21 @@ const ExportTeachersClassExcel = () => {
       weeklyChCs2: 0
     };
 
-    teachers.forEach((teacher) => {
+    // Group teachers by email
+    const teachersByEmail = teachers.reduce((acc, teacher) => {
+      if (!acc[teacher.email]) {
+        acc[teacher.email] = {
+          name: teacher.name,
+          type: teacher.type,
+          teachingSubjects: teacher.teachingSubjects,
+          assignments: []
+        };
+      }
+      acc[teacher.email].assignments = [...acc[teacher.email].assignments, ...teacher.assignments];
+      return acc;
+    }, {});
+
+    Object.values(teachersByEmail).forEach((teacher) => {
       if (teacher.assignments && teacher.assignments.length > 0) {
         teacher.assignments.forEach((assignment) => {
           let kcCs1 = '', chCs1 = '', kcCs2 = '', chCs2 = '';

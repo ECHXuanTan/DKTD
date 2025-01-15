@@ -584,7 +584,7 @@ const LeaderClassScreen = () => {
                                 </TableBody>
                             </Table>
                         </TableContainer>
-                        <TablePagination
+                        <TablePagination 
                             rowsPerPageOptions={[25, 50, 100]}
                             component="div"
                             count={filteredClasses.length}
@@ -594,6 +594,9 @@ const LeaderClassScreen = () => {
                             onRowsPerPageChange={handleChangeRowsPerPage}
                             labelRowsPerPage="Số hàng mỗi trang:"
                             labelDisplayedRows={({ from, to, count }) => `${from}-${to} của ${count}`}
+                            sx={{
+                                overflow: 'unset !important'
+                            }}
                         />
                     </div>
                 </Box>
